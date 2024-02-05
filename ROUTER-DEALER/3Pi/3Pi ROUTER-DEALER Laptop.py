@@ -12,7 +12,7 @@ router_socket.bind("tcp://*:5555")  # Binding to all available network interface
 identity_to_ip = {
     b"rpi99": "192.168.1.81",
     b"rpi22": "192.168.1.82",
-    b"rpi1": "192.168.1.83",
+    b"rpi01": "192.168.1.83",
 }
 
 # Loop to receive and send messages
@@ -33,6 +33,9 @@ try:
         # Processing and sending a response back to the sender
         response = input(f"Enter a response for {identity.decode('utf-8')} ({ip_address}): ")
         router_socket.send_multipart([identity, b"", response.encode('utf-8')])
+
+except KeyboardInterrupt:
+    pass
 
 # Exiting the loop
 finally:
