@@ -1,35 +1,30 @@
 import zmq
-import threading
-
-# Function to receive messages from other Raspberry Pis
-def receive_messages():
-    while True:
-        identity, message = dealer_socket.recv_multipart()
-        print(f"Received message from {identity.decode('utf-8')}: {message.decode('utf-8')}")
-
-# Function to send messages to other Raspberry Pis
-def send_messages():
-    while True:
-        identity = input("Enter the identity of the Raspberry Pi to send a message to: ").encode('utf-8')
-        message_to_pi = input(f"Enter message to send to {identity.decode('utf-8')}: ")
-        dealer_socket.send_multipart([identity, message_to_pi.encode('utf-8')])
 
 # Creating ZMQ context
 context = zmq.Context()
 
 # Creating a DEALER socket
 dealer_socket = context.socket(zmq.DEALER)
-dealer_socket.setsockopt_string(zmq.IDENTITY, "rpi99")  # Unique identity for this Raspberry Pi
-dealer_socket.connect("tcp://192.168.1.80:5555")  # Laptop IP address
+dealer_socket.identity = b"rpi99"  # Set the identity of the dealer
+dealer_socket.connect("tcp://192.168.1.80:5555")  # Connecting to the router
 
-# Creating threads for sending and receiving messages
-receive_thread = threading.Thread(target=receive_messages)
-send_thread = threading.Thread(target=send_messages)
+# Loop to send messages to the router
+try:
+    while True:
+        # Sending a message to the router
+        message = input("Enter a message to send to the laptop: ")
+        dealer_socket.send_multipart([b"", message.encode('utf-8')])
 
-# Starting the threads
-receive_thread.start()
-send_thread.start()
+        # Receiving a response from the router
+        response = dealer_socket.recv_multipart()
+        identity, response_data = response[0], response[1]
 
-# Joining the threads
-receive_thread.join()
-send_thread.join()
+        print(f"Received response from {identity}: {response_data.decode('utf-8')}")
+
+except KeyboardInterrupt:
+    pass
+
+# Closing the dealer socket and terminating the context
+finally:
+    dealer_socket.close()
+    context.term()
