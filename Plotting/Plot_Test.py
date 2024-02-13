@@ -68,7 +68,7 @@ class PiWidget(QWidget):
         # Set up ZMQ DEALER socket
         self.dealer_context = zmq.Context()
         self.dealer_socket = self.dealer_context.socket(zmq.DEALER)
-        self.dealer_socket.connect("tcp://127.0.0.1:5556")  # Use the appropriate IP and port
+        self.dealer_socket.connect("tcp://192.168.1.81:5556")  
 
     def start_sequence(self):
         self.timer.start(2000)
