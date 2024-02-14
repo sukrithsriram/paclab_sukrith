@@ -19,7 +19,6 @@ class PiSignal(QGraphicsEllipseItem):
         self.label.setPos(25 - self.label.boundingRect().width() / 2, 25 - self.label.boundingRect().height() / 2) # Positioning the labels
         self.setPos(self.calculate_position()) # Positioning the individual Pi elements
         self.setBrush(QColor("red")) # Setting the initial color of the Pi signals to red
-        
 
     # Function to calculate the position of the Pi signals
     def calculate_position(self):  
@@ -37,72 +36,81 @@ class PiSignal(QGraphicsEllipseItem):
     def set_red(self):  
         self.setBrush(QColor("red"))
 
-# Creating a class for the Widget that controls the bhavior of the individual Pi signals
+# Creating a class for the Widget that controls the behavior of the individual Pi signals
 class PiWidget(QWidget):
     def __init__(self, main_window):
         super(PiWidget, self).__init__()
 
-        self.main_window = main_window
-        self.scene = QGraphicsScene(self)
+        self.main_window = main_window # Creating a variable for the main window
+        self.scene = QGraphicsScene(self) 
         self.view = QGraphicsView(self.scene)
 
-        self.total_Pis = 8
-        self.Pi_signals = [PiSignal(i, self.total_Pis) for i in range(self.total_Pis)]
+        self.total_Pis = 8 # Setting the total number of Pis
+        self.Pi_signals = [PiSignal(i, self.total_Pis) for i in range(self.total_Pis)]  # Creating a list of Pi signals
         [self.scene.addItem(Pi) for Pi in self.Pi_signals]
 
-        self.green_Pi_numbers = []
-        self.timer = QTimer(self)
-        self.timer.timeout.connect(self.update_Pi)
+        self.green_Pi_numbers = []  # Creating an empty list to log which Pi signals turn green
 
-        self.start_button = QPushButton("Start Experiment")
+        self.timer = QTimer(self)  # Creating a timer
+        self.timer.timeout.connect(self.update_Pi) # Connecting the timer to the update_Pi function
+
+        # Creating buttons to start and stop the experiment
+        self.start_button = QPushButton("Start Experiment") 
         self.start_button.clicked.connect(self.start_sequence)
 
         self.stop_button = QPushButton("Stop Experiment")
         self.stop_button.clicked.connect(self.stop_sequence)
 
+        # Arranging the buttons and the Widget in a vertical layout
         layout = QVBoxLayout(self)
         layout.addWidget(self.view)
         layout.addWidget(self.start_button)
         layout.addWidget(self.stop_button)
-
-        # Set up ZMQ DEALER socket
-        self.dealer_context = zmq.Context()
-        self.dealer_socket = self.dealer_context.socket(zmq.DEALER)
-        self.dealer_socket.connect("tcp://192.168.1.81:5556")  
+        
+        # Creating a ZeroMQ context and socket for communication with the Raspberry Pi
+        self.context = zmq.Context()
+        self.socket = self.context.socket(zmq.ROUTER) # Using the ROUTER socket
+        self.socket.bind("tcp://*:5555")  # Binding to all IP addresses on port 5555
 
     def start_sequence(self):
         self.timer.start(2000)
+        self.main_window.plot_window.start_plot()
 
     def stop_sequence(self):
         self.timer.stop()
+        self.main_window.plot_window.stop_plot()
 
     def update_Pi(self):
+       # Setting all Pis to red
+        for Pi in self.Pi_signals:
+            Pi.set_red()
+
+        # Receiving a message from the Raspberry Pi
+        identity, message = self.socket.recv_multipart()
+
+        # Extracting the Pi number from the received message
         try:
-            # Receive the signal from the Raspberry Pi DEALER
-            signal = int(self.dealer_socket.recv_string())
+            green_Pi = int(message)
+            if 1 <= green_Pi <= self.total_Pis:
+                green_Pi_signal = self.Pi_signals[green_Pi - 1]
+                green_Pi_signal.set_green()
 
-            # Set all Pis to red
-            for Pi in self.Pi_signals:
-                Pi.set_red()
+                # Recording the sequence in which the Pis play audio
+                self.green_Pi_numbers.append(green_Pi)
 
-            # Set the specific Pi to green based on the received signal
-            green_Pi = self.Pi_signals[signal - 1]
-            green_Pi.set_green()
+                # Sending the Pi value to MainWindow for plotting
+                self.main_window.plot_green_pi(green_Pi)
+                self.main_window.plot_window.update_signal(green_Pi)
 
-            # Record the sequence in which the Pis play audio
-            self.green_Pi_numbers.append(signal)
+                # Printing the sequence in which the Pis play audio
+                print("Sequence:", self.green_Pi_numbers)
 
-            # Sending the Pi value to MainWindow for plotting
-            self.main_window.plot_green_pi(signal)
-            self.main_window.plot_window.update_signal(signal)
-
-            # Print the sequence in which the Pis play audio
-            print("Sequence:", self.green_Pi_numbers)
-
-        except zmq.Again:  # Handle a timeout, if needed
-            print("Timeout: No signal received from Raspberry Pi")
-
-
+                # Sending an acknowledgement to the Raspberry Pi 
+                self.socket.send_multipart([identity, b"ACK"])
+            else:
+                print("Invalid Pi number received:", green_Pi)
+        except ValueError:
+            print("Invalid message received from the Raspberry Pi:", message)
 
 # Creating a class to dynamically plot the sequence in which the Pis play audio
 class PlotWindow(QWidget):
@@ -272,4 +280,3 @@ if __name__ == '__main__':
     app = QApplication(sys.argv)
     main_window = MainWindow()
     sys.exit(app.exec())
-
