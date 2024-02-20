@@ -104,27 +104,18 @@ class PiWidget(QWidget):
 
                 # Recording the sequence in which the Pis play audio
                 self.green_Pi_numbers.append(green_Pi)
+                self.main_window.plot_green_pi(green_Pi)
 
                 # Emit signals to update the GUI in the main thread
-                self.signals.greenPiSignal.emit(green_Pi)
-                self.signals.updateSignal.emit(green_Pi)
+                # self.signals.greenPiSignal.emit(green_Pi)
+                # self.signals.updateSignal.emit(green_Pi)
 
                 # Printing the sequence in which the Pis play audio
                 print("Sequence:", self.green_Pi_numbers)
 
-                # If the same Pi repeats consecutively, choose a random remaining Pi
-                if identity == self.last_pi_received:
-                    remaining_pis = list(set(range(1, self.total_Pis + 1)) - {green_Pi})
-                    if remaining_pis:
-                        next_pi = random.choice(remaining_pis)
-                        self.socket.send_multipart([f"rpi{next_pi}".encode(), b"ACK"])
-                        self.last_pi_received = f"rpi{next_pi}".encode()
-                    else:
-                        print("No remaining Pis. Ignoring.")
-                else:
-                    # Sending an acknowledgement to the Raspberry Pi
-                    self.socket.send_multipart([identity, b"ACK"])
-                    self.last_pi_received = identity
+                # Sending an acknowledgement to the Raspberry Pi
+                self.socket.send_multipart([identity, b"ACK"])
+                self.last_pi_received = identity
 
             else:
                 print("Invalid Pi number received:", green_Pi)
@@ -166,7 +157,7 @@ class PlotWindow(QWidget):
 
         # Adding a timer to match when the Widget is active and changes color
         self.timer = QTimer(self)
-        self.timer.setInterval(2000)
+        self.timer.setInterval(500)
         self.timer.timeout.connect(self.update_plot)
 
     def start_plot(self):
