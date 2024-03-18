@@ -180,11 +180,11 @@ class PlotWindow(QWidget):
         self.plot_graph = pg.PlotWidget()
         self.layout = QVBoxLayout(self)
         self.layout.addWidget(self.plot_graph)
-        self.plot_graph.setBackground("w")
-        self.plot_graph.setTitle("Active Pi vs Time", color="red", size="18pt")
-        styles = {"color": "red", "font-size": "15px"}
-        self.plot_graph.setLabel("left", "Active Pi Number", **styles)
-        self.plot_graph.setLabel("bottom", "Time", **styles)
+        self.plot_graph.setBackground("k")  # Set background color to black
+        self.plot_graph.setTitle("Active Pi vs Time", color="white", size="12pt")  # Set title color to red
+        styles = {"color": "white", "font-size": "15px"}  # Set font color to white
+        self.plot_graph.setLabel("left", "Active Pi Number", **styles)  # Set left axis label font color to white
+        self.plot_graph.setLabel("bottom", "Time", **styles)  # Set bottom axis label font color to white
         self.plot_graph.addLegend()
         self.plot_graph.showGrid(x=True, y=True)
         self.plot_graph.setXRange(0, self.plot_interval)
@@ -198,8 +198,8 @@ class PlotWindow(QWidget):
             self.signal,
             name="Active Pi",
             pen=None,
-            symbol="o",
-            symbolSize=15,
+            symbol="o",  # Set the symbol to circle
+            symbolSize=5,  # Set the size of the symbol
             symbolBrush="g",
         )
 
@@ -233,7 +233,6 @@ class PlotWindow(QWidget):
         # Convert timestamps to relative time within the plot interval
         relative_time = [(t - self.timestamps[0]) for t in self.timestamps]
         self.line.setData(x=relative_time, y=self.signal)
-
 
 # Creating a class to enter a list of subjects
 class SubjectList(QWidget):
