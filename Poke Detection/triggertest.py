@@ -16,8 +16,8 @@ def poke_down(pin, level, tick): # Callback function triggered when pulse A goes
     print("Poke Completed")
 
 pi = pigpio.pi()
-pi.callback(12, pigpio.RISING_EDGE, poke_detected)
-pi.callback(12, pigpio.FALLING_EDGE, poke_down)
+pi.callback(14, pigpio.RISING_EDGE, poke_detected)
+pi.callback(14, pigpio.FALLING_EDGE, poke_down)
 
 try:
     while True:
