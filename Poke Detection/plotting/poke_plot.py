@@ -279,7 +279,6 @@ class SubjectList(QWidget):
         self.subject_list.clear()
         self.subject_list.addItems(self.subjects)
 
-# Creating a class for the Main Window with all the GUI components
 class MainWindow(QtWidgets.QMainWindow):
     def __init__(self):
         super().__init__()
@@ -313,6 +312,13 @@ class MainWindow(QtWidgets.QMainWindow):
     # Function to plot the Pi signals using the PlotWindow class
     def plot_green_pi(self, green_pi_value):
         self.plot_window.handle_update_signal(green_pi_value)
+
+    # Override closeEvent to send 'exit' to all IP addresses bound to the GUI
+    def closeEvent(self, event):
+        # Iterate through identities and send 'exit' message
+        for identity in self.Pi_widget.worker.identities:
+            self.Pi_widget.worker.socket.send_multipart([identity, b"exit"])
+        event.accept()
         
 # Running the GUI
 if __name__ == '__main__':
