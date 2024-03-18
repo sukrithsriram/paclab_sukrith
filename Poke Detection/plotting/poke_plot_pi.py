@@ -16,6 +16,7 @@ count = 0
 nosepoke_pin = 14
 nosepoke_id = 3
 
+# Callback functions for nosepoke pin (When the nosepoke is detected)
 def poke_detected(pin, level, tick): 
     global a_state, count, nosepoke_id
     a_state = 1
@@ -31,19 +32,31 @@ def poke_detected(pin, level, tick):
     except Exception as e:
         print("Error sending nosepoke_id:", e)
 
+# Callback function for nosepoke pin (When the nosepoke is completed)
 def poke_out(pin, level, tick):
     global a_state
     a_state = 0
     print("Poke Completed")
 
+# Set up pigpio and callbacks
 pi = pigpio.pi()
 pi.callback(nosepoke_pin, pigpio.RISING_EDGE, poke_detected)
 pi.callback(nosepoke_pin, pigpio.FALLING_EDGE, poke_out)
 
+# Main loop to keep the program running and exit when it receives an exit command
 try:
     while True:
-        pass
+        # Check for incoming messages
+        try:
+            msg = socket.recv_string(zmq.NOBLOCK)
+            if msg == 'exit':
+                print("Received exit command. Terminating program.")
+                break  # Exit the loop
+        except zmq.Again:
+            pass  # No messages received
+        
 except KeyboardInterrupt:
     pi.stop()
+finally:
     socket.close()
     context.term()
