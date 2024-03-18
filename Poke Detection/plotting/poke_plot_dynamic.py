@@ -179,7 +179,7 @@ class PlotWindow(QWidget):
         self.layout = QVBoxLayout(self)
         self.layout.addWidget(self.plot_graph)
         self.plot_graph.setBackground("w")
-        self.plot_graph.setTitle("Active Pi vs Time", color="red", size="18pt")
+        self.plot_graph.setTitle("Active Pi vs Time", color="red", size="12pt")
         styles = {"color": "red", "font-size": "15px"}
         self.plot_graph.setLabel("left", "Active Pi Number", **styles)
         self.plot_graph.setLabel("bottom", "Time", **styles)
@@ -196,7 +196,7 @@ class PlotWindow(QWidget):
             name="Active Pi",
             pen=None,
             symbol="o",
-            symbolSize=15,
+            symbolSize=10,
             symbolBrush="g",
         )
 
