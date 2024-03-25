@@ -61,14 +61,14 @@ class Worker(QObject):
         self.identities = set()
         
         # Initialize correct_port and related variables
-        self.correct_port = random.choice([3, 4])
+        self.correct_port = random.choice([1, 3, 5, 7])
         self.previous_port = self.correct_port
         self.attempts_since_change = 0
 
     @pyqtSlot()
     def start_sequence(self):
         # Randomly choose either 3 or 4
-        correct_port = random.choice([3, 4])
+        correct_port = random.choice([1, 3, 5, 7])
         print(f"Correct Port: {correct_port}")
         
         # Send the chosen number to the Pi before starting the timer
@@ -93,7 +93,7 @@ class Worker(QObject):
             if Pi.index + 1 == self.correct_port:
                 Pi.set_color("green")
             else:
-                Pi.set_color("red")
+                Pi.set_color("gray")  # Set to gray initially
 
         # Receive message from the socket
         identity, message = self.socket.recv_multipart()
@@ -126,7 +126,7 @@ class Worker(QObject):
                 
                 # Check if it's time to change the correct port
                 if color == "green" or color == "blue":
-                    self.correct_port = random.choice([3, 4])
+                    self.correct_port = random.choice([1, 3, 5, 7])
                     self.attempts_since_change = 0
                     print(f"Correct Port: {self.correct_port}")
             else:
