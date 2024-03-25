@@ -30,17 +30,17 @@ class PiSignal(QGraphicsEllipseItem):
         y = radius * math.sin(angle)
         return QPointF(200 + x, 200 + y)
 
-    # Function to set the Pi signals to green
-    def set_green(self):  
-        self.setBrush(QColor("red"))
-
-    # Function to set the Pi signals to red
-    def set_red(self):  
-        self.setBrush(QColor("gray"))
-    
-    # Function to set the Pi signals to blue
-    def set_blue(self):
-        self.setBrush(QColor("blue"))
+    def set_color(self, color):
+        if color == "green":
+            self.setBrush(QColor("green"))
+        elif color == "blue":
+            self.setBrush(QColor("blue"))
+        elif color == "red":
+            self.setBrush(QColor("red"))
+        elif color == "gray":
+            self.setBrush(QColor("gray"))
+        else:
+            print("Invalid color:", color)
 
 
 class Worker(QObject):
@@ -88,12 +88,14 @@ class Worker(QObject):
 
     @pyqtSlot()
     def update_Pi(self):
+        # Update the color of PiSignal objects based on the current correct port number
         for Pi in self.Pi_signals:
             if Pi.index + 1 == self.correct_port:
-             Pi.set_green()
+                Pi.set_color("green")
             else:
-             Pi.set_red()
+                Pi.set_color("red")
 
+        # Receive message from the socket
         identity, message = self.socket.recv_multipart()
         self.identities.add(identity)
 
@@ -102,13 +104,8 @@ class Worker(QObject):
             
             if 1 <= green_Pi <= self.total_Pis: 
                 green_Pi_signal = self.Pi_signals[green_Pi - 1] 
-                green_Pi_signal.set_green() 
                 
-                self.green_Pi_numbers.append(green_Pi) 
-                print("Sequence:", self.green_Pi_numbers) 
-                self.last_pi_received = identity
-                
-                # Check if the received Pi number is the correct port
+                # Check if the received Pi number matches the current correct port
                 if green_Pi == self.correct_port:
                     color = "green" if self.attempts_since_change == 0 else "blue"
                     if self.attempts_since_change > 0:
@@ -117,11 +114,18 @@ class Worker(QObject):
                     color = "red"
                     self.attempts_since_change += 1
                 
+                # Set the color of the PiSignal object
+                green_Pi_signal.set_color(color) 
+                
+                self.green_Pi_numbers.append(green_Pi) 
+                print("Sequence:", self.green_Pi_numbers) 
+                self.last_pi_received = identity
+                
                 # Emit the signal with the appropriate color
                 self.greenPiNumberSignal.emit(green_Pi, color)
                 
                 # Check if it's time to change the correct port
-                if color == "green"or color == "blue":
+                if color == "green" or color == "blue":
                     self.correct_port = random.choice([3, 4])
                     self.attempts_since_change = 0
                     print(f"Correct Port: {self.correct_port}")
@@ -129,11 +133,13 @@ class Worker(QObject):
                 print("Invalid Pi number received:", green_Pi)
         except ValueError:
             print("Invalid message received from the Raspberry Pi:", message)
-    
-    # Function to stop the Pis from sending messages when the GUI is closed
-    def close(self):
-        for identity in self.identities:
-            self.socket.send_multipart([identity, b"CLOSE"])  # Send acknowledgement to each identity
+
+
+# Function to stop the Pis from sending messages when the GUI is closed
+def close(self):
+    for identity in self.identities:
+        self.socket.send_multipart([identity, b"CLOSE"])  # Send acknowledgement to each identity
+
 
 # Creating a class for the Window that manages and displays the sequence of Pi signals
 class PiWidget(QWidget):
