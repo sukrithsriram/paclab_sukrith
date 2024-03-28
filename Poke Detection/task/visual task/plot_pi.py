@@ -11,7 +11,8 @@ socket.identity = pi_identity
 
 # Connect to the server
 router_ip = "tcp://192.168.0.194:5555" # Connecting to Laptop IP address (192.168.0.99 for lab setup)
-socket.connect(router_ip)  
+socket.connect(router_ip)
+socket.send_string("rpi22")
 print(f"Connected to router at {router_ip}")  # Print acknowledgment
 
 # Pigpio configuration
