@@ -130,6 +130,7 @@ try:
                     # Manipulate pins for case 1
                     reward_pin = 27  # Example pin for case 1 (Change this to the actual)
                     pi.set_mode(reward_pin, pigpio.OUTPUT)
+                    pi.set_PWM_frequency(reward_pin, 1000)
                     pi.set_PWM_dutycycle(reward_pin, 255)
                     print("Turning Nosepoke 1 Green")
 
@@ -140,6 +141,7 @@ try:
                     # Manipulate pins for case 2
                     reward_pin = 9  # Example pin for case 2
                     pi.set_mode(reward_pin, pigpio.OUTPUT)
+                    pi.set_PWM_frequency(reward_pin, 1000)
                     pi.set_PWM_dutycycle(reward_pin, 255)
                     print("Turning Nosepoke 3 Green")
 
