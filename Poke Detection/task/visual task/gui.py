@@ -67,7 +67,7 @@ class Worker(QObject):
     @pyqtSlot()
     def start_sequence(self):
         # Randomly choose either 3 or 4
-        self.reward_port = random.choice([5,7])
+        self.reward_port = random.choice([1, 3, 5, 7])
         message = f"Reward Port: {self.reward_port}"
         print(message)
         
@@ -128,7 +128,7 @@ class Worker(QObject):
                 if color == "green" or color == "blue":
                     for identity in self.identities:
                         self.socket.send_multipart([identity, b"Reward Poke Completed"])
-                    self.reward_port = random.choice([5,7])
+                    self.reward_port = random.choice([1, 3, 5, 7])
                     self.trials = 0
                     print(f"Reward Port: {self.reward_port}")  # Print the updated Reward Port
 
