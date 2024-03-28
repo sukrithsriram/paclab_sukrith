@@ -67,7 +67,7 @@ class Worker(QObject):
     @pyqtSlot()
     def start_sequence(self):
         # Randomly choose either 3 or 4
-        self.reward_port = random.choice([1, 3, 5, 7])
+        self.reward_port = random.choice([5,7])
         message = f"Reward Port: {self.reward_port}"
         print(message)
         
@@ -88,6 +88,14 @@ class Worker(QObject):
 
     @pyqtSlot()
     def update_Pi(self):
+        # while self.socket.poll(10):  # Check for messages every 100 milliseconds
+        #     identity, message = self.socket.recv_multipart()
+        #     # Process the received message
+        #     message_str = message.decode('utf-8')
+        #     if message_str == "connect":
+        #         self.identities.add(identity)
+        #         self.socket.send_multipart([identity, bytes(f"ACK: {identity}", 'utf-8')])
+
         # Update the color of PiSignal objects based on the current Reward Port number
         for index, Pi in enumerate(self.Pi_signals):
             if index + 1 == self.reward_port:
@@ -128,7 +136,7 @@ class Worker(QObject):
                 if color == "green" or color == "blue":
                     for identity in self.identities:
                         self.socket.send_multipart([identity, b"Reward Poke Completed"])
-                    self.reward_port = random.choice([1, 3, 5, 7])
+                    self.reward_port = random.choice([5,7])
                     self.trials = 0
                     print(f"Reward Port: {self.reward_port}")  # Print the updated Reward Port
 
@@ -139,7 +147,7 @@ class Worker(QObject):
             else:
                 print("Invalid Pi number received:", green_Pi)
         except ValueError:
-            print("Invalid message received from the Raspberry Pi:", message)
+            print("Connected to Raspberry Pi:", message)
 
 # Creating a class for the Window that manages and displays the sequence of Pi signals
 class PiWidget(QWidget):
