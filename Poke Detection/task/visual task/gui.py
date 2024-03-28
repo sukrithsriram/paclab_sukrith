@@ -88,14 +88,6 @@ class Worker(QObject):
 
     @pyqtSlot()
     def update_Pi(self):
-        # while self.socket.poll(10):  # Check for messages every 100 milliseconds
-        #     identity, message = self.socket.recv_multipart()
-        #     # Process the received message
-        #     message_str = message.decode('utf-8')
-        #     if message_str == "connect":
-        #         self.identities.add(identity)
-        #         self.socket.send_multipart([identity, bytes(f"ACK: {identity}", 'utf-8')])
-
         # Update the color of PiSignal objects based on the current Reward Port number
         for index, Pi in enumerate(self.Pi_signals):
             if index + 1 == self.reward_port:
