@@ -6,8 +6,9 @@ import time
 import math
 import pyqtgraph as pg
 import random
+import csv
 from PyQt5 import QtWidgets
-from PyQt5.QtWidgets import QGraphicsEllipseItem, QGraphicsTextItem, QGraphicsScene, QGraphicsView, QWidget, QVBoxLayout, QPushButton, QApplication, QHBoxLayout, QLineEdit, QListWidget
+from PyQt5.QtWidgets import QGraphicsEllipseItem, QGraphicsTextItem, QGraphicsScene, QGraphicsView, QWidget, QVBoxLayout, QPushButton, QApplication, QHBoxLayout, QLineEdit, QListWidget, QFileDialog
 from PyQt5.QtCore import QPointF, QTimer, pyqtSignal, QObject, QThread, pyqtSlot,  QMetaObject, Qt
 from PyQt5.QtGui import QColor
 
@@ -47,6 +48,7 @@ class Worker(QObject):
 
     def __init__(self, pi_widget):
         super().__init__()
+        self.initial_time = None
         self.context = zmq.Context()
         self.socket = self.context.socket(zmq.ROUTER)
         self.socket.bind("tcp://*:5555")
@@ -64,10 +66,19 @@ class Worker(QObject):
         self.previous_port = None
         self.trials = 0
 
+        # Placeholder for timestamps and ports visited
+        self.timestamps = []
+        self.ports_visited = []
+
     @pyqtSlot()
     def start_sequence(self):
-        # Randomly choose either 3 or 4
-        self.reward_port = random.choice([1,3 ,5,7])
+        # Reset data when starting a new sequence
+        self.initial_time = time.time()
+        self.timestamps = []
+        self.ports_visited = []
+
+        # Randomly choose either 3 or 4 as the initial reward port
+        self.reward_port = random.choice([1, 3, 5, 7])
         message = f"Reward Port: {self.reward_port}"
         print(message)
         
@@ -88,6 +99,8 @@ class Worker(QObject):
 
     @pyqtSlot()
     def update_Pi(self):
+        current_time = time.time()
+        elapsed_time = current_time - self.initial_time
         # Update the color of PiSignal objects based on the current Reward Port number
         for index, Pi in enumerate(self.Pi_signals):
             if index + 1 == self.reward_port:
@@ -125,10 +138,14 @@ class Worker(QObject):
                 # Emit the signal with the appropriate color
                 self.greenPiNumberSignal.emit(green_Pi, color)
                 
+                # Record timestamp and port visited
+                self.timestamps.append(elapsed_time)
+                self.ports_visited.append(self.reward_port)
+                
                 if color == "green" or color == "blue":
                     for identity in self.identities:
                         self.socket.send_multipart([identity, b"Reward Poke Completed"])
-                    self.reward_port = random.choice([1,3, 5, 7])
+                    self.reward_port = random.choice([1, 3, 5, 7])
                     self.trials = 0
                     print(f"Reward Port: {self.reward_port}")  # Print the updated Reward Port
 
@@ -141,7 +158,17 @@ class Worker(QObject):
         except ValueError:
             print("Connected to Raspberry Pi:", message)
 
-# Creating a class for the Window that manages and displays the sequence of Pi signals
+    def save_results_to_csv(self):
+        # Save results to a CSV file
+        filename, _ = QFileDialog.getSaveFileName(None, "Save Results", "", "CSV Files (*.csv)")
+        if filename:
+            with open(filename, 'w', newline='') as csvfile:
+                writer = csv.writer(csvfile)
+                writer.writerow(["Timestamp (s)", "Port Visited"])
+                for timestamp, port_visited in zip(self.timestamps, self.ports_visited):
+                    writer.writerow([timestamp, port_visited])
+
+# Modify PiWidget Class
 class PiWidget(QWidget):
     updateSignal = pyqtSignal(int, str) # Signal to emit the number and color of the active Pi
 
@@ -163,12 +190,15 @@ class PiWidget(QWidget):
 
         self.start_button = QPushButton("Start Experiment")
         self.stop_button = QPushButton("Stop Experiment")
+        self.save_results_button = QPushButton("Save Results")
+        self.save_results_button.clicked.connect(self.save_results_to_csv)  # Connect save button to save method
 
         # Arranging the GUI in a vertical layout
         layout = QVBoxLayout(self)
         layout.addWidget(self.view)
         layout.addWidget(self.start_button)
         layout.addWidget(self.stop_button)
+        layout.addWidget(self.save_results_button)  # Add save button to layout
 
         # Creating an instance of the Worker Class and a Thread to handle the communication with the Raspberry Pi
         self.worker = Worker(self)
@@ -196,6 +226,9 @@ class PiWidget(QWidget):
         QMetaObject.invokeMethod(self.worker, "stop_sequence", Qt.QueuedConnection)
         print("Experiment Stopped!")
         self.thread.quit()
+
+    def save_results_to_csv(self):
+        self.worker.save_results_to_csv()  # Call worker method to save results
 
 class PlotWindow(QWidget):
     def __init__(self, pi_widget):
