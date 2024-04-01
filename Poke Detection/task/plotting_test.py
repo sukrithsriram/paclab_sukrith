@@ -68,14 +68,14 @@ class Worker(QObject):
 
         # Placeholder for timestamps and ports visited
         self.timestamps = []
-        self.ports_visited = []
+        self.reward_ports = []
 
     @pyqtSlot()
     def start_sequence(self):
         # Reset data when starting a new sequence
         self.initial_time = time.time()
         self.timestamps = []
-        self.ports_visited = []
+        self.reward_ports = []
 
         # Randomly choose either 3 or 4 as the initial reward port
         self.reward_port = random.choice([1, 3, 5, 7])
@@ -140,7 +140,7 @@ class Worker(QObject):
                 
                 # Record timestamp and port visited
                 self.timestamps.append(elapsed_time)
-                self.ports_visited.append(self.reward_port)
+                self.reward_ports.append(self.reward_port)
                 
                 if color == "green" or color == "blue":
                     for identity in self.identities:
@@ -164,9 +164,9 @@ class Worker(QObject):
         if filename:
             with open(filename, 'w', newline='') as csvfile:
                 writer = csv.writer(csvfile)
-                writer.writerow(["Timestamp (s)", "Port Visited"])
-                for timestamp, port_visited in zip(self.timestamps, self.ports_visited):
-                    writer.writerow([timestamp, port_visited])
+                writer.writerow(["Timestamp (seconds)", "Port Visited", "Reward Port"])
+                for timestamp, green_Pi, reward_port in zip(self.timestamps, self.green_Pi_numbers, self.reward_ports):
+                    writer.writerow([timestamp, green_Pi, reward_port])
 
 # Modify PiWidget Class
 class PiWidget(QWidget):
