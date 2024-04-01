@@ -164,7 +164,7 @@ class Worker(QObject):
         if filename:
             with open(filename, 'w', newline='') as csvfile:
                 writer = csv.writer(csvfile)
-                writer.writerow(["Timestamp (seconds)", "Port Visited", "Reward Port"])
+                writer.writerow(["Timestamp (seconds)", "Port Visited", "Current Reward Port"])
                 for timestamp, green_Pi, reward_port in zip(self.timestamps, self.green_Pi_numbers, self.reward_ports):
                     writer.writerow([timestamp, green_Pi, reward_port])
 
