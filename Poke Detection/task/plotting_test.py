@@ -42,7 +42,6 @@ class PiSignal(QGraphicsEllipseItem):
         else:
             print("Invalid color:", color)
 
-
 class Worker(QObject):
     greenPiNumberSignal = pyqtSignal(int, str)
 
@@ -51,7 +50,7 @@ class Worker(QObject):
         self.context = zmq.Context()
         self.socket = self.context.socket(zmq.ROUTER)
         self.socket.bind("tcp://*:5555")
-        
+
         self.last_pi_received = None
         self.timer = None
         self.pi_widget = pi_widget
@@ -60,20 +59,21 @@ class Worker(QObject):
         self.green_Pi_numbers = self.pi_widget.green_Pi_numbers 
         self.identities = set()
         
-        # Initialize correct_port and related variables
-        self.correct_port = random.choice([1, 3, 5, 7])
-        self.previous_port = self.correct_port
-        self.attempts_since_change = 0
+        # Initialize reward_port and related variables
+        self.reward_port = None
+        self.previous_port = None
+        self.trials = 0
 
     @pyqtSlot()
     def start_sequence(self):
         # Randomly choose either 3 or 4
-        correct_port = random.choice([1, 3, 5, 7])
-        print(f"Correct Port: {correct_port}")
+        self.reward_port = random.choice([1,3 ,5,7])
+        message = f"Reward Port: {self.reward_port}"
+        print(message)
         
-        # Send the chosen number to the Pi before starting the timer
+        # Send the message to all connected Pis
         for identity in self.identities:
-            self.socket.send_multipart([identity, bytes(str(correct_port), 'utf-8')])
+            self.socket.send_multipart([identity, bytes(message, 'utf-8')])
 
         # Start the timer loop
         self.timer = QTimer()
@@ -88,16 +88,17 @@ class Worker(QObject):
 
     @pyqtSlot()
     def update_Pi(self):
-        # Update the color of PiSignal objects based on the current correct port number
-        for Pi in self.Pi_signals:
-            if Pi.index + 1 == self.correct_port:
+        # Update the color of PiSignal objects based on the current Reward Port number
+        for index, Pi in enumerate(self.Pi_signals):
+            if index + 1 == self.reward_port:
                 Pi.set_color("green")
             else:
-                Pi.set_color("gray")  # Set to gray initially
+                Pi.set_color("gray")
 
         # Receive message from the socket
         identity, message = self.socket.recv_multipart()
         self.identities.add(identity)
+        self.socket.send_multipart([identity, bytes(f"Reward Port: {self.reward_port}", 'utf-8')])
 
         try:
             green_Pi = int(message)
@@ -105,14 +106,14 @@ class Worker(QObject):
             if 1 <= green_Pi <= self.total_Pis: 
                 green_Pi_signal = self.Pi_signals[green_Pi - 1] 
                 
-                # Check if the received Pi number matches the current correct port
-                if green_Pi == self.correct_port:
-                    color = "green" if self.attempts_since_change == 0 else "blue"
-                    if self.attempts_since_change > 0:
-                        self.attempts_since_change = 0  # Reset attempts since change
+                # Check if the received Pi number matches the current Reward Port
+                if green_Pi == self.reward_port:
+                    color = "green" if self.trials == 0 else "blue"
+                    if self.trials > 0:
+                        self.trials = 0  # Reset attempts since change
                 else:
                     color = "red"
-                    self.attempts_since_change += 1
+                    self.trials += 1
                 
                 # Set the color of the PiSignal object
                 green_Pi_signal.set_color(color) 
@@ -124,22 +125,21 @@ class Worker(QObject):
                 # Emit the signal with the appropriate color
                 self.greenPiNumberSignal.emit(green_Pi, color)
                 
-                # Check if it's time to change the correct port
                 if color == "green" or color == "blue":
-                    self.correct_port = random.choice([1, 3, 5, 7])
-                    self.attempts_since_change = 0
-                    print(f"Correct Port: {self.correct_port}")
+                    for identity in self.identities:
+                        self.socket.send_multipart([identity, b"Reward Poke Completed"])
+                    self.reward_port = random.choice([1,3, 5, 7])
+                    self.trials = 0
+                    print(f"Reward Port: {self.reward_port}")  # Print the updated Reward Port
+
+                    # Send the message to all connected Pis
+                    for identity in self.identities:
+                        self.socket.send_multipart([identity, bytes(f"Reward Port: {self.reward_port}", 'utf-8')])
+
             else:
                 print("Invalid Pi number received:", green_Pi)
         except ValueError:
-            print("Invalid message received from the Raspberry Pi:", message)
-
-
-# Function to stop the Pis from sending messages when the GUI is closed
-def close(self):
-    for identity in self.identities:
-        self.socket.send_multipart([identity, b"CLOSE"])  # Send acknowledgement to each identity
-
+            print("Connected to Raspberry Pi:", message)
 
 # Creating a class for the Window that manages and displays the sequence of Pi signals
 class PiWidget(QWidget):
@@ -185,9 +185,6 @@ class PiWidget(QWidget):
         # Emit the updateSignal with the received green_Pi_number and color
         self.updateSignal.emit(green_Pi_number, color)
 
-    def update(self):
-        pass
-    
     def start_sequence(self):
         # Start the worker thread when the start button is pressed
         self.thread.start()
@@ -212,9 +209,9 @@ class PlotWindow(QWidget):
         self.layout = QVBoxLayout(self)
         self.layout.addWidget(self.plot_graph)
         self.plot_graph.setBackground("w")
-        self.plot_graph.setTitle("Active Pi vs Time", color="red", size="12pt")
+        self.plot_graph.setTitle("Active Nosepoke vs Time", color="red", size="12pt")
         styles = {"color": "red", "font-size": "15px"}
-        self.plot_graph.setLabel("left", "Active Pi Number", **styles)
+        self.plot_graph.setLabel("left", "Nosepoke ID", **styles)
         self.plot_graph.setLabel("bottom", "Time", **styles)
         self.plot_graph.addLegend()
         self.plot_graph.showGrid(x=True, y=True)
@@ -340,16 +337,27 @@ class MainWindow(QtWidgets.QMainWindow):
         # Initializing PlotWindow after PiWidget
         self.plot_window = PlotWindow(self.Pi_widget)
 
+        # Creating container widgets for each component
+        subject_list_container = QWidget()
+        subject_list_container.setFixedWidth(300)  # Limiting the width of the subject list container
+        subject_list_container.setLayout(QVBoxLayout())
+        subject_list_container.layout().addWidget(self.subject_list)
+
+        pi_widget_container = QWidget()
+        pi_widget_container.setFixedWidth(450)  # Limiting the width of the PiWidget container
+        pi_widget_container.setLayout(QVBoxLayout())
+        pi_widget_container.layout().addWidget(self.Pi_widget)
+
         # Setting the central widget as a container widget for all components
         container_widget = QWidget(self)
         container_layout = QHBoxLayout(container_widget)
-        container_layout.addWidget(self.subject_list)
-        container_layout.addWidget(self.Pi_widget)
+        container_layout.addWidget(subject_list_container)
+        container_layout.addWidget(pi_widget_container)
         container_layout.addWidget(self.plot_window)
         self.setCentralWidget(container_widget)
 
         # Setting the dimensions of the main window
-        self.resize(1400, 600)
+        self.resize(2000, 600)
         self.show()
 
         # Connecting signals after the MainWindow is fully initialized
