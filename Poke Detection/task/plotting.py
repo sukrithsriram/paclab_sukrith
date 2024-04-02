@@ -328,6 +328,7 @@ class PlotWindow(QWidget):
         self.line.setData(x=self.timestamps, y=self.signal)
 
 
+
 class ConfigurationDetailsDialog(QDialog):
     def __init__(self, config, parent=None):
         super().__init__(parent)
@@ -391,21 +392,22 @@ class ConfigurationList(QWidget):
     def __init__(self):
         super().__init__()
         self.configurations = []
+        self.current_config = None
         self.init_ui()
 
     # Creating the GUI for the Configuration List
     def init_ui(self):
         self.config_list = QListWidget()
-        self.config_entry = QLineEdit()
         self.add_button = QPushButton('Add Config')
         self.remove_button = QPushButton('Remove Config')
+        self.selected_config_label = QLabel()
 
         button_layout = QHBoxLayout()
         button_layout.addWidget(self.add_button)
         button_layout.addWidget(self.remove_button)
 
         main_layout = QVBoxLayout()
-        main_layout.addWidget(self.config_entry)
+        main_layout.addWidget(self.selected_config_label)
         main_layout.addWidget(self.config_list)
         main_layout.addLayout(button_layout)
 
@@ -432,20 +434,22 @@ class ConfigurationList(QWidget):
             self.configurations.remove(selected_config)
             self.update_config_list()
 
-    # Function to update the configuration list
     def update_config_list(self):
         self.config_list.clear()
         for config in self.configurations:
             item = QListWidgetItem(config["name"])
             item.setData(Qt.UserRole, config)
             self.config_list.addItem(item)
+        # Connect the config_item_clicked method to the itemClicked signal
         self.config_list.itemClicked.connect(self.config_item_clicked)
 
     def config_item_clicked(self, item):
         selected_config = item.data(Qt.UserRole)
+        self.current_config = selected_config
+        self.selected_config_label.setText(f"Selected Config: {selected_config['name']}")
         dialog = ConfigurationDetailsDialog(selected_config, self)
         dialog.exec_()
-
+    
 class MainWindow(QtWidgets.QMainWindow):
     def __init__(self):
         super().__init__()
@@ -479,7 +483,7 @@ class MainWindow(QtWidgets.QMainWindow):
         self.setCentralWidget(container_widget)
 
         # Setting the dimensions of the main window
-        self.resize(2000, 600)
+        self.resize(2000, 700)
         self.show()
 
         # Connecting signals after the MainWindow is fully initialized
