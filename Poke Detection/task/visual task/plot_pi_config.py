@@ -1,5 +1,6 @@
 import zmq
 import pigpio
+import json
 
 # Raspberry Pi's identity (Change this to the identity of the Raspberry Pi you are using)
 pi_identity = b"rpi22"
@@ -14,6 +15,11 @@ router_ip = "tcp://192.168.0.194:5555" # Connecting to Laptop IP address (192.16
 socket.connect(router_ip)
 socket.send_string("rpi22")
 print(f"Connected to router at {router_ip}")  # Print acknowledgment
+
+# Create a subscriber socket to receive configuration details
+config_socket = context.socket(zmq.SUB)
+config_socket.connect("tcp://your_server_ip:5556")  # Replace with the IP address of the server
+config_socket.setsockopt(zmq.SUBSCRIBE, b"configuration")  # Subscribe to the "configuration" topic
 
 # Pigpio configuration
 a_state = 0
@@ -52,7 +58,7 @@ def poke_inR(pin, level, tick):
     right_poke_detected = False
 
 # Callback functions for nosepoke pin (When the nosepoke is detected)
-def poke_detectedL(pin, level, tick): 
+def poke_detectedL(pin, level, tick):
     global a_state, count, left_poke_detected
     a_state = 1
     count += 1
@@ -64,12 +70,12 @@ def poke_detectedL(pin, level, tick):
     pi.set_mode(17, pigpio.OUTPUT)
     pi.write(17, 0)
     try:
-        print(f"Sending nosepoke_id = {nosepoke_idL} to the Laptop") 
+        print(f"Sending nosepoke_id = {nosepoke_idL} to the Laptop")
         socket.send_string(str(nosepoke_idL))
     except Exception as e:
         print("Error sending nosepoke_id:", e)
 
-def poke_detectedR(pin, level, tick): 
+def poke_detectedR(pin, level, tick):
     global a_state, count, right_poke_detected
     a_state = 1
     count += 1
@@ -82,7 +88,7 @@ def poke_detectedR(pin, level, tick):
     pi.write(10, 0)
     # Sending nosepoke_id wirelessly
     try:
-        print(f"Sending nosepoke_id = {nosepoke_idR} to the Laptop") 
+        print(f"Sending nosepoke_id = {nosepoke_idR} to the Laptop")
         socket.send_string(str(nosepoke_idR))
     except Exception as e:
         print("Error sending nosepoke_id:", e)
@@ -99,18 +105,21 @@ try:
     # Initialize reward_pin variable
     reward_pin = None
     current_pin = None  # Track the currently active LED
-    
+    pwm_frequency = 1  # Default PWM frequency
+    pwm_duty_cycle = 50  # Default PWM duty cycle
+
     while True:
-        
-        # Check for incoming messages
+        # Check for incoming messages from the server
         try:
             msg = socket.recv_string(zmq.NOBLOCK)
             if msg == 'exit':
+                pi.write(17, 0)
+                pi.write(10, 0)
                 pi.write(27, 0)
                 pi.write(9, 0)
                 print("Received exit command. Terminating program.")
                 break  # Exit the loop
-            
+
             elif msg.startswith("Reward Port:"):
                 print(msg)
                 # Extract the integer part from the message
@@ -118,21 +127,21 @@ try:
                 if len(msg_parts) != 3 or not msg_parts[2].isdigit():
                     print("Invalid message format.")
                     continue
-                
+
                 value = int(msg_parts[2])  # Extract the integer part
-                
+
                 # Reset the previously active LED if any
                 if current_pin is not None:
                     pi.write(current_pin, 0)
-                    #print("Turning off green LED.")
-                
+                    # print("Turning off green LED.")
+
                 # Manipulate pin values based on the integer value
                 if value == 5:
                     # Manipulate pins for case 1
                     reward_pin = 27  # Example pin for case 1 (Change this to the actual)
                     pi.set_mode(reward_pin, pigpio.OUTPUT)
-                    pi.set_PWM_frequency(reward_pin, 1)
-                    pi.set_PWM_dutycycle(reward_pin, 50)
+                    pi.set_PWM_frequency(reward_pin, pwm_frequency)
+                    pi.set_PWM_dutycycle(reward_pin, pwm_duty_cycle)
                     print("Turning Nosepoke 5 Green")
 
                     # Update the current LED
@@ -142,8 +151,8 @@ try:
                     # Manipulate pins for case 2
                     reward_pin = 9  # Example pin for case 2
                     pi.set_mode(reward_pin, pigpio.OUTPUT)
-                    pi.set_PWM_frequency(reward_pin, 1)
-                    pi.set_PWM_dutycycle(reward_pin, 50)
+                    pi.set_PWM_frequency(reward_pin, pwm_frequency)
+                    pi.set_PWM_dutycycle(reward_pin, pwm_duty_cycle)
                     print("Turning Nosepoke 7 Green")
 
                     # Update the current LED
@@ -151,7 +160,7 @@ try:
 
                 else:
                     print(f"Current Port: {value}")
-            
+
             elif msg == "Reward Poke Completed":
                 # Turn off the currently active LED
                 if current_pin is not None:
@@ -165,9 +174,18 @@ try:
 
         except zmq.Again:
             pass  # No messages received
-        
-except KeyboardInterrupt:
-    pi.stop()
-finally:
-    socket.close()
-    context.term()
+
+        # Check for incoming configuration details
+        try:
+            topic, config_data = config_socket.recv_multipart()
+            if topic == b"configuration":
+                config = json.loads(config_data.decode('utf-8'))
+                print("Received configuration:", config)
+                # Update the PWM frequency and duty cycle based on the configuration
+                pwm_frequency = config["pwm_frequency"]
+                pwm_duty_cycle = config["pwm_duty_cycle"]
+        finally:
+            pass
+except zmq.Again:
+    pass  # No configuration details received
+
