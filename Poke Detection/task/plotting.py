@@ -8,7 +8,7 @@ import pyqtgraph as pg
 import random
 import csv
 from PyQt5 import QtWidgets
-from PyQt5.QtWidgets import QGraphicsEllipseItem, QGraphicsTextItem, QGraphicsScene, QGraphicsView, QWidget, QVBoxLayout, QPushButton, QApplication, QHBoxLayout, QLineEdit, QListWidget, QFileDialog
+from PyQt5.QtWidgets import QGraphicsEllipseItem, QListWidget, QListWidgetItem, QGraphicsTextItem, QGraphicsScene, QGraphicsView, QWidget, QVBoxLayout, QPushButton, QApplication, QHBoxLayout, QLineEdit, QListWidget, QFileDialog, QDialog, QLabel, QDialogButtonBox
 from PyQt5.QtCore import QPointF, QTimer, pyqtSignal, QObject, QThread, pyqtSlot,  QMetaObject, Qt
 from PyQt5.QtGui import QColor
 
@@ -171,6 +171,7 @@ class Worker(QObject):
 # Modify PiWidget Class
 class PiWidget(QWidget):
     updateSignal = pyqtSignal(int, str) # Signal to emit the number and color of the active Pi
+    resetSignal = pyqtSignal()
 
     def __init__(self, main_window):
         super(PiWidget, self).__init__()
@@ -192,12 +193,19 @@ class PiWidget(QWidget):
         self.stop_button = QPushButton("Stop Experiment")
         self.save_results_button = QPushButton("Save Results")
         self.save_results_button.clicked.connect(self.save_results_to_csv)  # Connect save button to save method
+        self.reset_button = QPushButton("Reset Experiment")
+        self.reset_button.clicked.connect(self.reset_experiment)
 
-        # Arranging the GUI in a vertical layout
+        # Create an HBoxLayout for start and stop buttons
+        start_stop_layout = QHBoxLayout()
+        start_stop_layout.addWidget(self.start_button)
+        start_stop_layout.addWidget(self.stop_button)
+
+        # Create a QVBoxLayout
         layout = QVBoxLayout(self)
-        layout.addWidget(self.view)
-        layout.addWidget(self.start_button)
-        layout.addWidget(self.stop_button)
+        layout.addWidget(self.view)  # Assuming self.view exists
+        layout.addLayout(start_stop_layout)  # Add the QHBoxLayout to the QVBoxLayout
+        layout.addWidget(self.reset_button)
         layout.addWidget(self.save_results_button)  # Add save button to layout
 
         # Creating an instance of the Worker Class and a Thread to handle the communication with the Raspberry Pi
@@ -229,6 +237,17 @@ class PiWidget(QWidget):
 
     def save_results_to_csv(self):
         self.worker.save_results_to_csv()  # Call worker method to save results
+    
+    def reset_experiment(self):
+        # Emit the reset signal
+        self.stop_sequence()
+        self.worker.reward_port = None
+        self.worker.previous_port = None
+        self.worker.trials = 0
+        self.worker.timestamps = []
+        self.worker.reward_ports = []
+        self.worker.green_Pi_numbers = []
+        self.resetSignal.emit()
 
 class PlotWindow(QWidget):
     def __init__(self, pi_widget):
@@ -267,6 +286,8 @@ class PlotWindow(QWidget):
         pi_widget.updateSignal.connect(self.handle_update_signal)
         # Connect the signal from Worker to a slot
         pi_widget.worker.greenPiNumberSignal.connect(self.plot_green_pi)
+        # Connect the reset signal to the clear_plot slot
+        pi_widget.resetSignal.connect(self.clear_plot)
 
     def start_plot(self):
         # Activating the plot window
@@ -277,6 +298,13 @@ class PlotWindow(QWidget):
         # Deactivating the plot window
         self.is_active = False
         self.timer.stop()
+    
+    def clear_plot(self):
+        # Clear the plot by clearing data lists
+        self.timestamps.clear()
+        self.signal.clear()
+        # Update the plot with cleared data
+        self.update_plot()
 
     def handle_update_signal(self, update_value):
         # Append current timestamp and update value to the lists
@@ -300,81 +328,142 @@ class PlotWindow(QWidget):
         self.line.setData(x=self.timestamps, y=self.signal)
 
 
-# Creating a class to enter a list of subjects
-class SubjectList(QWidget):
+class ConfigurationDetailsDialog(QDialog):
+    def __init__(self, config, parent=None):
+        super().__init__(parent)
+        self.setWindowTitle("Configuration Details")
+
+        # Create labels to display configuration parameters
+        self.name_label = QLabel(f"Name: {config['name']}")
+        self.value_label = QLabel(f"Value: {config['value']}")
+        self.frequency_label = QLabel(f"PWM Frequency: {config['pwm_frequency']}")
+        self.duty_cycle_label = QLabel(f"PWM Duty Cycle: {config['pwm_duty_cycle']}")
+
+        # Create button box with OK button
+        self.button_box = QDialogButtonBox(QDialogButtonBox.Ok)
+        self.button_box.accepted.connect(self.accept)
+
+        # Arrange widgets in a vertical layout
+        layout = QVBoxLayout()
+        layout.addWidget(self.name_label)
+        layout.addWidget(self.value_label)
+        layout.addWidget(self.frequency_label)
+        layout.addWidget(self.duty_cycle_label)
+        layout.addWidget(self.button_box)
+        self.setLayout(layout)
+
+class ConfigurationDialog(QDialog):
+    def __init__(self, parent=None):
+        super().__init__(parent)
+        self.setWindowTitle("Add Configuration")
+
+        # Create labels and line edits for configuration parameters
+        self.name_label = QLabel("Name:")
+        self.name_edit = QLineEdit()
+        self.frequency_label = QLabel("PWM Frequency:")
+        self.frequency_edit = QLineEdit()
+        self.duty_cycle_label = QLabel("PWM Duty Cycle:")
+        self.duty_cycle_edit = QLineEdit()
+
+        # Create button box with OK and Cancel buttons
+        self.button_box = QDialogButtonBox(QDialogButtonBox.Ok | QDialogButtonBox.Cancel)
+        self.button_box.accepted.connect(self.accept)
+        self.button_box.rejected.connect(self.reject)
+
+        # Arrange widgets in a vertical layout
+        layout = QVBoxLayout()
+        layout.addWidget(self.name_label)
+        layout.addWidget(self.name_edit)
+        layout.addWidget(self.frequency_label)
+        layout.addWidget(self.frequency_edit)
+        layout.addWidget(self.duty_cycle_label)
+        layout.addWidget(self.duty_cycle_edit)
+        layout.addWidget(self.button_box)
+        self.setLayout(layout)
+
+    def get_configuration(self):
+        name = self.name_edit.text()
+        frequency = int(self.frequency_edit.text())
+        duty_cycle = int(self.duty_cycle_edit.text())
+        return {"name": name, "pwm_frequency": frequency, "pwm_duty_cycle": duty_cycle}
+
+class ConfigurationList(QWidget):
     def __init__(self):
         super().__init__()
-
-        self.subjects = []
+        self.configurations = []
         self.init_ui()
 
-    # Creating the GUI for the Subject List 
+    # Creating the GUI for the Configuration List
     def init_ui(self):
-        self.subject_list = QListWidget()
-        self.subject_entry = QLineEdit()
+        self.config_list = QListWidget()
+        self.config_entry = QLineEdit()
+        self.add_button = QPushButton('Add Config')
+        self.remove_button = QPushButton('Remove Config')
 
-        # Creating buttons to add and remove subjects
-        self.add_button = QPushButton('Add Subject')
-        self.remove_button = QPushButton('Remove Subject')
-
-        # Arranging the buttons in a horizontal layout
         button_layout = QHBoxLayout()
         button_layout.addWidget(self.add_button)
         button_layout.addWidget(self.remove_button)
 
-        # Arranging the GUI in a vertical layout
         main_layout = QVBoxLayout()
-        main_layout.addWidget(self.subject_entry)
-        main_layout.addWidget(self.subject_list)
+        main_layout.addWidget(self.config_entry)
+        main_layout.addWidget(self.config_list)
         main_layout.addLayout(button_layout)
 
         self.setLayout(main_layout)
-        self.add_button.clicked.connect(self.add_subject)
-        self.remove_button.clicked.connect(self.remove_subject)
-
-        self.setWindowTitle('Subject List')
+        self.add_button.clicked.connect(self.add_configuration)
+        self.remove_button.clicked.connect(self.remove_configuration)
+        self.setWindowTitle('Configuration List')
         self.show()
 
-    # Function to add subjects to the list
-    def add_subject(self):
-        subject_text = self.subject_entry.text()
-        if subject_text:
-            self.subjects.append(subject_text)
-            self.update_subject_list()
-            self.subject_entry.clear()
+    # Function to add configurations to the list
+    def add_configuration(self):
+        dialog = ConfigurationDialog(self)
+        if dialog.exec_() == QDialog.Accepted:
+            new_config = dialog.get_configuration()
+            new_config["value"] = 0  # Placeholder value
+            self.configurations.append(new_config)
+            self.update_config_list()
 
-    # Function to remove subjects from the list
-    def remove_subject(self):
-        selected_item = self.subject_list.currentItem()
+    # Function to remove configurations from the list
+    def remove_configuration(self):
+        selected_item = self.config_list.currentItem()
         if selected_item:
-            selected_subject = selected_item.text()
-            self.subjects.remove(selected_subject)
-            self.update_subject_list()
+            selected_config = selected_item.data(Qt.UserRole)
+            self.configurations.remove(selected_config)
+            self.update_config_list()
 
-    # Function to update the subject list
-    def update_subject_list(self):
-        self.subject_list.clear()
-        self.subject_list.addItems(self.subjects)
+    # Function to update the configuration list
+    def update_config_list(self):
+        self.config_list.clear()
+        for config in self.configurations:
+            item = QListWidgetItem(config["name"])
+            item.setData(Qt.UserRole, config)
+            self.config_list.addItem(item)
+        self.config_list.itemClicked.connect(self.config_item_clicked)
+
+    def config_item_clicked(self, item):
+        selected_config = item.data(Qt.UserRole)
+        dialog = ConfigurationDetailsDialog(selected_config, self)
+        dialog.exec_()
 
 class MainWindow(QtWidgets.QMainWindow):
     def __init__(self):
         super().__init__()
-
         # Main Window Title
         self.setWindowTitle("Experiment GUI")
 
-        # Creating instances of PiWidget and SubjectList
+        # Creating instances of PiWidget and ConfigurationList
         self.Pi_widget = PiWidget(self)
-        self.subject_list = SubjectList()
+        self.config_list = ConfigurationList()
 
         # Initializing PlotWindow after PiWidget
         self.plot_window = PlotWindow(self.Pi_widget)
 
         # Creating container widgets for each component
-        subject_list_container = QWidget()
-        subject_list_container.setFixedWidth(300)  # Limiting the width of the subject list container
-        subject_list_container.setLayout(QVBoxLayout())
-        subject_list_container.layout().addWidget(self.subject_list)
+        config_list_container = QWidget()
+        config_list_container.setFixedWidth(350)  # Limiting the width of the configuration list container
+        config_list_container.setLayout(QVBoxLayout())
+        config_list_container.layout().addWidget(self.config_list)
 
         pi_widget_container = QWidget()
         pi_widget_container.setFixedWidth(450)  # Limiting the width of the PiWidget container
@@ -383,8 +472,8 @@ class MainWindow(QtWidgets.QMainWindow):
 
         # Setting the central widget as a container widget for all components
         container_widget = QWidget(self)
-        container_layout = QHBoxLayout(container_widget)
-        container_layout.addWidget(subject_list_container)
+        container_layout = QtWidgets.QHBoxLayout(container_widget)
+        container_layout.addWidget(config_list_container)
         container_layout.addWidget(pi_widget_container)
         container_layout.addWidget(self.plot_window)
         self.setCentralWidget(container_widget)
@@ -407,7 +496,7 @@ class MainWindow(QtWidgets.QMainWindow):
         for identity in self.Pi_widget.worker.identities:
             self.Pi_widget.worker.socket.send_multipart([identity, b"exit"])
         event.accept()
-        
+
 # Running the GUI
 if __name__ == '__main__':
     app = QApplication(sys.argv)
