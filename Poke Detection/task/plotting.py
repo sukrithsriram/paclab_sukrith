@@ -44,7 +44,7 @@ class PiSignal(QGraphicsEllipseItem):
             print("Invalid color:", color)
 
 class Worker(QObject):
-    greenPiNumberSignal = pyqtSignal(int, str)
+    pokedportsignal = pyqtSignal(int, str)
 
     def __init__(self, pi_widget):
         super().__init__()
@@ -136,7 +136,7 @@ class Worker(QObject):
                 self.last_pi_received = identity
                 
                 # Emit the signal with the appropriate color
-                self.greenPiNumberSignal.emit(poked_port, color)
+                self.pokedportsignal.emit(poked_port, color)
                 
                 # Record timestamp and port visited
                 self.timestamps.append(elapsed_time)
@@ -215,8 +215,8 @@ class PiWidget(QWidget):
         self.start_button.clicked.connect(self.start_sequence) # Connect the start button to the start_sequence function
         self.stop_button.clicked.connect(self.stop_sequence) # Connect the stop button to the stop_sequence function
 
-        # Connect the greenPiNumberSignal from the Worker to a new slot
-        self.worker.greenPiNumberSignal.connect(self.emit_update_signal) # Connect the greenPiNumberSignal to the emit_update_signal function
+        # Connect the pokedportsignal from the Worker to a new slot
+        self.worker.pokedportsignal.connect(self.emit_update_signal) # Connect the pokedportsignal to the emit_update_signal function
 
     # Function to emit the update signal
     def emit_update_signal(self, poked_port_number, color):
@@ -285,7 +285,7 @@ class PlotWindow(QWidget):
         # Connecting to signals from PiWidget
         pi_widget.updateSignal.connect(self.handle_update_signal)
         # Connect the signal from Worker to a slot
-        pi_widget.worker.greenPiNumberSignal.connect(self.plot_poked_port)
+        pi_widget.worker.pokedportsignal.connect(self.plot_poked_port)
         # Connect the reset signal to the clear_plot slot
         pi_widget.resetSignal.connect(self.clear_plot)
 
@@ -487,7 +487,7 @@ class MainWindow(QtWidgets.QMainWindow):
         self.show()
 
         # Connecting signals after the MainWindow is fully initialized
-        self.Pi_widget.worker.greenPiNumberSignal.connect(self.plot_window.handle_update_signal)
+        self.Pi_widget.worker.pokedportsignal.connect(self.plot_window.handle_update_signal)
         self.Pi_widget.updateSignal.connect(self.plot_window.handle_update_signal)
 
     # Function to plot the Pi signals using the PlotWindow class
