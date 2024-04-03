@@ -14,10 +14,10 @@ from PyQt5.QtGui import QColor
 
 # Creating a class for the individual Raspberry Pi signals
 class PiSignal(QGraphicsEllipseItem):
-    def __init__(self, index, total_Pis):
+    def __init__(self, index, total_ports):
         super(PiSignal, self).__init__(0, 0, 50, 50)
         self.index = index
-        self.total_Pis = total_Pis # Creating a variable for the total number of Pis
+        self.total_ports = total_ports # Creating a variable for the total number of Pis
         self.label = QGraphicsTextItem(f"Pi-{index + 1}", self) # Label for each Pi
         self.label.setPos(25 - self.label.boundingRect().width() / 2, 25 - self.label.boundingRect().height() / 2) # Positioning the labels
         self.setPos(self.calculate_position()) # Positioning the individual Pi elements
@@ -25,7 +25,7 @@ class PiSignal(QGraphicsEllipseItem):
 
     # Function to calculate the position of the Pi signals
     def calculate_position(self):  
-        angle = 2 * math.pi * self.index / self.total_Pis # Arranging the Pi signals in a circle
+        angle = 2 * math.pi * self.index / self.total_ports # Arranging the Pi signals in a circle
         radius = 150
         x = radius * math.cos(angle)
         y = radius * math.sin(angle)
@@ -56,9 +56,9 @@ class Worker(QObject):
         self.last_pi_received = None
         self.timer = None
         self.pi_widget = pi_widget
-        self.total_Pis = self.pi_widget.total_Pis 
+        self.total_ports = self.pi_widget.total_ports 
         self.Pi_signals = self.pi_widget.Pi_signals 
-        self.green_Pi_numbers = self.pi_widget.green_Pi_numbers 
+        self.poked_port_numbers = self.pi_widget.poked_port_numbers 
         self.identities = set()
         
         # Initialize reward_port and related variables
@@ -114,13 +114,13 @@ class Worker(QObject):
         self.socket.send_multipart([identity, bytes(f"Reward Port: {self.reward_port}", 'utf-8')])
 
         try:
-            green_Pi = int(message)
+            poked_port = int(message)
             
-            if 1 <= green_Pi <= self.total_Pis: 
-                green_Pi_signal = self.Pi_signals[green_Pi - 1] 
+            if 1 <= poked_port <= self.total_ports: 
+                poked_port_signal = self.Pi_signals[poked_port - 1] 
                 
                 # Check if the received Pi number matches the current Reward Port
-                if green_Pi == self.reward_port:
+                if poked_port == self.reward_port:
                     color = "green" if self.trials == 0 else "blue"
                     if self.trials > 0:
                         self.trials = 0  # Reset attempts since change
@@ -129,14 +129,14 @@ class Worker(QObject):
                     self.trials += 1
                 
                 # Set the color of the PiSignal object
-                green_Pi_signal.set_color(color) 
+                poked_port_signal.set_color(color) 
                 
-                self.green_Pi_numbers.append(green_Pi) 
-                print("Sequence:", self.green_Pi_numbers) 
+                self.poked_port_numbers.append(poked_port) 
+                print("Sequence:", self.poked_port_numbers) 
                 self.last_pi_received = identity
                 
                 # Emit the signal with the appropriate color
-                self.greenPiNumberSignal.emit(green_Pi, color)
+                self.greenPiNumberSignal.emit(poked_port, color)
                 
                 # Record timestamp and port visited
                 self.timestamps.append(elapsed_time)
@@ -154,7 +154,7 @@ class Worker(QObject):
                         self.socket.send_multipart([identity, bytes(f"Reward Port: {self.reward_port}", 'utf-8')])
 
             else:
-                print("Invalid Pi number received:", green_Pi)
+                print("Invalid Pi number received:", poked_port)
         except ValueError:
             print("Connected to Raspberry Pi:", message)
 
@@ -165,8 +165,8 @@ class Worker(QObject):
             with open(filename, 'w', newline='') as csvfile:
                 writer = csv.writer(csvfile)
                 writer.writerow(["Poke Timestamp (seconds)", "Port Visited", "Current Reward Port"])
-                for timestamp, green_Pi, reward_port in zip(self.timestamps, self.green_Pi_numbers, self.reward_ports):
-                    writer.writerow([timestamp, green_Pi, reward_port])
+                for timestamp, poked_port, reward_port in zip(self.timestamps, self.poked_port_numbers, self.reward_ports):
+                    writer.writerow([timestamp, poked_port, reward_port])
 
 # Modify PiWidget Class
 class PiWidget(QWidget):
@@ -180,12 +180,12 @@ class PiWidget(QWidget):
         self.main_window = main_window
         self.scene = QGraphicsScene(self)
         self.view = QGraphicsView(self.scene)
-        self.total_Pis = 8
-        self.Pi_signals = [PiSignal(i, self.total_Pis) for i in range(self.total_Pis)]
+        self.total_ports = 8
+        self.Pi_signals = [PiSignal(i, self.total_ports) for i in range(self.total_ports)]
         [self.scene.addItem(Pi) for Pi in self.Pi_signals]
 
         # Creating buttons to start and stop the sequence of communication with the Raspberry Pi
-        self.green_Pi_numbers = []
+        self.poked_port_numbers = []
         self.timer = QTimer(self)
         self.timer.timeout.connect(self.update)
 
@@ -219,9 +219,9 @@ class PiWidget(QWidget):
         self.worker.greenPiNumberSignal.connect(self.emit_update_signal) # Connect the greenPiNumberSignal to the emit_update_signal function
 
     # Function to emit the update signal
-    def emit_update_signal(self, green_Pi_number, color):
-        # Emit the updateSignal with the received green_Pi_number and color
-        self.updateSignal.emit(green_Pi_number, color)
+    def emit_update_signal(self, poked_port_number, color):
+        # Emit the updateSignal with the received poked_port_number and color
+        self.updateSignal.emit(poked_port_number, color)
 
     def start_sequence(self):
         # Start the worker thread when the start button is pressed
@@ -246,7 +246,7 @@ class PiWidget(QWidget):
         self.worker.trials = 0
         self.worker.timestamps = []
         self.worker.reward_ports = []
-        self.worker.green_Pi_numbers = []
+        self.worker.poked_port_numbers = []
         self.resetSignal.emit()
 
 class PlotWindow(QWidget):
@@ -285,7 +285,7 @@ class PlotWindow(QWidget):
         # Connecting to signals from PiWidget
         pi_widget.updateSignal.connect(self.handle_update_signal)
         # Connect the signal from Worker to a slot
-        pi_widget.worker.greenPiNumberSignal.connect(self.plot_green_pi)
+        pi_widget.worker.greenPiNumberSignal.connect(self.plot_poked_port)
         # Connect the reset signal to the clear_plot slot
         pi_widget.resetSignal.connect(self.clear_plot)
 
@@ -312,11 +312,11 @@ class PlotWindow(QWidget):
         self.signal.append(update_value)
         self.update_plot()
 
-    def plot_green_pi(self, green_pi_value, color):
+    def plot_poked_port(self, poked_port_value, color):
         brush_color = "g" if color == "green" else "r" if color == "red" else "b"
         self.plot_graph.plot(
             [time.time()],
-            [green_pi_value],
+            [poked_port_value],
             pen=None,
             symbol="o",
             symbolSize=10,
@@ -491,8 +491,8 @@ class MainWindow(QtWidgets.QMainWindow):
         self.Pi_widget.updateSignal.connect(self.plot_window.handle_update_signal)
 
     # Function to plot the Pi signals using the PlotWindow class
-    def plot_green_pi(self, green_pi_value):
-        self.plot_window.handle_update_signal(green_pi_value)
+    def plot_poked_port(self, poked_port_value):
+        self.plot_window.handle_update_signal(poked_port_value)
 
     # Override closeEvent to send 'exit' to all IP addresses bound to the GUI
     def closeEvent(self, event):
