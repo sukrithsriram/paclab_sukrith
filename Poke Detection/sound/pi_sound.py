@@ -481,6 +481,161 @@ class Sound:
         
         # Cycle so it can repeat forever
         self.sound_cycle = itertools.cycle(self.sound_block)
+    
+    def play_sound(self):
+        for n in range(10):
+            # Add stimulus sounds to queue 1 as needed
+            self.append_sound_to_queue1_as_needed()
+            time.sleep(.1)
+
+        ## Extract any recently played sound info
+        sound_data_l = []
+        with JackClient.QUEUE_NONZERO_BLOCKS_LOCK:
+            while True:
+                try:
+                    data = JackClient.QUEUE_NONZERO_BLOCKS.get_nowait()
+                except queue.Empty:
+                    break
+                sound_data_l.append(data)
+        
+        if len(sound_data_l) > 0:
+            # DataFrame it
+            # This has to match code in jackclient.py
+            # And it also has to match task_class.ChunkData_SoundsPlayed
+            payload = pd.DataFrame.from_records(
+                sound_data_l,
+                columns=['hash', 'last_frame_time', 'frames_since_cycle_start', 'equiv_dt'],
+                )
+            self.send_chunk_of_sound_played_data(payload)
+        
+        time_so_far = (datetime.datetime.now() - self.dt_start).total_seconds()
+        frame_rate = self.n_frames / time_so_far
+
+        self.stage_block.set()
+
+    def empty_queue1(self, tosize=0):
+        while True:
+            with JackClient.Q_LOCK:
+                try:
+                    data = JackClient.QUEUE.get_nowait()
+                except queue.Empty:
+                    break
+            
+            # Stop if we're at or below the target size
+            qsize = JackClient.QUEUE.qsize()
+            if qsize < tosize:
+                break
+        
+        qsize = JackClient.QUEUE.qsize()
+
+    def empty_queue2(self):
+        while True:
+            with JackClient.Q2_LOCK:
+                try:
+                    data = JackClient.QUEUE2.get_nowait()
+                except queue.Empty:
+                    break
+
+    def append_sound_to_queue1_as_needed(self):
+        qsize = JackClient.QUEUE.qsize()
+
+        # Add frames until target size reached
+        while qsize < self.target_qsize:
+            with JackClient.Q_LOCK:
+                # Add a frame from the sound cycle
+                frame = next(self.sound_cycle)
+                JackClient.QUEUE.put_nowait(frame)
+                
+                # Keep track of how many frames played
+                self.n_frames = self.n_frames + 1
+            
+            # Update qsize
+            qsize = JackClient.QUEUE.qsize()  
+
+    # def recv_play(self, value):
+    #     """On receiving a PLAY command, set sounds and fill queues"""
+    #     # Use this to determine when the flash was done in local timebase
+    #     timestamp = datetime.datetime.now().isoformat()
+
+    #     # Whether to do a synchronization flash
+    #     synchronization_flash = value.pop('synchronization_flash', False)
+
+    #     # Blink an LED to serve as synchronization cue
+    #     # Do this BEFORE processing any sounds, otherwise the latency varies
+    #     # with the number of sounds to play
+    #     if synchronization_flash:
+    #         # get pin numbers
+    #         left_red = autopilot.hardware.BOARD_TO_BCM[ 
+    #             self.prefs_hardware['LEDS']['L']['pins'][0]]
+    #         right_red = autopilot.hardware.BOARD_TO_BCM[ 
+    #             self.prefs_hardware['LEDS']['R']['pins'][0]]
+            
+    #         # Turn left-red and right-red to full PWM
+    #         self.pi.set_PWM_dutycycle(left_red, 255)
+    #         self.pi.set_PWM_dutycycle(right_red, 255)
+            
+    #         # Wait 100 ms
+    #         time.sleep(.100)
+            
+    #         # Turn left-red and right-red to zero PWM
+    #         self.pi.set_PWM_dutycycle(left_red, 0)
+    #         self.pi.set_PWM_dutycycle(right_red, 0)
+
+    #         # Send to the parent
+    #         self.node2.send(
+    #             'parent_pi', 'FLASH', {
+    #                 'from': self.name, 
+    #                 'dt_flash_received': timestamp,
+    #                 },
+    #             )      
+        
+    #     # Log the time of the flash
+    #     # Do this after the flash itself so that we don't jitter
+    #     self.logger.debug(
+    #         "[{}] synchronization_flash; ".format(timestamp) +
+    #         "recv_play with value: {}".format(value)
+    #         )
+    
+    #     # Pop out the punish and reward values
+    #     left_punish = value.pop('left_punish')
+    #     right_punish = value.pop('right_punish')
+    #     left_reward = value.pop('left_reward')
+    #     right_reward = value.pop('right_reward')        
+
+    #     # Only get these params if sound is supposed to play
+    #     # silence_pi doesn't include them
+    #     if value['left_on'] or value['right_on']:
+    #         # Pop out the sound definition values
+    #         target_center_freq = value.pop('stim_target_center_freq')
+    #         target_bandwidth = value.pop('stim_target_bandwidth')
+    #         target_amplitude = 10 ** value.pop('stim_target_log_amplitude')
+    #         distracter_center_freq = value.pop('stim_distracter_center_freq')
+    #         distracter_bandwidth = value.pop('stim_distracter_bandwidth')
+    #         distracter_amplitude = 10 ** value.pop('stim_distracter_log_amplitude')
+
+    #         # Convert center and bandwidth to lowpass and highpass
+    #         target_highpass = target_center_freq - target_bandwidth / 2
+    #         target_lowpass = target_center_freq + target_bandwidth / 2
+    #         distracter_highpass = distracter_center_freq - distracter_bandwidth / 2
+    #         distracter_lowpass = distracter_center_freq + distracter_bandwidth / 2
+
+    #         # Define the sounds that will be used in the cycle
+    #         self.initalize_sounds(        
+    #             target_highpass, target_amplitude, target_lowpass,
+    #             distracter_highpass, distracter_amplitude, distracter_lowpass,
+    #             )
+        
+    #     # Use left_punish and right_punish to set triggers
+    #     self.set_poke_triggers(
+    #         left_punish=left_punish, right_punish=right_punish,
+    #         left_reward=left_reward, right_reward=right_reward)
+        
+    #     # Use the remaining params to update the sound cycle
+    #     self.set_sound_cycle(value)
+        
+    #     # Empty queue1 and refill
+    #     self.empty_queue1()
+    #     self.append_sound_to_queue1_as_needed()
 
 ## still adding play, recv play and empty queue functions
 
