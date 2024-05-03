@@ -302,36 +302,46 @@ class Sound:
         # Cycle so it can repeat forever
         self.sound_cycle = itertools.cycle(self.sound_block)
     
-    def play_sound(self):
-        for n in range(10):
-            # Add stimulus sounds to queue 1 as needed
-            self.append_sound_to_queue1_as_needed()
-            time.sleep(.1)
+    # def play_sound(self):
+    #     for n in range(10):
+    #         # Add stimulus sounds to queue 1 as needed
+    #         self.append_sound_to_queue1_as_needed()
+    #         time.sleep(.1)
 
-        ## Extract any recently played sound info
-        sound_data_l = []
-        with JackClient.QUEUE_NONZERO_BLOCKS_LOCK:
-            while True:
-                try:
-                    data = JackClient.QUEUE_NONZERO_BLOCKS.get_nowait()
-                except queue.Empty:
-                    break
-                sound_data_l.append(data)
+    #     ## Extract any recently played sound info
+    #     sound_data_l = []
+    #     with JackClient.QUEUE_NONZERO_BLOCKS_LOCK:
+    #         while True:
+    #             try:
+    #                 data = JackClient.QUEUE_NONZERO_BLOCKS.get_nowait()
+    #             except queue.Empty:
+    #                 break
+    #             sound_data_l.append(data)
         
-        if len(sound_data_l) > 0:
-            # DataFrame it
-            # This has to match code in jackclient.py
-            # And it also has to match task_class.ChunkData_SoundsPlayed
-            payload = pd.DataFrame.from_records(
-                sound_data_l,
-                columns=['hash', 'last_frame_time', 'frames_since_cycle_start', 'equiv_dt'],
-                )
-            self.send_chunk_of_sound_played_data(payload)
+    #     if len(sound_data_l) > 0:
+    #         # DataFrame it
+    #         # This has to match code in jackclient.py
+    #         # And it also has to match task_class.ChunkData_SoundsPlayed
+    #         payload = pd.DataFrame.from_records(
+    #             sound_data_l,
+    #             columns=['hash', 'last_frame_time', 'frames_since_cycle_start', 'equiv_dt'],
+    #             )
+    #         self.send_chunk_of_sound_played_data(payload)
         
-        time_so_far = (datetime.datetime.now() - self.dt_start).total_seconds()
-        frame_rate = self.n_frames / time_so_far
+    #     time_so_far = (datetime.datetime.now() - self.dt_start).total_seconds()
+    #     frame_rate = self.n_frames / time_so_far
 
-        self.stage_block.set()
+    #     self.stage_block.set()
+
+    def play_noise(self, jack_client, outport_index):
+            if outport_index == 0:
+                self.left_target_stim.generate_noise()
+                self.play_sound(jack_client, outport_index)
+            elif outport_index == 1:
+                self.right_target_stim.generate_noise()
+                self.play_sound(jack_client, outport_index)
+            else:
+                raise ValueError("Invalid outport index")
 
     def empty_queue1(self, tosize=0):
         while True:
@@ -394,7 +404,7 @@ nosepoke_pinL = 8
 nosepoke_pinR = 15
 noise = Noise(duration=0.1)
 jack_client = JackClient()
-
+sound = Sound()
 
 # Global variables for which nospoke was detected
 left_poke_detected = False
@@ -512,7 +522,7 @@ try:
                     pi.set_PWM_dutycycle(reward_pin, 50)
                     print("Turning Nosepoke 5 Green")
                     # Play noise on outport 0
-                    jack_client.play_noise(noise, 0)
+                    sound.play_noise(jack_client, 0)
 
                     # Update the current LED
                     current_pin = reward_pin
@@ -525,7 +535,7 @@ try:
                     pi.set_PWM_dutycycle(reward_pin, 50)
                     print("Turning Nosepoke 7 Green")
                     # Play noise on outport 0
-                    jack_client.play_noise(noise, 1)
+                    sound.play_noise(jack_client, 1)
 
                     # Update the current LED
                     current_pin = reward_pin
