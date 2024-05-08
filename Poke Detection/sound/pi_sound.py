@@ -1,22 +1,23 @@
-import numpy as np
-import queue as queue
-import sys
-from threading import Thread
-import jack
 import zmq
 import pigpio
+import numpy as np
+import os
+import jack
 import multiprocessing as mp
-import copy
-from collections import deque
 import typing
-import gc
 import time
-import datetime
-import pandas as pd
-import itertools
+import queue as queue
+
+os.system('sudo killall pigpiod')
+os.system('sudo killall jackd')
+time.sleep(1)
+os.system('sudo pigpiod -t 0 -l -x 1111110000111111111111110000')
+time.sleep(1)
+os.system('jackd -P75 -p16 -t2000 -dalsa -dhw:sndrpihifiberry -P -r192000 -n3 -s &')
+time.sleep(1)
 
 class Noise:
-    def __init__(self, duration, fs=192000, amplitude=0.01):
+    def __init__(self, duration, fs=192000, amplitude=0.05):
         self.duration = duration
         self.fs = fs
         self.amplitude = amplitude
@@ -31,94 +32,26 @@ class Noise:
         self.chunks = np.array_split(noise, len(noise) // chunk_size)
 
 class JackClient(mp.Process):
-    def __init__(self,
-                 name='jack_client',
-                 outchannels: typing.Optional[list] = None,
-                 play_q_size:int=2048,
-                 disable_gc=False):
-
-        super(JackClient, self).__init__()
-
+    def __init__(self, name='jack_client', outchannels: typing.Optional[list] = None, play_q_size:int=2048):
         self.name = name
+        self.client = jack.Client(self.name)
+        self.blocksize = self.client.blocksize
+        self.fs = self.client.samplerate
+        self.zero_arr = np.zeros((self.blocksize,1),dtype='float32') # Silence
         if outchannels is None:
             self.outchannels = [0,1]
         else:
             self.outchannels = outchannels
-        self.q = mp.Queue() #Queue for audio data
-        self.q_lock = mp.Lock() #Queue lock
-        self.q2 = mp.Queue() #Queue2
+        self.q = mp.Queue()
+        self.q_lock = mp.Lock() # Queue lock
+        self.q2 = mp.Queue()
         self.q2_lock = mp.Lock()
-        self.q_nonzero_blocks = mp.Queue()
-        self.q_nonzero_blocks_lock = mp.Lock()
-        self._play_q = deque(maxlen=play_q_size)
-        self.play_evt = mp.Event()
-        self.stop_evt = mp.Event()
-        self.quit_evt = mp.Event()
-        self.play_started = mp.Event()
 
-        # Jack client
-        self.client = jack.Client(self.name)
-        self.blocksize = self.client.blocksize
-        self.fs = 192000
-        self.zero_arr = np.zeros((self.blocksize,1),dtype='float32')
-
-        # Continuous playback
-        self.continuous = mp.Event()
-        self.continuous_q = mp.Queue()
-        self.continuous_loop = mp.Event()
-        self.continuous_cycle = None
-
-        # References to values in the module
-        globals()['SERVER'] = self
-        globals()['FS'] = copy(self.fs)
-        globals()['BLOCKSIZE'] = copy(self.blocksize)
-        globals()['QUEUE'] = self.q
-        globals()['Q_LOCK'] = self.q_lock
-        globals()['QUEUE2'] = self.q2
-        globals()['Q2_LOCK'] = self.q2_lock
-        globals()['QUEUE_NONZERO_BLOCKS'] = self.q_nonzero_blocks
-        globals()['QUEUE_NONZERO_BLOCKS_LOCK'] = self.q_nonzero_blocks_lock
-        globals()['PLAY'] = self.play_evt
-        globals()['STOP'] = self.stop_evt
-        globals()['CONTINUOUS'] = self.continuous
-        globals()['CONTINUOUS_QUEUE'] = self.continuous_q
-        globals()['CONTINUOUS_LOOP'] = self.continuous_loop
-
-        self.querythread = None
-        self.wait_until = None
-        self.alsa_nperiods = 3 # Number of buffer periods in ALSA
-        if self.alsa_nperiods is None:
-            self.alsa_nperiods = 1
-
-        self._disable_gc = disable_gc # Disable garbage collection
-
-    def boot_server(self):
-        self.client = jack.Client(self.name)
-        self.blocksize = self.client.blocksize
-        self.fs = 192000
-
-        # Silence
-        self.zero_arr = np.zeros((self.blocksize,1),dtype='float32')
-
-        # Process callback to `self.process`
+        # Process callback to self.process
         self.client.set_process_callback(self.process)
 
         # Activate the client
-        self.client.activate()    
-
-    def run(self):
-        self.boot_server()
-
-        if self._disable_gc:
-            gc.disable()
-        try:
-            self.quit_evt.clear()
-            self.quit_evt.wait()
-        except KeyboardInterrupt:
-            self.quit_evt.set()
-
-    def quit(self):
-        self.quit_evt.set()
+        self.client.activate()
 
     def process(self, frames):
         # Try to get data from the first queue
@@ -175,42 +108,11 @@ class JackClient(mp.Process):
                     buff = outport.get_array()
                     buff[:] = data[:, n_outport]
 
-    def _pad_continuous(self, data:np.ndarray) -> np.ndarray:
-            # if sound was not padded, fill remaining with continuous sound or silence
-            n_from_end = self.blocksize - data.shape[0]
-            if self.continuous.is_set():
-                try:
-                    cont_data = next(self.continuous_cycle)
-                    data = np.concatenate((data, cont_data[-n_from_end:]),
-                                        axis=0)
-                except Exception as e:
-                    pad_with = [(0, n_from_end)]
-                    pad_with.extend([(0, 0) for i in range(len(data.ndim-1))])
-                    data = np.pad(data, pad_with, 'constant')
-            else:
-                pad_with = [(0, n_from_end)]
-                pad_with.extend([(0, 0) for i in range(len(data.ndim - 1))])
-                data = np.pad(data, pad_with, 'constant') 
-            return data
-    
-    def _wait_for_end(self):
-        try:
-            while self.wait_until is None or self.client.frame_time < self.wait_until:
-                time.sleep(0.000001)
-        finally:
-            self.stop_evt.set()
-            self.querythread = None
-            self.wait_until = None
-
-    def _query_timebase(self):
-        while not self.quit_evt.is_set():
-            state, pos = self.client.transport_query()
-            time.sleep(0.00001)
-
 class Sound:
-    def __init__(self):
+    def __init__(self, jack_client):
         self.left_target_stim = None
         self.right_target_stim = None
+        self.jack_client = jack_client
 
     def initialize_sounds(self, target_amplitude):
         # Defining sounds to be played in the task for left and right target noise bursts
@@ -222,166 +124,6 @@ class Sound:
             self.left_target_stim.chunk()
         if not self.right_target_stim.chunks:
             self.right_target_stim.chunk()
-
-    def set_sound_cycle(self, params):
-        # This is just a left sound, gap, then right sound, then gap
-        # And use a cycle to repeat forever
-        self.sound_block = []
-
-        # Helper function
-        def append_gap(gap_chunk_size=30):
-            for n_blank_chunks in range(gap_chunk_size):
-                self.sound_block.append(
-                    np.zeros(JackClient.BLOCKSIZE, dtype='float32'))
-
-        # Extract params or use defaults
-        left_on = params.get('left_on', False)
-        right_on = params.get('right_on', False)
-        left_mean_interval = params.get('left_mean_interval', 0)
-        right_mean_interval = params.get('right_mean_interval', 0)
-        
-        # Generate intervals 
-        if left_on:
-            left_intervals = np.full(100, left_mean_interval)
-        else:
-            left_intervals = np.array([])
-
-        if right_on:
-            right_intervals = np.full(100, right_mean_interval)
-        else:
-            right_intervals = np.array([])
-
-        # Sort all the drawn intervals together
-        left_df = pd.DataFrame.from_dict({
-            'time': np.cumsum(left_intervals),
-            'side': ['left'] * len(left_intervals),
-            })
-        right_df = pd.DataFrame.from_dict({
-            'time': np.cumsum(right_intervals),
-            'side': ['right'] * len(right_intervals),
-            })
-
-        # Concatenate them all together and resort by time
-        both_df = pd.concat([left_df, right_df], axis=0).sort_values('time')
-
-        # Calculate the gap between sounds
-        both_df['gap'] = both_df['time'].diff().shift(-1)
-        
-        # Drop the last row which has a null gap
-        both_df = both_df.loc[~both_df['gap'].isnull()].copy()
-
-        # Calculate gap size in chunks
-        both_df['gap_chunks'] = (both_df['gap'] * 192000 / JackClient.BLOCKSIZE)
-        both_df['gap_chunks'] = both_df['gap_chunks'].round().astype(np.int)
-        
-        # Floor gap_chunks at 1 chunk, the minimal gap size
-        # This is to avoid distortion
-        both_df.loc[both_df['gap_chunks'] < 1, 'gap_chunks'] = 1
-                
-        # Save
-        self.current_audio_times_df = both_df.copy()
-        self.current_audio_times_df = self.current_audio_times_df.rename(
-            columns={'time': 'relative_time'})
-
-        # Iterate through the rows, adding the sound and the gap
-        for bdrow in both_df.itertuples():
-            # Append the sound
-            if bdrow.side == 'left':
-                for frame in self.left_target_stim.chunks:
-                    self.sound_block.append(frame) 
-            elif bdrow.side == 'right':
-                for frame in self.right_target_stim.chunks:
-                    self.sound_block.append(frame) 
-            else:
-                raise ValueError(
-                    "unrecognized side: {}".format(bdrow.side))
-            
-            # Append the gap
-            append_gap(bdrow.gap_chunks)
-        
-        # Cycle so it can repeat forever
-        self.sound_cycle = itertools.cycle(self.sound_block)
-    
-    # def play_sound(self):
-    #     for n in range(10):
-    #         # Add stimulus sounds to queue 1 as needed
-    #         self.append_sound_to_queue1_as_needed()
-    #         time.sleep(.1)
-
-    #     ## Extract any recently played sound info
-    #     sound_data_l = []
-    #     with JackClient.QUEUE_NONZERO_BLOCKS_LOCK:
-    #         while True:
-    #             try:
-    #                 data = JackClient.QUEUE_NONZERO_BLOCKS.get_nowait()
-    #             except queue.Empty:
-    #                 break
-    #             sound_data_l.append(data)
-        
-    #     if len(sound_data_l) > 0:
-    #         # DataFrame it
-    #         # This has to match code in jackclient.py
-    #         # And it also has to match task_class.ChunkData_SoundsPlayed
-    #         payload = pd.DataFrame.from_records(
-    #             sound_data_l,
-    #             columns=['hash', 'last_frame_time', 'frames_since_cycle_start', 'equiv_dt'],
-    #             )
-    #         self.send_chunk_of_sound_played_data(payload)
-        
-    #     time_so_far = (datetime.datetime.now() - self.dt_start).total_seconds()
-    #     frame_rate = self.n_frames / time_so_far
-
-    #     self.stage_block.set()
-
-    def play_noise(self, jack_client, outport_index):
-            if outport_index == 0:
-                self.left_target_stim.generate_noise()
-                self.play_sound(jack_client, outport_index)
-            elif outport_index == 1:
-                self.right_target_stim.generate_noise()
-                self.play_sound(jack_client, outport_index)
-            else:
-                raise ValueError("Invalid outport index")
-
-    def empty_queue1(self, tosize=0):
-        while True:
-            with JackClient.Q_LOCK:
-                try:
-                    data = JackClient.QUEUE.get_nowait()
-                except queue.Empty:
-                    break
-            
-            # Stop if we're at or below the target size
-            qsize = JackClient.QUEUE.qsize()
-            if qsize < tosize:
-                break
-        
-        qsize = JackClient.QUEUE.qsize()
-
-    def empty_queue2(self):
-        while True:
-            with JackClient.Q2_LOCK:
-                try:
-                    data = JackClient.QUEUE2.get_nowait()
-                except queue.Empty:
-                    break
-
-    def append_sound_to_queue1_as_needed(self):
-        qsize = JackClient.QUEUE.qsize()
-
-        # Add frames until target size reached
-        while qsize < self.target_qsize:
-            with JackClient.Q_LOCK:
-                # Add a frame from the sound cycle
-                frame = next(self.sound_cycle)
-                JackClient.QUEUE.put_nowait(frame)
-                
-                # Keep track of how many frames played
-                self.n_frames = self.n_frames + 1
-            
-            # Update qsize
-            qsize = JackClient.QUEUE.qsize()  
-
 
 # Raspberry Pi's identity (Change this to the identity of the Raspberry Pi you are using)
 pi_identity = b"rpi22"
@@ -402,13 +144,13 @@ a_state = 0
 count = 0
 nosepoke_pinL = 8
 nosepoke_pinR = 15
-noise = Noise(duration=0.1)
-jack_client = JackClient()
-sound = Sound()
 
 # Global variables for which nospoke was detected
 left_poke_detected = False
 right_poke_detected = False
+
+jack_client = JackClient(name='jack_client')
+sound_player = Sound(jack_client)
 
 # Callback function for nosepoke pin (When the nosepoke is completed)
 def poke_inL(pin, level, tick):
@@ -520,9 +262,9 @@ try:
                     pi.set_mode(reward_pin, pigpio.OUTPUT)
                     pi.set_PWM_frequency(reward_pin, 1)
                     pi.set_PWM_dutycycle(reward_pin, 50)
+                    data = sound_player.left_target_stim.chunks.pop(0)
+                    jack_client.q.put(data)
                     print("Turning Nosepoke 5 Green")
-                    # Play noise on outport 0
-                    sound.play_noise(jack_client, 0)
 
                     # Update the current LED
                     current_pin = reward_pin
@@ -533,9 +275,9 @@ try:
                     pi.set_mode(reward_pin, pigpio.OUTPUT)
                     pi.set_PWM_frequency(reward_pin, 1)
                     pi.set_PWM_dutycycle(reward_pin, 50)
+                    data = sound_player.right_target_stim.chunks.pop(0)
+                    jack_client.q2.put(data)
                     print("Turning Nosepoke 7 Green")
-                    # Play noise on outport 0
-                    sound.play_noise(jack_client, 1)
 
                     # Update the current LED
                     current_pin = reward_pin
