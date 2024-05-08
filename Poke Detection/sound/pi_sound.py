@@ -47,6 +47,28 @@ class JackClient(mp.Process):
         self.q2 = mp.Queue()
         self.q2_lock = mp.Lock()
 
+        if self.outchannels == '':
+            # Mono mode
+            listified_outchannels = []
+            self.mono_output = True
+        elif not isinstance(self.outchannels, list):
+            # Must be a single integer-like thing
+            listified_outchannels = [int(self.outchannels)]
+            self.mono_output = False
+        else:
+            # Already a list
+            listified_outchannels = self.outchannels
+            self.mono_output = False
+
+        # Register outports
+        if self.mono_output:
+            # One single outport
+            self.client.outports.register('out_0') #include this
+        else:
+            # One outport per provided outchannel
+            for n in range(len(listified_outchannels)):
+                self.client.outports.register('out_{}'.format(n))
+
         # Process callback to self.process
         self.client.set_process_callback(self.process)
 
