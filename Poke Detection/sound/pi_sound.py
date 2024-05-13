@@ -7,6 +7,7 @@ import multiprocessing as mp
 import typing
 import time
 import queue as queue
+import threading
 
 os.system('sudo killall pigpiod')
 os.system('sudo killall jackd')
@@ -17,47 +18,52 @@ os.system('jackd -P75 -p16 -t2000 -dalsa -dhw:sndrpihifiberry -P -r192000 -n3 -s
 time.sleep(1)
 
 class Noise:
-    def __init__(self, duration, fs=192000, amplitude=0.05):
-        self.duration = duration
-        self.fs = fs
-        self.amplitude = amplitude
+    def __init__(self, blocksize):
+        self.blocksize = blocksize
+        self.table = np.zeros((self.blocksize, 2), dtype=np.float32)
 
-    def generate_noise(self):
-        nsamples = int(self.fs * self.duration)
-        data = np.random.uniform(-1, 1, nsamples)
-        return data * self.amplitude
-    
-    def chunk(self, chunk_size=1024):
-        noise = self.generate_noise()
-        self.chunks = np.array_split(noise, len(noise) // chunk_size)
+    def left(self, amplitude=0.001):
+        data = np.random.uniform(-1, 1, self.blocksize)
+        self.table[:, 0] = data * amplitude
+        self.table = self.table.astype(np.float32)
+        return self.table
+
+    def right(self, amplitude=0.001):
+        data = np.random.uniform(-1, 1, self.blocksize)
+        self.table[:, 1] = data * amplitude
+        self.table = self.table.astype(np.float32)
+        return self.table
 
 class JackClient(mp.Process):
-    def __init__(self, name='jack_client', outchannels: typing.Optional[list] = None, play_q_size:int=2048):
+    def __init__(self, name='jack_client', outchannels=None):
         self.name = name
+
+        # Create jack client
         self.client = jack.Client(self.name)
+
+        # Pull these values from the initialized client
+        # These comes from the jackd daemon
         self.blocksize = self.client.blocksize
         self.fs = self.client.samplerate
-        self.zero_arr = np.zeros((self.blocksize,1),dtype='float32') # Silence
+        print("received blocksize {} and fs {}".format(self.blocksize, self.fs))
+
+        # self.q = mp.Queue()
+        # self.q_lock = mp.Lock()
+        
+        # A second one
+        # self.q2 = mp.Queue()
+        # self.q2_lock = mp.Lock()
+
+        # Set the number of output channels
         if outchannels is None:
-            self.outchannels = [0,1]
+            self.outchannels = [0, 1]
         else:
             self.outchannels = outchannels
-        self.q = mp.Queue()
-        self.q_lock = mp.Lock() # Queue lock
-        self.q2 = mp.Queue()
-        self.q2_lock = mp.Lock()
 
-        if self.outchannels == '':
-            # Mono mode
-            listified_outchannels = []
+        # Set mono_output
+        if len(self.outchannels) == 1:
             self.mono_output = True
-        elif not isinstance(self.outchannels, list):
-            # Must be a single integer-like thing
-            listified_outchannels = [int(self.outchannels)]
-            self.mono_output = False
         else:
-            # Already a list
-            listified_outchannels = self.outchannels
             self.mono_output = False
 
         # Register outports
@@ -66,7 +72,7 @@ class JackClient(mp.Process):
             self.client.outports.register('out_0') #include this
         else:
             # One outport per provided outchannel
-            for n in range(len(listified_outchannels)):
+            for n in range(len(self.outchannels)):
                 self.client.outports.register('out_{}'.format(n))
 
         # Process callback to self.process
@@ -75,77 +81,76 @@ class JackClient(mp.Process):
         # Activate the client
         self.client.activate()
 
-    def process(self, frames):
-        # Try to get data from the first queue
-        try:
-            with self.q_lock:
-                data = self.q.get_nowait()
-        except queue.Empty:
-            data = np.transpose([
-                np.zeros(self.blocksize, dtype='float32'),
-                np.zeros(self.blocksize, dtype='float32'),
-                ])
+        ## Hook up the outports (data sinks) to physical ports
+        # Get the actual physical ports that can play sound
+        target_ports = self.client.get_ports(
+            is_physical=True, is_input=True, is_audio=True)
 
-        # Try to get data from the second queue
-        try:
-            with self.q2_lock:
-                data2 = self.q2.get_nowait()
-        except queue.Empty:
-            data2 = np.transpose([
-                np.zeros(self.blocksize, dtype='float32'),
-                np.zeros(self.blocksize, dtype='float32'),
-                ])
+        # Depends on whether we're in mono mode
+        if self.mono_output:
+            ## Mono mode
+            # Hook up one outport to all channels
+            for target_port in target_ports:
+                self.client.outports[0].connect(target_port)
         
-        # Force to stereo
-        if data.ndim == 1:
-            data = np.transpose([data, data])
-        if data2.ndim == 1:
-            data2 = np.transpose([data2, data2])
+        else:
+            ## Not mono mode
+            # Error check
+            if len(self.outchannels) > len(target_ports):
+                raise ValueError(
+                    "cannot connect {} ports, only {} available".format(
+                    len(self.outchannels),
+                    len(target_ports),))
+            
+            # Hook up one outport to each channel
+            for n in range(len(self.outchannels)):
+                # This is the channel number the user provided in OUTCHANNELS
+                index_of_physical_channel = self.outchannels[n]
+                
+                # This is the corresponding physical channel
+                # I think this will always be the same as index_of_physical_channel
+                physical_channel = target_ports[index_of_physical_channel]
+                
+                # Connect virtual outport to physical channel
+                self.client.outports[n].connect(physical_channel)
 
-        # Add
-        data = data + data2
+    def process(self, frames):
+        # Generate some fake data
+        # In the future this will be pulled from the queue
+        data = 0.001 * np.random.uniform(-1, 1, self.blocksize)
+        #data = np.zeros(self.blocksize, dtype='float32')
+        #print("data shape:", data.shape)
 
         # Write
         self.write_to_outports(data)
 
-    def write_to_outports(self, data): 
-        data = data.squeeze()   
+    def write_to_outports(self, data):
+        data = data.squeeze()
         if data.ndim == 1:
-                ## 1-dimensional sound provided
-                # Write the same data to each channel
-                for outport in self.client.outports:
-                    buff = outport.get_array()
-                    buff[:] = data
-                
+            ## 1-dimensional sound provided
+            # Write the same data to each channel
+            for outport in self.client.outports:
+                buff = outport.get_array()
+                buff[:] = data
+
         elif data.ndim == 2:
-                # Error check
-                if data.shape[1] != len(self.client.outports):
-                    raise ValueError(
-                        "data has {} channels "
-                        "but only {} outports in pref OUTCHANNELS".format(
-                        data.shape[1], len(self.client.outports)))
-                
-                # Write one column to each channel
-                for n_outport, outport in enumerate(self.client.outports):
-                    buff = outport.get_array()
-                    buff[:] = data[:, n_outport]
+            # Error check
+            if data.shape[1] != len(self.client.outports):
+                raise ValueError(
+                    "data has {} channels "
+                    "but only {} outports in pref OUTCHANNELS".format(
+                    data.shape[1], len(self.client.outports)))
 
-class Sound:
-    def __init__(self, jack_client):
-        self.left_target_stim = None
-        self.right_target_stim = None
-        self.jack_client = jack_client
+            # Write one column to each channel
+            for n_outport, outport in enumerate(self.client.outports):
+                buff = outport.get_array()
+                buff[:] = data[:, n_outport]
 
-    def initialize_sounds(self, target_amplitude):
-        # Defining sounds to be played in the task for left and right target noise bursts
-        self.left_target_stim = Noise(duration=10, amplitude=target_amplitude)       
-        self.right_target_stim = Noise(duration=10, amplitude=target_amplitude)
-    
-    def chunk_sounds(self):
-        if not self.left_target_stim.chunks:
-            self.left_target_stim.chunk()
-        if not self.right_target_stim.chunks:
-            self.right_target_stim.chunk()
+        else:
+            raise ValueError("data must be 1D or 2D")
+
+# Define a client to play sounds
+#jack_client = JackClient(name='jack_client')
 
 # Raspberry Pi's identity (Change this to the identity of the Raspberry Pi you are using)
 pi_identity = b"rpi22"
@@ -172,7 +177,6 @@ left_poke_detected = False
 right_poke_detected = False
 
 jack_client = JackClient(name='jack_client')
-sound_player = Sound(jack_client)
 
 # Callback function for nosepoke pin (When the nosepoke is completed)
 def poke_inL(pin, level, tick):
@@ -284,8 +288,8 @@ try:
                     pi.set_mode(reward_pin, pigpio.OUTPUT)
                     pi.set_PWM_frequency(reward_pin, 1)
                     pi.set_PWM_dutycycle(reward_pin, 50)
-                    data = sound_player.left_target_stim.chunks.pop(0)
-                    jack_client.q.put(data)
+                    #data = sound_player.left_target_stim.chunks.pop(0)
+                    #jack_client.q.put(data)
                     print("Turning Nosepoke 5 Green")
 
                     # Update the current LED
@@ -297,8 +301,8 @@ try:
                     pi.set_mode(reward_pin, pigpio.OUTPUT)
                     pi.set_PWM_frequency(reward_pin, 1)
                     pi.set_PWM_dutycycle(reward_pin, 50)
-                    data = sound_player.right_target_stim.chunks.pop(0)
-                    jack_client.q2.put(data)
+                    #data = sound_player.right_target_stim.chunks.pop(0)
+                    #jack_client.q2.put(data)
                     print("Turning Nosepoke 7 Green")
 
                     # Update the current LED
