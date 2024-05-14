@@ -21,6 +21,7 @@ class Noise:
     def __init__(self, blocksize):
         self.blocksize = blocksize
         self.table = np.zeros((self.blocksize, 2), dtype=np.float32)
+        #ssss
 
     def left(self, amplitude=0.001):
         data = np.random.uniform(-1, 1, self.blocksize)
