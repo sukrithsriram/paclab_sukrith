@@ -34,7 +34,7 @@ class Noise:
         self.table = self.table.astype(np.float32)
         return self.table
 
-class JackClient(mp.Process):
+class JackClient():
     def __init__(self, name='jack_client', outchannels=None):
         self.name = name
 
@@ -150,7 +150,10 @@ class JackClient(mp.Process):
             raise ValueError("data must be 1D or 2D")
 
 # Define a client to play sounds
-#jack_client = JackClient(name='jack_client')
+jack_client = JackClient(name='jack_client')
+jack_client_thread = threading.Thread(target=jack_client)
+jack_client_thread.start()
+
 
 # Raspberry Pi's identity (Change this to the identity of the Raspberry Pi you are using)
 pi_identity = b"rpi22"
@@ -161,7 +164,7 @@ socket = context.socket(zmq.DEALER)
 socket.identity = pi_identity
 
 # Connect to the server
-router_ip = "tcp://192.168.0.194:5555" # Connecting to Laptop IP address (192.168.0.99 for lab setup)
+router_ip = "tcp://192.168.0.207:5555" # Connecting to Laptop IP address (192.168.0.99 for laptop, 192.168.0.207 for seaturtle)
 socket.connect(router_ip)
 socket.send_string("rpi22")
 print(f"Connected to router at {router_ip}")  # Print acknowledgment
