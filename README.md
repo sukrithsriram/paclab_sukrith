@@ -1,4 +1,4 @@
-# pac_lab_code_sukrith
+# PAC Lab Code - Sukrith
 
 
 Requirements: conda install pyqt pyzmq pyqtgraph\
