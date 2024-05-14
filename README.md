@@ -1,4 +1,5 @@
-# PAC_Lab_Code_Sukrith
+# pac_lab_code_sukrith
+
 
 Requirements: conda install pyqt pyzmq pyqtgraph\
 PiGPIO: pip install pigpio\
