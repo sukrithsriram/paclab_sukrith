@@ -296,17 +296,18 @@ class PiWidget(QWidget):
    
     @pyqtSlot()
     def reset_last_poke_time(self):
-        #print("Resetting last poke time...")  # Debug print to check if the method is called
+        print("Resetting last poke time...")  # Debug print to check if the method is called
 
-        # Restart the last poke time
-        self.poke_time.restart()
-        
+        # Calculate the elapsed time since the last poke
+        current_time = time.time()
+        elapsed_time = current_time - self.last_poke_timestamp
+
         # Update the QLabel text with the time since the last poke
-        elapsed_time = self.poke_time.elapsed() / 1000.0  # Convert milliseconds to seconds
         minutes, seconds = divmod(elapsed_time, 60)  # Convert seconds to minutes and seconds
         print(f"Elapsed time since last poke: {int(minutes)}:{int(seconds)}")  # Debug print to check elapsed time
 
         self.poke_time_label.setText(f"Time since last poke: {int(minutes)}:{int(seconds)}")
+
 
     def save_results_to_csv(self):
         self.worker.save_results_to_csv()  # Call worker method to save results
