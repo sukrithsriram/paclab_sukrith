@@ -304,8 +304,8 @@ class PiWidget(QWidget):
         elapsed_time = self.start_time.elapsed() / 1000.0  # Convert milliseconds to seconds
         minutes, seconds = divmod(elapsed_time, 60)  # Convert seconds to minutes and seconds
         # Update the QLabel text with the elapsed time in minutes and seconds
-        self.time_label.setText(f"Time elapsed: {int(minutes)}:{int(seconds)}")
-   
+        self.time_label.setText(f"Time elapsed: {str(int(minutes)).zfill(2)}:{str(int(seconds)).zfill(2)}")
+           
     @pyqtSlot()
     def reset_last_poke_time(self):
         print("Resetting last poke time...")  # Debug print to check if the method is called
