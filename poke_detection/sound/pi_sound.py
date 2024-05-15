@@ -3,15 +3,15 @@ import pigpio
 import numpy as np
 import os
 import jack
-import multiprocessing as mp
-import typing
 import time
-import queue as queue
 import threading
 
+# Killing previous pigpiod and jackd background processes
 os.system('sudo killall pigpiod')
 os.system('sudo killall jackd')
 time.sleep(1)
+
+# Starting pigpiod and jackd background processes
 os.system('sudo pigpiod -t 0 -l -x 1111110000111111111111110000')
 time.sleep(1)
 os.system('jackd -P75 -p16 -t2000 -dalsa -dhw:sndrpihifiberry -P -r192000 -n3 -s &')
@@ -22,23 +22,19 @@ class Noise:
         self.blocksize = blocksize
         self.table = np.zeros((self.blocksize, 2), dtype=np.float32)
 
-    def left(self, amplitude=0.001):
-        data = np.random.uniform(-1, 1, self.blocksize)
-        self.table[:, 0] = data * amplitude
-        self.table = self.table.astype(np.float32)
-        return self.table
+    @staticmethod
+    def chunk_data(data, chunk_size):
+        # Split the data into chunks of size chunk_size
+        chunks = np.array_split(data, len(data) // chunk_size)
+        return chunks
 
-    def right(self, amplitude=0.001):
-        data = np.random.uniform(-1, 1, self.blocksize)
-        self.table[:, 1] = data * amplitude
-        self.table = self.table.astype(np.float32)
-        return self.table
-
-class JackClient():
+class JackClient:
     def __init__(self, name='jack_client', outchannels=None):
         self.name = name
+        self.set_channel = 'none'  # 'left', 'right', or 'none'
+        self.lock = threading.Lock()  # Lock for thread-safe set_channel updates
 
-        # Create jack client
+        # Creating a jack client
         self.client = jack.Client(self.name)
 
         # Pull these values from the initialized client
@@ -46,13 +42,6 @@ class JackClient():
         self.blocksize = self.client.blocksize
         self.fs = self.client.samplerate
         print("received blocksize {} and fs {}".format(self.blocksize, self.fs))
-
-        # self.q = mp.Queue()
-        # self.q_lock = mp.Lock()
-        
-        # A second one
-        # self.q2 = mp.Queue()
-        # self.q2_lock = mp.Lock()
 
         # Set the number of output channels
         if outchannels is None:
@@ -69,7 +58,7 @@ class JackClient():
         # Register outports
         if self.mono_output:
             # One single outport
-            self.client.outports.register('out_0') #include this
+            self.client.outports.register('out_0')
         else:
             # One outport per provided outchannel
             for n in range(len(self.outchannels)):
@@ -114,23 +103,22 @@ class JackClient():
                 # Connect virtual outport to physical channel
                 self.client.outports[n].connect(physical_channel)
 
+    # Process callback function (used to play sound)
     def process(self, frames):
-        # Generate some fake data based on channel
-        with self.lock:
-            if self.channel == 'left':
+        with self.lock: # Lock to make it thread-safe
+            if self.set_channel == 'left': # Play sound from left channel
+                data = 0.001 * np.random.uniform(-1, 1, (self.blocksize, 2)) # Random noise using numpy
+                data[:, 1] = 0  # Blocking out the right channel 
+            elif self.set_channel == 'right':
                 data = 0.001 * np.random.uniform(-1, 1, (self.blocksize, 2))
-                data[:, 1] = 0  # Zero out the right channel
-            elif self.channel == 'right':
-                data = 0.001 * np.random.uniform(-1, 1, (self.blocksize, 2))
-                data[:, 0] = 0  # Zero out the left channel
+                data[:, 0] = 0  # Blocking out the left channel
             else:
-                data = np.zeros((self.blocksize, 2), dtype='float32')
+                data = np.zeros((self.blocksize, 2), dtype='float32') # Silence
 
         # Write
         self.write_to_outports(data)
 
     def write_to_outports(self, data):
-        data = data.squeeze()
         if data.ndim == 1:
             ## 1-dimensional sound provided
             # Write the same data to each channel
@@ -140,6 +128,7 @@ class JackClient():
 
         elif data.ndim == 2:
             # Error check
+            # Making sure the number of channels in data matches the number of outports
             if data.shape[1] != len(self.client.outports):
                 raise ValueError(
                     "data has {} channels "
@@ -152,16 +141,21 @@ class JackClient():
                 buff[:] = data[:, n_outport]
 
         else:
-            raise ValueError("data must be 1D or 2D")
-        
-    def set_channel(self, mode):
+            raise ValueError("data must be 1D or 2D") 
+
+    # Function to set which channel to play sound from
+    def set_set_channel(self, mode):
         with self.lock:
-            self.channel = mode
+            self.set_channel = mode
+
+    def run(self):
+        # Placeholder for any additional setup if needed
+        pass
 
 # Define a client to play sounds
 jack_client = JackClient(name='jack_client')
-jack_client_thread = threading.Thread(target=jack_client)
-jack_client_thread.start()
+jack_client_thread = threading.Thread(target=jack_client.run) # Creating a thread for the jack client
+jack_client_thread.start() # Starting the thread
 
 # Raspberry Pi's identity (Change this to the identity of the Raspberry Pi you are using)
 pi_identity = b"rpi22"
@@ -169,12 +163,12 @@ pi_identity = b"rpi22"
 # Creating a ZeroMQ context and socket for communication with the central system
 context = zmq.Context()
 socket = context.socket(zmq.DEALER)
-socket.identity = pi_identity
+socket.identity = pi_identity # Setting the identity of the socket
 
 # Connect to the server
 router_ip = "tcp://192.168.0.207:5555" # Connecting to Laptop IP address (192.168.0.99 for laptop, 192.168.0.207 for seaturtle)
-socket.connect(router_ip)
-socket.send_string("rpi22")
+socket.connect(router_ip) 
+socket.send_string("rpi22") # Send the identity of the Raspberry Pi to the server
 print(f"Connected to router at {router_ip}")  # Print acknowledgment
 
 # Pigpio configuration
@@ -186,8 +180,6 @@ nosepoke_pinR = 15
 # Global variables for which nospoke was detected
 left_poke_detected = False
 right_poke_detected = False
-
-jack_client = JackClient(name='jack_client')
 
 # Callback function for nosepoke pin (When the nosepoke is completed)
 def poke_inL(pin, level, tick):
@@ -221,12 +213,12 @@ def poke_detectedL(pin, level, tick):
     a_state = 1
     count += 1
     left_poke_detected = True
-    # Your existing poke_detectedL code here
     print("Poke Completed (Left)")
     print("Poke Count:", count)
     nosepoke_idL = 5  # Set the left nosepoke_id here according to the pi
     pi.set_mode(17, pigpio.OUTPUT)
     pi.write(17, 0)
+    # Sending nosepoke_id wirelessly
     try:
         print(f"Sending nosepoke_id = {nosepoke_idL} to the Laptop") 
         socket.send_string(str(nosepoke_idL))
@@ -238,7 +230,6 @@ def poke_detectedR(pin, level, tick):
     a_state = 1
     count += 1
     right_poke_detected = True
-    # Your existing poke_detectedR code here
     print("Poke Completed (Right)")
     print("Poke Count:", count)
     nosepoke_idR = 7  # Set the right nosepoke_id here according to the pi
@@ -269,7 +260,7 @@ try:
         # Check for incoming messages
         try:
             msg = socket.recv_string(zmq.NOBLOCK)
-            if msg == 'exit':
+            if msg == 'exit': # Condition to terminate the main loop
                 pi.write(17, 0)
                 pi.write(10, 0)
                 pi.write(27, 0)
@@ -290,41 +281,32 @@ try:
                 # Reset the previously active LED if any
                 if current_pin is not None:
                     pi.write(current_pin, 0)
-                    #print("Turning off green LED.")
                 
                 # Manipulate pin values based on the integer value
                 if value == 5:
-                    # Manipulate pins for case 1
                     reward_pin = 27  # Example pin for case 1 (Change this to the actual)
                     pi.set_mode(reward_pin, pigpio.OUTPUT)
                     pi.set_PWM_frequency(reward_pin, 1)
                     pi.set_PWM_dutycycle(reward_pin, 50)
-                    # Set channel to 'left'
-                    jack_client.set_channel('left')
-                    #data = sound_player.left_target_stim.chunks.pop(0)
-                    #jack_client.q.put(data)
+                    # Playing sound from the left speaker
+                    jack_client.set_set_channel('left')
                     print("Turning Nosepoke 5 Green")
 
-                    # Update the current LED
                     current_pin = reward_pin
 
                 elif value == 7:
-                    # Manipulate pins for case 2
                     reward_pin = 9  # Example pin for case 2
                     pi.set_mode(reward_pin, pigpio.OUTPUT)
                     pi.set_PWM_frequency(reward_pin, 1)
                     pi.set_PWM_dutycycle(reward_pin, 50)
-                    # Set play mode to 'right'
-                    jack_client.set_channel('right')
-                    #data = sound_player.right_target_stim.chunks.pop(0)
-                    #jack_client.q2.put(data)
+                    # Playing sound from the right speaker
+                    jack_client.set_set_channel('right')
                     print("Turning Nosepoke 7 Green")
 
-                    # Update the current LED
                     current_pin = reward_pin
 
                 else:
-                    print(f"Current Port: {value}")
+                    print(f"Current Reward Port: {value}") # Current Reward Port
             
             elif msg == "Reward Poke Completed":
                 # Turn off the currently active LED
@@ -335,7 +317,7 @@ try:
                 else:
                     print("No LED is currently active.")
                 # Reset play mode to 'none'
-                jack_client.set_channel('none')
+                jack_client.set_set_channel('none')
             else:
                 print("Unknown message received:", msg)
 
