@@ -6,9 +6,12 @@ import jack
 import time
 import threading
 
+# Killing previous pigpiod and jackd background processes
 os.system('sudo killall pigpiod')
 os.system('sudo killall jackd')
 time.sleep(1)
+
+# Starting pigpiod and jackd background processes
 os.system('sudo pigpiod -t 0 -l -x 1111110000111111111111110000')
 time.sleep(1)
 os.system('jackd -P75 -p16 -t2000 -dalsa -dhw:sndrpihifiberry -P -r192000 -n3 -s &')
@@ -19,18 +22,6 @@ class Noise:
         self.blocksize = blocksize
         self.table = np.zeros((self.blocksize, 2), dtype=np.float32)
 
-    def left(self, amplitude=0.001):
-        data = np.random.uniform(-1, 1, self.blocksize)
-        self.table[:, 0] = data * amplitude
-        self.table = self.table.astype(np.float32)
-        return self.table
-
-    def right(self, amplitude=0.001):
-        data = np.random.uniform(-1, 1, self.blocksize)
-        self.table[:, 1] = data * amplitude
-        self.table = self.table.astype(np.float32)
-        return self.table
-    
     @staticmethod
     def chunk_data(data, chunk_size):
         # Split the data into chunks of size chunk_size
@@ -43,7 +34,7 @@ class JackClient:
         self.set_channel = 'none'  # 'left', 'right', or 'none'
         self.lock = threading.Lock()  # Lock for thread-safe set_channel updates
 
-        # Create jack client
+        # Creating a jack client
         self.client = jack.Client(self.name)
 
         # Pull these values from the initialized client
@@ -112,17 +103,17 @@ class JackClient:
                 # Connect virtual outport to physical channel
                 self.client.outports[n].connect(physical_channel)
 
+    # Process callback function (used to play sound)
     def process(self, frames):
-        # Generate some fake data based on set_channel
-        with self.lock:
-            if self.set_channel == 'left':
-                data = 0.001 * np.random.uniform(-1, 1, (self.blocksize, 2))
-                data[:, 1] = 0  # Zero out the right channel
+        with self.lock: # Lock to make it thread-safe
+            if self.set_channel == 'left': # Play sound from left channel
+                data = 0.001 * np.random.uniform(-1, 1, (self.blocksize, 2)) # Random noise using numpy
+                data[:, 1] = 0  # Blocking out the right channel 
             elif self.set_channel == 'right':
                 data = 0.001 * np.random.uniform(-1, 1, (self.blocksize, 2))
-                data[:, 0] = 0  # Zero out the left channel
+                data[:, 0] = 0  # Blocking out the left channel
             else:
-                data = np.zeros((self.blocksize, 2), dtype='float32')
+                data = np.zeros((self.blocksize, 2), dtype='float32') # Silence
 
         # Write
         self.write_to_outports(data)
@@ -137,6 +128,7 @@ class JackClient:
 
         elif data.ndim == 2:
             # Error check
+            # Making sure the number of channels in data matches the number of outports
             if data.shape[1] != len(self.client.outports):
                 raise ValueError(
                     "data has {} channels "
@@ -149,8 +141,9 @@ class JackClient:
                 buff[:] = data[:, n_outport]
 
         else:
-            raise ValueError("data must be 1D or 2D")
+            raise ValueError("data must be 1D or 2D") 
 
+    # Function to set which channel to play sound from
     def set_set_channel(self, mode):
         with self.lock:
             self.set_channel = mode
@@ -161,8 +154,8 @@ class JackClient:
 
 # Define a client to play sounds
 jack_client = JackClient(name='jack_client')
-jack_client_thread = threading.Thread(target=jack_client.run)
-jack_client_thread.start()
+jack_client_thread = threading.Thread(target=jack_client.run) # Creating a thread for the jack client
+jack_client_thread.start() # Starting the thread
 
 # Raspberry Pi's identity (Change this to the identity of the Raspberry Pi you are using)
 pi_identity = b"rpi22"
@@ -170,12 +163,12 @@ pi_identity = b"rpi22"
 # Creating a ZeroMQ context and socket for communication with the central system
 context = zmq.Context()
 socket = context.socket(zmq.DEALER)
-socket.identity = pi_identity
+socket.identity = pi_identity # Setting the identity of the socket
 
 # Connect to the server
 router_ip = "tcp://192.168.0.207:5555" # Connecting to Laptop IP address (192.168.0.99 for laptop, 192.168.0.207 for seaturtle)
-socket.connect(router_ip)
-socket.send_string("rpi22")
+socket.connect(router_ip) 
+socket.send_string("rpi22") # Send the identity of the Raspberry Pi to the server
 print(f"Connected to router at {router_ip}")  # Print acknowledgment
 
 # Pigpio configuration
@@ -267,7 +260,7 @@ try:
         # Check for incoming messages
         try:
             msg = socket.recv_string(zmq.NOBLOCK)
-            if msg == 'exit':
+            if msg == 'exit': # Condition to terminate the main loop
                 pi.write(17, 0)
                 pi.write(10, 0)
                 pi.write(27, 0)
@@ -295,7 +288,7 @@ try:
                     pi.set_mode(reward_pin, pigpio.OUTPUT)
                     pi.set_PWM_frequency(reward_pin, 1)
                     pi.set_PWM_dutycycle(reward_pin, 50)
-                    # Set play mode to 'left'
+                    # Playing sound from the left speaker
                     jack_client.set_set_channel('left')
                     print("Turning Nosepoke 5 Green")
 
@@ -306,14 +299,14 @@ try:
                     pi.set_mode(reward_pin, pigpio.OUTPUT)
                     pi.set_PWM_frequency(reward_pin, 1)
                     pi.set_PWM_dutycycle(reward_pin, 50)
-                    # Set play mode to 'right'
+                    # Playing sound from the right speaker
                     jack_client.set_set_channel('right')
                     print("Turning Nosepoke 7 Green")
 
                     current_pin = reward_pin
 
                 else:
-                    print(f"Current Port: {value}")
+                    print(f"Current Reward Port: {value}") # Current Reward Port
             
             elif msg == "Reward Poke Completed":
                 # Turn off the currently active LED
