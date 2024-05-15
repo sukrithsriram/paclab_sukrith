@@ -3,10 +3,7 @@ import pigpio
 import numpy as np
 import os
 import jack
-import multiprocessing as mp
-import typing
 import time
-import queue as queue
 import threading
 
 os.system('sudo killall pigpiod')
@@ -33,10 +30,18 @@ class Noise:
         self.table[:, 1] = data * amplitude
         self.table = self.table.astype(np.float32)
         return self.table
+    
+    @staticmethod
+    def chunk_data(data, chunk_size):
+        # Split the data into chunks of size chunk_size
+        chunks = np.array_split(data, len(data) // chunk_size)
+        return chunks
 
-class JackClient():
+class JackClient:
     def __init__(self, name='jack_client', outchannels=None):
         self.name = name
+        self.set_channel = 'none'  # 'left', 'right', or 'none'
+        self.lock = threading.Lock()  # Lock for thread-safe set_channel updates
 
         # Create jack client
         self.client = jack.Client(self.name)
@@ -46,13 +51,6 @@ class JackClient():
         self.blocksize = self.client.blocksize
         self.fs = self.client.samplerate
         print("received blocksize {} and fs {}".format(self.blocksize, self.fs))
-
-        # self.q = mp.Queue()
-        # self.q_lock = mp.Lock()
-        
-        # A second one
-        # self.q2 = mp.Queue()
-        # self.q2_lock = mp.Lock()
 
         # Set the number of output channels
         if outchannels is None:
@@ -69,7 +67,7 @@ class JackClient():
         # Register outports
         if self.mono_output:
             # One single outport
-            self.client.outports.register('out_0') #include this
+            self.client.outports.register('out_0')
         else:
             # One outport per provided outchannel
             for n in range(len(self.outchannels)):
@@ -115,17 +113,21 @@ class JackClient():
                 self.client.outports[n].connect(physical_channel)
 
     def process(self, frames):
-        # Generate some fake data
-        # In the future this will be pulled from the queue
-        data = 0.001 * np.random.uniform(-1, 1, self.blocksize)
-        #data = np.zeros(self.blocksize, dtype='float32')
-        #print("data shape:", data.shape)
+        # Generate some fake data based on set_channel
+        with self.lock:
+            if self.set_channel == 'left':
+                data = 0.001 * np.random.uniform(-1, 1, (self.blocksize, 2))
+                data[:, 1] = 0  # Zero out the right channel
+            elif self.set_channel == 'right':
+                data = 0.001 * np.random.uniform(-1, 1, (self.blocksize, 2))
+                data[:, 0] = 0  # Zero out the left channel
+            else:
+                data = np.zeros((self.blocksize, 2), dtype='float32')
 
         # Write
         self.write_to_outports(data)
 
     def write_to_outports(self, data):
-        data = data.squeeze()
         if data.ndim == 1:
             ## 1-dimensional sound provided
             # Write the same data to each channel
@@ -149,11 +151,18 @@ class JackClient():
         else:
             raise ValueError("data must be 1D or 2D")
 
+    def set_set_channel(self, mode):
+        with self.lock:
+            self.set_channel = mode
+
+    def run(self):
+        # Placeholder for any additional setup if needed
+        pass
+
 # Define a client to play sounds
 jack_client = JackClient(name='jack_client')
-jack_client_thread = threading.Thread(target=jack_client)
+jack_client_thread = threading.Thread(target=jack_client.run)
 jack_client_thread.start()
-
 
 # Raspberry Pi's identity (Change this to the identity of the Raspberry Pi you are using)
 pi_identity = b"rpi22"
@@ -178,8 +187,6 @@ nosepoke_pinR = 15
 # Global variables for which nospoke was detected
 left_poke_detected = False
 right_poke_detected = False
-
-jack_client = JackClient(name='jack_client')
 
 # Callback function for nosepoke pin (When the nosepoke is completed)
 def poke_inL(pin, level, tick):
@@ -213,12 +220,12 @@ def poke_detectedL(pin, level, tick):
     a_state = 1
     count += 1
     left_poke_detected = True
-    # Your existing poke_detectedL code here
     print("Poke Completed (Left)")
     print("Poke Count:", count)
     nosepoke_idL = 5  # Set the left nosepoke_id here according to the pi
     pi.set_mode(17, pigpio.OUTPUT)
     pi.write(17, 0)
+    # Sending nosepoke_id wirelessly
     try:
         print(f"Sending nosepoke_id = {nosepoke_idL} to the Laptop") 
         socket.send_string(str(nosepoke_idL))
@@ -230,7 +237,6 @@ def poke_detectedR(pin, level, tick):
     a_state = 1
     count += 1
     right_poke_detected = True
-    # Your existing poke_detectedR code here
     print("Poke Completed (Right)")
     print("Poke Count:", count)
     nosepoke_idR = 7  # Set the right nosepoke_id here according to the pi
@@ -282,33 +288,28 @@ try:
                 # Reset the previously active LED if any
                 if current_pin is not None:
                     pi.write(current_pin, 0)
-                    #print("Turning off green LED.")
                 
                 # Manipulate pin values based on the integer value
                 if value == 5:
-                    # Manipulate pins for case 1
                     reward_pin = 27  # Example pin for case 1 (Change this to the actual)
                     pi.set_mode(reward_pin, pigpio.OUTPUT)
                     pi.set_PWM_frequency(reward_pin, 1)
                     pi.set_PWM_dutycycle(reward_pin, 50)
-                    #data = sound_player.left_target_stim.chunks.pop(0)
-                    #jack_client.q.put(data)
+                    # Set play mode to 'left'
+                    jack_client.set_set_channel('left')
                     print("Turning Nosepoke 5 Green")
 
-                    # Update the current LED
                     current_pin = reward_pin
 
                 elif value == 7:
-                    # Manipulate pins for case 2
                     reward_pin = 9  # Example pin for case 2
                     pi.set_mode(reward_pin, pigpio.OUTPUT)
                     pi.set_PWM_frequency(reward_pin, 1)
                     pi.set_PWM_dutycycle(reward_pin, 50)
-                    #data = sound_player.right_target_stim.chunks.pop(0)
-                    #jack_client.q2.put(data)
+                    # Set play mode to 'right'
+                    jack_client.set_set_channel('right')
                     print("Turning Nosepoke 7 Green")
 
-                    # Update the current LED
                     current_pin = reward_pin
 
                 else:
@@ -322,6 +323,8 @@ try:
                     current_pin = None  # Reset the current LED
                 else:
                     print("No LED is currently active.")
+                # Reset play mode to 'none'
+                jack_client.set_set_channel('none')
             else:
                 print("Unknown message received:", msg)
 
