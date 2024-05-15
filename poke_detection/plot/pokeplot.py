@@ -526,7 +526,7 @@ class MainWindow(QtWidgets.QMainWindow):
     def __init__(self):
         super().__init__()
         # Main Window Title
-        self.setWindowTitle("GUI (Not-A-Pilot)")
+        self.setWindowTitle("Behaviour GUI")
 
         # Creating instances of PiWidget and ConfigurationList
         self.Pi_widget = PiWidget(self)
