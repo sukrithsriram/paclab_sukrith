@@ -249,6 +249,10 @@ class PiWidget(QWidget):
     def emit_update_signal(self, poked_port_number, color):
         # Emit the updateSignal with the received poked_port_number and color
         self.updateSignal.emit(poked_port_number, color)
+
+        # Always connect reset_last_poke_time regardless of the color
+        self.worker.pokedportsignal.connect(self.reset_last_poke_time)
+        
         if color == "red":
             self.red_count += 1
             self.red_label.setText(f"Number of Pokes: {self.red_count}")
