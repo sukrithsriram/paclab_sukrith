@@ -257,6 +257,9 @@ class PiWidget(QWidget):
             self.blue_count += 1
             self.red_label.setText(f"Number of Pokes: {self.red_count}")
             self.blue_label.setText(f"Number of Trials: {self.blue_count}")
+            if self.blue_count != 0:
+                self.fraction_correct = self.green_count / self.blue_count
+                self.fraction_correct_label.setText(f"Fraction Correct (FC): {self.fraction_correct:.3f}")
 
         elif color == "green":
             self.green_count += 1
@@ -266,7 +269,6 @@ class PiWidget(QWidget):
             if self.blue_count != 0:
                 self.fraction_correct = self.green_count / self.blue_count
                 self.fraction_correct_label.setText(f"Fraction Correct (FC): {self.fraction_correct:.3f}")
-
 
 
     def start_sequence(self):
