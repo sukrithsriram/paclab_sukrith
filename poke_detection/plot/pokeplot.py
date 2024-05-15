@@ -185,7 +185,7 @@ class PiWidget(QWidget):
         self.total_ports = 8
         self.Pi_signals = [PiSignal(i, self.total_ports) for i in range(self.total_ports)]
         [self.scene.addItem(Pi) for Pi in self.Pi_signals]
-        self.last_poke_timestamp = None
+        self.last_poke_time = None  # Initialize the last poke time
 
         # Creating buttons to start and stop the sequence of communication with the Raspberry Pi
         self.poked_port_numbers = []
@@ -206,6 +206,8 @@ class PiWidget(QWidget):
         self.red_count = 0
         self.blue_count = 0
         self.green_count = 0
+
+        self.worker.pokedportsignal.connect(self.update_time_since_last_poke)
 
         #self.details_box = QGroupBox("Details")
         self.details_layout = QVBoxLayout()
@@ -299,22 +301,15 @@ class PiWidget(QWidget):
         elapsed_time = self.start_time.elapsed() / 1000.0  # Convert milliseconds to seconds
         minutes, seconds = divmod(elapsed_time, 60)  # Convert seconds to minutes and seconds
         # Update the QLabel text with the elapsed time in minutes and seconds
-        self.time_label.setText(f"Time elapsed: {int(minutes)}:{int(seconds)}")
-   
+        self.time_label.setText(f"Time elapsed: {str(int(minutes)).zfill(2)}:{str(int(seconds)).zfill(2)}")
+    
     @pyqtSlot()
-    def reset_last_poke_time(self):
-        # Get the current time
-        current_time = QTime.currentTime()
-
-        # Calculate the time difference since the last poke
-        if self.last_poke_timestamp is not None:
-            time_difference = self.last_poke_timestamp.msecsTo(current_time)
-            time_since_last_poke = QTime(0, 0).addMSecs(time_difference)
-            # Update the QLabel text with the time since last poke
-            self.poke_time_label.setText(f"Time since last poke: {time_since_last_poke.toString('mm:ss')}")
-
-        # Update the last poke timestamp
-        self.last_poke_timestamp = current_time
+    def update_time_since_last_poke(self):
+        self.last_poke_time = QTime.currentTime()  # Update the last poke time
+        elapsed_time = self.last_poke_time.msecsTo() / 1000.0  # Convert milliseconds to seconds
+        minutes, seconds = divmod(elapsed_time, 60)  # Convert seconds to minutes and seconds
+        # Update the QLabel text with the time elapsed since the last poke
+        self.poke_time_label.setText(f"Time since last poke: {str(int(minutes)).zfill(2)}:{str(int(seconds)).zfill(2)}")
 
     def save_results_to_csv(self):
         self.worker.save_results_to_csv()  # Call worker method to save results
