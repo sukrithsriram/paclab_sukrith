@@ -60,10 +60,12 @@ class Worker(QObject):
         self.Pi_signals = self.pi_widget.Pi_signals 
         self.poked_port_numbers = self.pi_widget.poked_port_numbers 
         self.identities = set()
-        
+        self.last_poke_timestamp = None  # Attribute to store the timestamp of the last poke event
+
         # Initialize reward_port and related variables
         self.reward_port = None
         self.previous_port = None
+        
         self.trials = 0
 
         # Placeholder for timestamps and ports visited
@@ -101,6 +103,10 @@ class Worker(QObject):
     def update_Pi(self):
         current_time = time.time()
         elapsed_time = current_time - self.initial_time
+        
+        # Update the last poke timestamp whenever a poke event occurs
+        self.last_poke_timestamp = current_time
+
         # Update the color of PiSignal objects based on the current Reward Port number
         for index, Pi in enumerate(self.Pi_signals):
             if index + 1 == self.reward_port:
@@ -183,6 +189,7 @@ class PiWidget(QWidget):
         self.total_ports = 8
         self.Pi_signals = [PiSignal(i, self.total_ports) for i in range(self.total_ports)]
         [self.scene.addItem(Pi) for Pi in self.Pi_signals]
+        self.last_poke_timestamp = None
 
         # Creating buttons to start and stop the sequence of communication with the Raspberry Pi
         self.poked_port_numbers = []
@@ -249,6 +256,8 @@ class PiWidget(QWidget):
     def emit_update_signal(self, poked_port_number, color):
         # Emit the updateSignal with the received poked_port_number and color
         self.updateSignal.emit(poked_port_number, color)
+        self.last_poke_timestamp = time.time()
+
         if color == "red":
             self.red_count += 1
             self.red_label.setText(f"Number of Pokes: {self.red_count}")
@@ -257,6 +266,9 @@ class PiWidget(QWidget):
             self.blue_count += 1
             self.red_label.setText(f"Number of Pokes: {self.red_count}")
             self.blue_label.setText(f"Number of Trials: {self.blue_count}")
+            if self.blue_count != 0:
+                self.fraction_correct = self.green_count / self.blue_count
+                self.fraction_correct_label.setText(f"Fraction Correct (FC): {self.fraction_correct:.3f}")
 
         elif color == "green":
             self.green_count += 1
@@ -302,11 +314,16 @@ class PiWidget(QWidget):
         current_time = time.time()
         elapsed_time = current_time - self.last_poke_timestamp
 
+        print(f"Current time: {current_time}")
+        print(f"Last poke timestamp: {self.last_poke_timestamp}")
+        print(f"Elapsed time since last poke: {elapsed_time}")  # Debug print to check elapsed time
+
         # Update the QLabel text with the time since the last poke
         minutes, seconds = divmod(elapsed_time, 60)  # Convert seconds to minutes and seconds
         print(f"Elapsed time since last poke: {int(minutes)}:{int(seconds)}")  # Debug print to check elapsed time
 
         self.poke_time_label.setText(f"Time since last poke: {int(minutes)}:{int(seconds)}")
+
 
 
     def save_results_to_csv(self):
