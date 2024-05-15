@@ -115,11 +115,16 @@ class JackClient():
                 self.client.outports[n].connect(physical_channel)
 
     def process(self, frames):
-        # Generate some fake data
-        # In the future this will be pulled from the queue
-        data = 0.001 * np.random.uniform(-1, 1, self.blocksize)
-        #data = np.zeros(self.blocksize, dtype='float32')
-        #print("data shape:", data.shape)
+        # Generate some fake data based on channel
+        with self.lock:
+            if self.channel == 'left':
+                data = 0.001 * np.random.uniform(-1, 1, (self.blocksize, 2))
+                data[:, 1] = 0  # Zero out the right channel
+            elif self.channel == 'right':
+                data = 0.001 * np.random.uniform(-1, 1, (self.blocksize, 2))
+                data[:, 0] = 0  # Zero out the left channel
+            else:
+                data = np.zeros((self.blocksize, 2), dtype='float32')
 
         # Write
         self.write_to_outports(data)
@@ -148,12 +153,15 @@ class JackClient():
 
         else:
             raise ValueError("data must be 1D or 2D")
+        
+    def set_channel(self, mode):
+        with self.lock:
+            self.channel = mode
 
 # Define a client to play sounds
 jack_client = JackClient(name='jack_client')
 jack_client_thread = threading.Thread(target=jack_client)
 jack_client_thread.start()
-
 
 # Raspberry Pi's identity (Change this to the identity of the Raspberry Pi you are using)
 pi_identity = b"rpi22"
@@ -291,6 +299,8 @@ try:
                     pi.set_mode(reward_pin, pigpio.OUTPUT)
                     pi.set_PWM_frequency(reward_pin, 1)
                     pi.set_PWM_dutycycle(reward_pin, 50)
+                    # Set channel to 'left'
+                    jack_client.set_channel('left')
                     #data = sound_player.left_target_stim.chunks.pop(0)
                     #jack_client.q.put(data)
                     print("Turning Nosepoke 5 Green")
@@ -304,6 +314,8 @@ try:
                     pi.set_mode(reward_pin, pigpio.OUTPUT)
                     pi.set_PWM_frequency(reward_pin, 1)
                     pi.set_PWM_dutycycle(reward_pin, 50)
+                    # Set play mode to 'right'
+                    jack_client.set_channel('right')
                     #data = sound_player.right_target_stim.chunks.pop(0)
                     #jack_client.q2.put(data)
                     print("Turning Nosepoke 7 Green")
@@ -322,6 +334,8 @@ try:
                     current_pin = None  # Reset the current LED
                 else:
                     print("No LED is currently active.")
+                # Reset play mode to 'none'
+                jack_client.set_channel('none')
             else:
                 print("Unknown message received:", msg)
 
