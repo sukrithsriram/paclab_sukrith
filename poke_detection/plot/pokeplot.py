@@ -60,7 +60,6 @@ class Worker(QObject):
         self.Pi_signals = self.pi_widget.Pi_signals 
         self.poked_port_numbers = self.pi_widget.poked_port_numbers 
         self.identities = set()
-        self.last_poke_timestamp = None  # Attribute to store the timestamp of the last poke event
 
         # Initialize reward_port and related variables
         self.reward_port = None
@@ -104,9 +103,6 @@ class Worker(QObject):
         current_time = time.time()
         elapsed_time = current_time - self.initial_time
         
-        # Update the last poke timestamp whenever a poke event occurs
-        self.last_poke_timestamp = current_time
-
         # Update the color of PiSignal objects based on the current Reward Port number
         for index, Pi in enumerate(self.Pi_signals):
             if index + 1 == self.reward_port:
@@ -256,7 +252,6 @@ class PiWidget(QWidget):
     def emit_update_signal(self, poked_port_number, color):
         # Emit the updateSignal with the received poked_port_number and color
         self.updateSignal.emit(poked_port_number, color)
-        self.last_poke_timestamp = time.time()
 
         if color == "red":
             self.red_count += 1
@@ -308,23 +303,18 @@ class PiWidget(QWidget):
    
     @pyqtSlot()
     def reset_last_poke_time(self):
-        print("Resetting last poke time...")  # Debug print to check if the method is called
+        # Get the current time
+        current_time = QTime.currentTime()
 
-        # Calculate the elapsed time since the last poke
-        current_time = time.time()
-        elapsed_time = current_time - self.last_poke_timestamp
+        # Calculate the time difference since the last poke
+        if self.last_poke_timestamp is not None:
+            time_difference = self.last_poke_timestamp.msecsTo(current_time)
+            time_since_last_poke = QTime(0, 0).addMSecs(time_difference)
+            # Update the QLabel text with the time since last poke
+            self.poke_time_label.setText(f"Time since last poke: {time_since_last_poke.toString('mm:ss')}")
 
-        print(f"Current time: {current_time}")
-        print(f"Last poke timestamp: {self.last_poke_timestamp}")
-        print(f"Elapsed time since last poke: {elapsed_time}")  # Debug print to check elapsed time
-
-        # Update the QLabel text with the time since the last poke
-        minutes, seconds = divmod(elapsed_time, 60)  # Convert seconds to minutes and seconds
-        print(f"Elapsed time since last poke: {int(minutes)}:{int(seconds)}")  # Debug print to check elapsed time
-
-        self.poke_time_label.setText(f"Time since last poke: {int(minutes)}:{int(seconds)}")
-
-
+        # Update the last poke timestamp
+        self.last_poke_timestamp = current_time
 
     def save_results_to_csv(self):
         self.worker.save_results_to_csv()  # Call worker method to save results
@@ -599,5 +589,4 @@ if __name__ == '__main__':
     app = QApplication(sys.argv)
     main_window = MainWindow()
     sys.exit(app.exec())
-
-    
+        
