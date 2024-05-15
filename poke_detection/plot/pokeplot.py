@@ -60,6 +60,7 @@ class Worker(QObject):
         self.Pi_signals = self.pi_widget.Pi_signals 
         self.poked_port_numbers = self.pi_widget.poked_port_numbers 
         self.identities = set()
+        self.last_poke_timestamp = None  # Attribute to store the timestamp of the last poke event
 
         # Initialize reward_port and related variables
         self.reward_port = None
@@ -103,6 +104,9 @@ class Worker(QObject):
         current_time = time.time()
         elapsed_time = current_time - self.initial_time
         
+        # Update the last poke timestamp whenever a poke event occurs
+        self.last_poke_timestamp = current_time
+
         # Update the color of PiSignal objects based on the current Reward Port number
         for index, Pi in enumerate(self.Pi_signals):
             if index + 1 == self.reward_port:
@@ -185,7 +189,7 @@ class PiWidget(QWidget):
         self.total_ports = 8
         self.Pi_signals = [PiSignal(i, self.total_ports) for i in range(self.total_ports)]
         [self.scene.addItem(Pi) for Pi in self.Pi_signals]
-        self.last_poke_time = None  # Initialize the last poke time
+        self.last_poke_timestamp = None
 
         # Creating buttons to start and stop the sequence of communication with the Raspberry Pi
         self.poked_port_numbers = []
@@ -246,13 +250,13 @@ class PiWidget(QWidget):
         self.stop_button.clicked.connect(self.stop_sequence) # Connect the stop button to the stop_sequence function
         # Connect the pokedportsignal from the Worker to a new slot
         self.worker.pokedportsignal.connect(self.emit_update_signal) # Connect the pokedportsignal to the emit_update_signal function
-        self.worker.pokedportsignal.connect(self.update_time_since_last_poke)
         self.worker.pokedportsignal.connect(self.reset_last_poke_time)
 
     # Function to emit the update signal
     def emit_update_signal(self, poked_port_number, color):
         # Emit the updateSignal with the received poked_port_number and color
         self.updateSignal.emit(poked_port_number, color)
+        self.last_poke_timestamp = time.time()
 
         if color == "red":
             self.red_count += 1
@@ -300,15 +304,27 @@ class PiWidget(QWidget):
         elapsed_time = self.start_time.elapsed() / 1000.0  # Convert milliseconds to seconds
         minutes, seconds = divmod(elapsed_time, 60)  # Convert seconds to minutes and seconds
         # Update the QLabel text with the elapsed time in minutes and seconds
-        self.time_label.setText(f"Time elapsed: {str(int(minutes)).zfill(2)}:{str(int(seconds)).zfill(2)}")
-    
+        self.time_label.setText(f"Time elapsed: {int(minutes)}:{int(seconds)}")
+   
     @pyqtSlot()
-    def update_time_since_last_poke(self):
-        self.last_poke_time = QTime.currentTime()  # Update the last poke time
-        elapsed_time = self.last_poke_time.msecsTo() / 1000.0  # Convert milliseconds to seconds
+    def reset_last_poke_time(self):
+        print("Resetting last poke time...")  # Debug print to check if the method is called
+
+        # Calculate the elapsed time since the last poke
+        current_time = time.time()
+        elapsed_time = current_time - self.last_poke_timestamp
+
+        print(f"Current time: {current_time}")
+        print(f"Last poke timestamp: {self.last_poke_timestamp}")
+        print(f"Elapsed time since last poke: {elapsed_time}")  # Debug print to check elapsed time
+
+        # Update the QLabel text with the time since the last poke
         minutes, seconds = divmod(elapsed_time, 60)  # Convert seconds to minutes and seconds
-        # Update the QLabel text with the time elapsed since the last poke
-        self.poke_time_label.setText(f"Time since last poke: {str(int(minutes)).zfill(2)}:{str(int(seconds)).zfill(2)}")
+        print(f"Elapsed time since last poke: {int(minutes)}:{int(seconds)}")  # Debug print to check elapsed time
+
+        self.poke_time_label.setText(f"Time since last poke: {int(minutes)}:{int(seconds)}")
+
+
 
     def save_results_to_csv(self):
         self.worker.save_results_to_csv()  # Call worker method to save results
@@ -583,4 +599,5 @@ if __name__ == '__main__':
     app = QApplication(sys.argv)
     main_window = MainWindow()
     sys.exit(app.exec())
-        
+
+    
