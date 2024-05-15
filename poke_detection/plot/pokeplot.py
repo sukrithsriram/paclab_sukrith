@@ -254,20 +254,19 @@ class PiWidget(QWidget):
             self.red_label.setText(f"Number of Pokes: {self.red_count}")
 
         if color == "blue":
-            self.red_count += 1
             self.blue_count += 1
             self.red_label.setText(f"Number of Pokes: {self.red_count}")
             self.blue_label.setText(f"Number of Trials: {self.blue_count}")
-            
+
         elif color == "green":
-            self.red_count += 1
             self.green_count += 1
-            self.blue_count += 1
             self.red_label.setText(f"Number of Pokes: {self.red_count}")
             self.blue_label.setText(f"Number of Trials: {self.blue_count}")
             self.green_label.setText(f"Number of Correct Trials: {self.green_count}")
-            self.fraction_correct = self.green_count / self.blue_count
-            self.fraction_correct_label = QLabel(f"Fraction Correct (FC): {self.fraction_correct}")
+            if self.blue_count != 0:
+                self.fraction_correct = self.green_count / self.blue_count
+                self.fraction_correct_label.setText(f"Fraction Correct (FC): {self.fraction_correct:.3f}")
+
 
 
     def start_sequence(self):
@@ -526,7 +525,7 @@ class MainWindow(QtWidgets.QMainWindow):
     def __init__(self):
         super().__init__()
         # Main Window Title
-        self.setWindowTitle("Behaviour GUI")
+        self.setWindowTitle("GUI (Not-A-Pilot)")
 
         # Creating instances of PiWidget and ConfigurationList
         self.Pi_widget = PiWidget(self)
