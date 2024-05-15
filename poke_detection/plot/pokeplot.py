@@ -207,8 +207,6 @@ class PiWidget(QWidget):
         self.blue_count = 0
         self.green_count = 0
 
-        self.worker.pokedportsignal.connect(self.update_time_since_last_poke)
-
         #self.details_box = QGroupBox("Details")
         self.details_layout = QVBoxLayout()
         self.time_label = QLabel("Time Elapsed: 00:00",self)
@@ -248,6 +246,7 @@ class PiWidget(QWidget):
         self.stop_button.clicked.connect(self.stop_sequence) # Connect the stop button to the stop_sequence function
         # Connect the pokedportsignal from the Worker to a new slot
         self.worker.pokedportsignal.connect(self.emit_update_signal) # Connect the pokedportsignal to the emit_update_signal function
+        self.worker.pokedportsignal.connect(self.update_time_since_last_poke)
         self.worker.pokedportsignal.connect(self.reset_last_poke_time)
 
     # Function to emit the update signal
