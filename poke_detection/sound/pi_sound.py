@@ -107,10 +107,10 @@ class JackClient:
     def process(self, frames):
         with self.lock: # Lock to make it thread-safe
             if self.set_channel == 'left': # Play sound from left channel
-                data = 0.001 * np.random.uniform(-1, 1, (self.blocksize, 2)) # Random noise using numpy
+                data = 0.005 * np.random.uniform(-1, 1, (self.blocksize, 2)) # Random noise using numpy
                 data[:, 1] = 0  # Blocking out the right channel 
             elif self.set_channel == 'right':
-                data = 0.001 * np.random.uniform(-1, 1, (self.blocksize, 2))
+                data = 0.005 * np.random.uniform(-1, 1, (self.blocksize, 2))
                 data[:, 0] = 0  # Blocking out the left channel
             else:
                 data = np.zeros((self.blocksize, 2), dtype='float32') # Silence
