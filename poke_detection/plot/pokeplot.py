@@ -249,10 +249,6 @@ class PiWidget(QWidget):
     def emit_update_signal(self, poked_port_number, color):
         # Emit the updateSignal with the received poked_port_number and color
         self.updateSignal.emit(poked_port_number, color)
-
-        # Always connect reset_last_poke_time regardless of the color
-        self.worker.pokedportsignal.connect(self.reset_last_poke_time)
-        
         if color == "red":
             self.red_count += 1
             self.red_label.setText(f"Number of Pokes: {self.red_count}")
@@ -261,9 +257,6 @@ class PiWidget(QWidget):
             self.blue_count += 1
             self.red_label.setText(f"Number of Pokes: {self.red_count}")
             self.blue_label.setText(f"Number of Trials: {self.blue_count}")
-            if self.blue_count != 0:
-                self.fraction_correct = self.green_count / self.blue_count
-                self.fraction_correct_label.setText(f"Fraction Correct (FC): {self.fraction_correct:.3f}")
 
         elif color == "green":
             self.green_count += 1
@@ -303,11 +296,16 @@ class PiWidget(QWidget):
    
     @pyqtSlot()
     def reset_last_poke_time(self):
+        #print("Resetting last poke time...")  # Debug print to check if the method is called
+
         # Restart the last poke time
         self.poke_time.restart()
+        
         # Update the QLabel text with the time since the last poke
         elapsed_time = self.poke_time.elapsed() / 1000.0  # Convert milliseconds to seconds
         minutes, seconds = divmod(elapsed_time, 60)  # Convert seconds to minutes and seconds
+        print(f"Elapsed time since last poke: {int(minutes)}:{int(seconds)}")  # Debug print to check elapsed time
+
         self.poke_time_label.setText(f"Time since last poke: {int(minutes)}:{int(seconds)}")
 
     def save_results_to_csv(self):
