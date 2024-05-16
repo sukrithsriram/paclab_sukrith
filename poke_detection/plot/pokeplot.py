@@ -80,7 +80,7 @@ class Worker(QObject):
         self.reward_ports = []
 
         # Randomly choose either 3 or 4 as the initial reward port
-        self.reward_port = random.choice([5, 7])
+        self.reward_port = random.choice([1, 3])
         message = f"Reward Port: {self.reward_port}"
         print(message)
         
@@ -151,7 +151,7 @@ class Worker(QObject):
                 if color == "green" or color == "blue":
                     for identity in self.identities:
                         self.socket.send_multipart([identity, b"Reward Poke Completed"])
-                    self.reward_port = random.choice([5, 7])
+                    self.reward_port = random.choice([1, 3])
                     self.trials = 0
                     print(f"Reward Port: {self.reward_port}")  # Print the updated Reward Port
 
@@ -308,15 +308,15 @@ class PiWidget(QWidget):
            
     @pyqtSlot()
     def reset_last_poke_time(self):
-        print("Resetting last poke time...")  # Debug print to check if the method is called
+        #print("Resetting last poke time...")  # Debug print to check if the method is called
 
         # Calculate the elapsed time since the last poke
         current_time = time.time()
         elapsed_time = current_time - self.last_poke_timestamp
 
-        print(f"Current time: {current_time}")
-        print(f"Last poke timestamp: {self.last_poke_timestamp}")
-        print(f"Elapsed time since last poke: {elapsed_time}")  # Debug print to check elapsed time
+        #print(f"Current time: {current_time}")
+        #print(f"Last poke timestamp: {self.last_poke_timestamp}")
+        #print(f"Elapsed time since last poke: {elapsed_time}")  # Debug print to check elapsed time
 
         # Update the QLabel text with the time since the last poke
         minutes, seconds = divmod(elapsed_time, 60)  # Convert seconds to minutes and seconds
