@@ -8,7 +8,7 @@ import pyqtgraph as pg
 import random
 import csv
 from PyQt5 import QtWidgets
-from PyQt5.QtWidgets import QGroupBox, QLabel, QGraphicsEllipseItem, QListWidget, QListWidgetItem, QGraphicsTextItem, QGraphicsScene, QGraphicsView, QWidget, QVBoxLayout, QPushButton, QApplication, QHBoxLayout, QLineEdit, QListWidget, QFileDialog, QDialog, QLabel, QDialogButtonBox
+from PyQt5.QtWidgets import QGroupBox, QLabel, QGraphicsEllipseItem, QListWidget, QListWidgetItem, QGraphicsTextItem, QGraphicsScene, QGraphicsView, QWidget, QVBoxLayout, QPushButton, QApplication, QHBoxLayout, QLineEdit, QListWidget, QFileDialog, QDialog, QLabel, QDialogButtonBox, QMenuBar, QMenu, QAction
 from PyQt5.QtCore import QPointF, QTimer, QTime, pyqtSignal, QObject, QThread, pyqtSlot,  QMetaObject, Qt
 from PyQt5.QtGui import QColor
 
@@ -325,7 +325,6 @@ class PiWidget(QWidget):
         print(f"Elapsed time since last poke: {int(minutes)}:{int(seconds)}")  # Debug print to check elapsed time
 
         self.poke_time_label.setText(f"Time since last poke: {int(minutes)}:{int(seconds)}")
-
 
 
     def save_results_to_csv(self):
