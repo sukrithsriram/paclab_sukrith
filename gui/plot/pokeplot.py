@@ -56,23 +56,21 @@ class Worker(QObject):
         self.last_pi_received = None
         self.timer = None
         self.pi_widget = pi_widget
-        self.total_ports = self.pi_widget.total_ports 
-        self.Pi_signals = self.pi_widget.Pi_signals 
-        self.poked_port_numbers = self.pi_widget.poked_port_numbers 
+        self.total_ports = self.pi_widget.total_ports
+        self.Pi_signals = self.pi_widget.Pi_signals
+        self.poked_port_numbers = self.pi_widget.poked_port_numbers
         self.identities = set()
         self.last_poke_timestamp = None  # Attribute to store the timestamp of the last poke event
 
         # Initialize reward_port and related variables
         self.reward_port = None
         self.previous_port = None
-        
+
         self.trials = 0
 
         # Placeholder for timestamps and ports visited
         self.timestamps = []
         self.reward_ports = []
-        self.other_ports = []
-        self.non_reward_port_poked = False  # Variable to keep track if a non-reward port was poked
 
     @pyqtSlot()
     def start_sequence(self):
@@ -85,7 +83,7 @@ class Worker(QObject):
         self.reward_port = random.choice([5, 7])
         message = f"Reward Port: {self.reward_port}"
         print(message)
-        
+
         # Send the message to all connected Pis
         for identity in self.identities:
             self.socket.send_multipart([identity, bytes(message, 'utf-8')])
@@ -97,7 +95,7 @@ class Worker(QObject):
 
     @pyqtSlot()
     def stop_sequence(self):
-        if self.timer is not None: 
+        if self.timer is not None:
             self.timer.stop()
             self.timer.timeout.disconnect(self.update_Pi)
 
@@ -105,16 +103,6 @@ class Worker(QObject):
     def update_Pi(self):
         current_time = time.time()
         elapsed_time = current_time - self.initial_time
-        
-        # Update the last poke timestamp whenever a poke event occurs
-        self.last_poke_timestamp = current_time
-
-        # Update the color of PiSignal objects based on the current Reward Port number
-        for index, Pi in enumerate(self.Pi_signals):
-            if index + 1 == self.reward_port:
-                Pi.set_color("green")
-            elif not self.non_reward_port_poked:
-                Pi.set_color("gray")
 
         # Receive message from the socket
         identity, message = self.socket.recv_multipart()
@@ -123,37 +111,32 @@ class Worker(QObject):
 
         try:
             poked_port = int(message)
-            
-            if 1 <= poked_port <= self.total_ports: 
-                poked_port_signal = self.Pi_signals[poked_port - 1] 
-                
+
+            if 1 <= poked_port <= self.total_ports:
+                poked_port_signal = self.Pi_signals[poked_port - 1]
+
                 # Check if the received Pi number matches the current Reward Port
                 if poked_port == self.reward_port:
                     color = "green"
-                    # Reset the color of all PiSignal objects to gray only if a non-reward port has been poked
-                    if self.non_reward_port_poked:
-                        for Pi in self.Pi_signals:
-                            if Pi != poked_port_signal:
-                                Pi.set_color("gray")
-                        self.non_reward_port_poked = False
+                    # Reset the color of all PiSignal objects to gray, except the poked reward port
+                    for Pi in self.Pi_signals:
+                        Pi.set_color("gray")
+                    poked_port_signal.set_color(color)
                 else:
                     color = "red"
-                    self.non_reward_port_poked = True
-                    
-                # Set the color of the poked PiSignal object
-                poked_port_signal.set_color(color) 
-                
-                self.poked_port_numbers.append(poked_port) 
-                print("Sequence:", self.poked_port_numbers) 
+                    poked_port_signal.set_color(color)
+
+                self.poked_port_numbers.append(poked_port)
+                print("Sequence:", self.poked_port_numbers)
                 self.last_pi_received = identity
-                
+
                 # Emit the signal with the appropriate color
                 self.pokedportsignal.emit(poked_port, color)
-                
+
                 # Record timestamp and port visited
                 self.timestamps.append(elapsed_time)
                 self.reward_ports.append(self.reward_port)
-                
+
                 if color == "green":
                     for identity in self.identities:
                         self.socket.send_multipart([identity, b"Reward Poke Completed"])
@@ -164,6 +147,9 @@ class Worker(QObject):
                     # Send the message to all connected Pis
                     for identity in self.identities:
                         self.socket.send_multipart([identity, bytes(f"Reward Port: {self.reward_port}", 'utf-8')])
+
+                    # Update the new reward port color to green
+                    self.Pi_signals[self.reward_port - 1].set_color("green")
 
             else:
                 print("Invalid Pi number received:", poked_port)
@@ -179,6 +165,7 @@ class Worker(QObject):
                 writer.writerow(["Poke Timestamp (seconds)", "Port Visited", "Current Reward Port"])
                 for timestamp, poked_port, reward_port in zip(self.timestamps, self.poked_port_numbers, self.reward_ports):
                     writer.writerow([timestamp, poked_port, reward_port])
+
 
 
 
