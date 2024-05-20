@@ -123,8 +123,8 @@ class Worker(QObject):
                     color = "green"
                     
                     # Reset the previous reward port color to gray
-                    if self.previous_port is not None:
-                        self.Pi_signals[self.previous_port - 1].set_color("gray")
+                    #if self.previous_port is not None:
+                    self.Pi_signals[self.previous_port - 1].set_color("gray")
                     
                     # Set the poked reward port color to green
                     poked_port_signal.set_color(color)
