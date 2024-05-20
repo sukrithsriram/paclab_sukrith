@@ -71,6 +71,7 @@ class Worker(QObject):
         # Placeholder for timestamps and ports visited
         self.timestamps = []
         self.reward_ports = []
+        self.other_ports = []
 
     @pyqtSlot()
     def start_sequence(self):
@@ -80,7 +81,7 @@ class Worker(QObject):
         self.reward_ports = []
 
         # Randomly choose either 3 or 4 as the initial reward port
-        self.reward_port = random.choice([1, 3])
+        self.reward_port = random.choice([5, 7])
         message = f"Reward Port: {self.reward_port}"
         print(message)
         
@@ -128,12 +129,15 @@ class Worker(QObject):
                 # Check if the received Pi number matches the current Reward Port
                 if poked_port == self.reward_port:
                     color = "green"
-                    # Reset the color of all PiSignal objects to gray
-                    for Pi in self.Pi_signals:
-                        if Pi != poked_port_signal:
-                            Pi.set_color("gray")
+                    # Reset the color of all PiSignal objects to gray only if a non-reward port has been poked
+                    if self.non_reward_port_poked:
+                        for Pi in self.Pi_signals:
+                            if Pi != poked_port_signal:
+                                Pi.set_color("gray")
+                        self.non_reward_port_poked = False
                 else:
                     color = "red"
+                    self.non_reward_port_poked = True
                     
                 # if poked_port == self.reward_port:
                 #     color = "green" if self.trials == 0 else "blue"
@@ -159,7 +163,7 @@ class Worker(QObject):
                 if color == "green" or color == "blue":
                     for identity in self.identities:
                         self.socket.send_multipart([identity, b"Reward Poke Completed"])
-                    self.reward_port = random.choice([1, 3])
+                    self.reward_port = random.choice([5, 7])
                     self.trials = 0
                     print(f"Reward Port: {self.reward_port}")  # Print the updated Reward Port
 
