@@ -8,7 +8,7 @@ import pyqtgraph as pg
 import random
 import csv
 from PyQt5 import QtWidgets
-from PyQt5.QtWidgets import QGroupBox, QLabel, QGraphicsEllipseItem, QListWidget, QListWidgetItem, QGraphicsTextItem, QGraphicsScene, QGraphicsView, QWidget, QVBoxLayout, QPushButton, QApplication, QHBoxLayout, QLineEdit, QListWidget, QFileDialog, QDialog, QLabel, QDialogButtonBox, QMenuBar, QMenu, QAction
+from PyQt5.QtWidgets import QGroupBox, QLabel, QGraphicsEllipseItem, QListWidget, QListWidgetItem, QGraphicsTextItem, QGraphicsScene, QGraphicsView, QWidget, QVBoxLayout, QPushButton, QApplication, QHBoxLayout, QLineEdit, QListWidget, QFileDialog, QDialog, QLabel, QDialogButtonBox
 from PyQt5.QtCore import QPointF, QTimer, QTime, pyqtSignal, QObject, QThread, pyqtSlot,  QMetaObject, Qt
 from PyQt5.QtGui import QColor
 
@@ -127,21 +127,13 @@ class Worker(QObject):
                 
                 # Check if the received Pi number matches the current Reward Port
                 if poked_port == self.reward_port:
-                    color = "green"
-                    # Reset the color of all PiSignal objects to gray
-                    for Pi in self.Pi_signals:
-                        if Pi != poked_port_signal:
-                            Pi.set_color("gray")
+                    color = "green" if self.trials == 0 else "blue"
+                    if self.trials > 0:
+                        self.trials = 0  # Reset attempts since change
                 else:
                     color = "red"
-                    
-                # if poked_port == self.reward_port:
-                #     color = "green" if self.trials == 0 else "blue"
-                #     if self.trials > 0:
-                #         self.trials = 0  # Reset attempts since change
-                # else:
-                #     color = "red"
-                #     self.trials += 1
+                    self.trials += 1
+                
                 # Set the color of the PiSignal object
                 poked_port_signal.set_color(color) 
                 
@@ -333,6 +325,7 @@ class PiWidget(QWidget):
         print(f"Elapsed time since last poke: {int(minutes)}:{int(seconds)}")  # Debug print to check elapsed time
 
         self.poke_time_label.setText(f"Time since last poke: {int(minutes)}:{int(seconds)}")
+
 
 
     def save_results_to_csv(self):
