@@ -14,7 +14,7 @@ time.sleep(1)
 # Starting pigpiod and jackd background processes
 os.system('sudo pigpiod -t 0 -l -x 1111110000111111111111110000')
 time.sleep(1)
-os.system('jackd -P75 -p16 -t2000 -dalsa -dhw:sndrpihifiberry -P -r192000 -n3 -s &')
+os.system('jackd -P75 -p16 -t6000 -dalsa -dhw:sndrpihifiberry -P -r192000 -n3 -s &')
 time.sleep(1)
 
 class Noise:
