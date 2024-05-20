@@ -118,35 +118,17 @@ class Worker(QObject):
             if 1 <= poked_port <= self.total_ports:
                 poked_port_signal = self.Pi_signals[poked_port - 1]
 
+                # Reset all ports to gray
+                for signal in self.Pi_signals:
+                    signal.set_color("gray")
+
                 # Check if the received Pi number matches the current Reward Port
                 if poked_port == self.reward_port:
                     color = "green"
-                    
-                    # Reset all ports to gray
-                    for signal in self.Pi_signals:
-                        signal.set_color("gray")
-                    
-                    # Set the poked reward port color to green
-                    poked_port_signal.set_color(color)
-                    
-                    # Update the previous port to the current reward port
-                    self.previous_port = self.reward_port
-
-                    # Choose a new reward port
-                    self.reward_port = random.choice([5, 7])
-                    print(f"New Reward Port: {self.reward_port}")  # Print the updated Reward Port
-
-                    # Send the message to all connected Pis
-                    for identity in self.identities:
-                        self.socket.send_multipart([identity, bytes(f"Reward Port: {self.reward_port}", 'utf-8')])
-
-                    # Set the new reward port color to green
-                    self.Pi_signals[self.reward_port - 1].set_color("green")
-
                 else:
                     color = "red"
-                    poked_port_signal.set_color(color)
 
+                poked_port_signal.set_color(color)
                 self.poked_port_numbers.append(poked_port)
                 print("Sequence:", self.poked_port_numbers)
                 self.last_pi_received = identity
@@ -157,6 +139,15 @@ class Worker(QObject):
                 # Record timestamp and port visited
                 self.timestamps.append(elapsed_time)
                 self.reward_ports.append(self.reward_port)
+
+                # If the poked port matches the reward port, choose a new reward port
+                if poked_port == self.reward_port:
+                    self.reward_port = random.choice([5, 7])
+                    print(f"New Reward Port: {self.reward_port}")  # Print the updated Reward Port
+
+                    # Send the message to all connected Pis
+                    for identity in self.identities:
+                        self.socket.send_multipart([identity, bytes(f"Reward Port: {self.reward_port}", 'utf-8')])
 
             else:
                 print("Invalid Pi number received:", poked_port)
