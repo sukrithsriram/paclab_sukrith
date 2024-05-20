@@ -64,7 +64,7 @@ class Worker(QObject):
 
         # Initialize reward_port and related variables
         self.reward_port = None
-        self.previous_port = None
+        self.non_reward_port = False
         
         self.trials = 0
 
@@ -79,6 +79,7 @@ class Worker(QObject):
         self.initial_time = time.time()
         self.timestamps = []
         self.reward_ports = []
+        self.non_reward_port = False
 
         # Randomly choose either 3 or 4 as the initial reward port
         self.reward_port = random.choice([5, 7])
@@ -112,6 +113,8 @@ class Worker(QObject):
         for index, Pi in enumerate(self.Pi_signals):
             if index + 1 == self.reward_port:
                 Pi.set_color("green")
+            elif self.non_reward_port:
+                Pi.set_color("red")
             else:
                 Pi.set_color("gray")
 
@@ -129,23 +132,15 @@ class Worker(QObject):
                 # Check if the received Pi number matches the current Reward Port
                 if poked_port == self.reward_port:
                     color = "green"
-                    # Reset the color of all PiSignal objects to gray only if a non-reward port has been poked
-                    if self.non_reward_port_poked:
-                        for Pi in self.Pi_signals:
-                            if Pi != poked_port_signal:
-                                Pi.set_color("gray")
-                        self.non_reward_port_poked = False
+                    # Reset the color of all PiSignal objects to gray if the reward port was poked
+                    self.non_reward_port = False
+                    for Pi in self.Pi_signals:
+                        if Pi != poked_port_signal:
+                            Pi.set_color("gray")
                 else:
                     color = "red"
-                    self.non_reward_port_poked = True
+                    self.non_reward_port = True
                     
-                # if poked_port == self.reward_port:
-                #     color = "green" if self.trials == 0 else "blue"
-                #     if self.trials > 0:
-                #         self.trials = 0  # Reset attempts since change
-                # else:
-                #     color = "red"
-                #     self.trials += 1
                 # Set the color of the PiSignal object
                 poked_port_signal.set_color(color) 
                 
@@ -160,11 +155,10 @@ class Worker(QObject):
                 self.timestamps.append(elapsed_time)
                 self.reward_ports.append(self.reward_port)
                 
-                if color == "green" or color == "blue":
+                if color == "green":
                     for identity in self.identities:
                         self.socket.send_multipart([identity, b"Reward Poke Completed"])
                     self.reward_port = random.choice([5, 7])
-                    self.trials = 0
                     print(f"Reward Port: {self.reward_port}")  # Print the updated Reward Port
 
                     # Send the message to all connected Pis
@@ -185,6 +179,7 @@ class Worker(QObject):
                 writer.writerow(["Poke Timestamp (seconds)", "Port Visited", "Current Reward Port"])
                 for timestamp, poked_port, reward_port in zip(self.timestamps, self.poked_port_numbers, self.reward_ports):
                     writer.writerow([timestamp, poked_port, reward_port])
+
 
 # Modify PiWidget Class
 class PiWidget(QWidget):
