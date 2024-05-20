@@ -122,9 +122,9 @@ class Worker(QObject):
                 if poked_port == self.reward_port:
                     color = "green"
                     
-                    # Reset the previous reward port color to gray
-                    #if self.previous_port is not None:
-                    self.Pi_signals[self.previous_port - 1].set_color("gray")
+                    # Reset all ports to gray
+                    for signal in self.Pi_signals:
+                        signal.set_color("gray")
                     
                     # Set the poked reward port color to green
                     poked_port_signal.set_color(color)
@@ -140,7 +140,7 @@ class Worker(QObject):
                     for identity in self.identities:
                         self.socket.send_multipart([identity, bytes(f"Reward Port: {self.reward_port}", 'utf-8')])
 
-                    # Update the new reward port color to green
+                    # Set the new reward port color to green
                     self.Pi_signals[self.reward_port - 1].set_color("green")
 
                 else:
