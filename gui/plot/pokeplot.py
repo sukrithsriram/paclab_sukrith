@@ -121,11 +121,18 @@ class Worker(QObject):
                 # Check if the received Pi number matches the current Reward Port
                 if poked_port == self.reward_port:
                     color = "green"
-                    # Reset the color of all PiSignal objects to gray, except the poked reward port
-                    for Pi in self.Pi_signals:
-                        Pi.set_color("gray")
+                    
+                    # Reset the previous reward port color to gray
+                    if self.previous_port is not None:
+                        self.Pi_signals[self.previous_port - 1].set_color("gray")
+                    
+                    # Set the poked reward port color to green
                     poked_port_signal.set_color(color)
                     
+                    # Update the previous port to the current reward port
+                    self.previous_port = self.reward_port
+
+                    # Choose a new reward port
                     self.reward_port = random.choice([5, 7])
                     print(f"New Reward Port: {self.reward_port}")  # Print the updated Reward Port
 
