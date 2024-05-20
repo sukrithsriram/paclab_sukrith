@@ -127,13 +127,21 @@ class Worker(QObject):
                 
                 # Check if the received Pi number matches the current Reward Port
                 if poked_port == self.reward_port:
-                    color = "green" if self.trials == 0 else "blue"
-                    if self.trials > 0:
-                        self.trials = 0  # Reset attempts since change
+                    color = "green"
+                    # Reset the color of all PiSignal objects to gray
+                    for Pi in self.Pi_signals:
+                        if Pi != poked_port_signal:
+                            Pi.set_color("gray")
                 else:
                     color = "red"
-                    self.trials += 1
-                
+                    
+                # if poked_port == self.reward_port:
+                #     color = "green" if self.trials == 0 else "blue"
+                #     if self.trials > 0:
+                #         self.trials = 0  # Reset attempts since change
+                # else:
+                #     color = "red"
+                #     self.trials += 1
                 # Set the color of the PiSignal object
                 poked_port_signal.set_color(color) 
                 
