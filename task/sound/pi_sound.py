@@ -17,17 +17,6 @@ time.sleep(1)
 os.system('jackd -P75 -p16 -t2000 -dalsa -dhw:sndrpihifiberry -P -r192000 -n3 -s &')
 time.sleep(1)
 
-class Noise:
-    def __init__(self, blocksize):
-        self.blocksize = blocksize
-        self.table = np.zeros((self.blocksize, 2), dtype=np.float32)
-
-    @staticmethod
-    def chunk_data(data, chunk_size):
-        # Split the data into chunks of size chunk_size
-        chunks = np.array_split(data, len(data) // chunk_size)
-        return chunks
-
 class JackClient:
     def __init__(self, name='jack_client', outchannels=None):
         self.name = name
