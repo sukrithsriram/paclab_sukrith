@@ -18,7 +18,7 @@ class PiSignal(QGraphicsEllipseItem):
         super(PiSignal, self).__init__(0, 0, 50, 50)
         self.index = index
         self.total_ports = total_ports # Creating a variable for the total number of Pis
-        self.label = QGraphicsTextItem(f"Pi-{index + 1}", self) # Label for each Pi
+        self.label = QGraphicsTextItem(f"Port-{index + 1}", self) # Label for each Pi
         self.label.setPos(25 - self.label.boundingRect().width() / 2, 25 - self.label.boundingRect().height() / 2) # Positioning the labels
         self.setPos(self.calculate_position()) # Positioning the individual Pi elements
         self.setBrush(QColor("gray")) # Setting the initial color of the Pi signals to red
