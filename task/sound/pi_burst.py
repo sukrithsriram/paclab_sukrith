@@ -18,10 +18,13 @@ os.system('jackd -P75 -p16 -t2000 -dalsa -dhw:sndrpihifiberry -P -r192000 -n3 -s
 time.sleep(1)
 
 class JackClient:
-    def __init__(self, name='jack_client', outchannels=None):
+    def __init__(self, name='jack_client', outchannels=None, burst_duration=44100, burst_interval=44100*5):
         self.name = name
         self.set_channel = 'none'  # 'left', 'right', or 'none'
         self.lock = threading.Lock()  # Lock for thread-safe set_channel updates
+        self.burst_duration = burst_duration  # Duration of each burst
+        self.burst_interval = burst_interval  # Interval between bursts
+        self.next_burst_time = 0  # Time of the next burst
 
         # Creating a jack client
         self.client = jack.Client(self.name)
@@ -30,7 +33,7 @@ class JackClient:
         # These come from the jackd daemon
         self.blocksize = self.client.blocksize
         self.fs = self.client.samplerate
-        print("received blocksize {} and fs {}".format(self.blocksize, self.fs))
+        print("Received blocksize {} and fs {}".format(self.blocksize, self.fs))
 
         # Set the number of output channels
         if outchannels is None:
@@ -76,7 +79,7 @@ class JackClient:
             # Error check
             if len(self.outchannels) > len(target_ports):
                 raise ValueError(
-                    "cannot connect {} ports, only {} available".format(
+                    "Cannot connect {} ports, only {} available".format(
                     len(self.outchannels),
                     len(target_ports),))
             
@@ -92,33 +95,31 @@ class JackClient:
                 # Connect virtual outport to physical channel
                 self.client.outports[n].connect(physical_channel)
 
-        # Parameters for toggling noise and silence
-        self.noise_duration_frames = int(self.fs * 1)  # 1 second of noise
-        self.silence_duration_frames = int(self.fs * 1)  # 1 second of silence
-        self.frame_counter = 0
-
     # Process callback function (used to play sound)
     def process(self, frames):
-        with self.lock:  # Lock to make it thread-safe
-            self.frame_counter += self.blocksize
-            # Check if we are within the noise or silence period
-            if self.frame_counter < self.noise_duration_frames:
-                if self.set_channel == 'left':  # Play sound from left channel
-                    data = 0.005 * np.random.uniform(-1, 1, (self.blocksize, 2))  # Random noise using numpy
-                    data[:, 1] = 0  # Blocking out the right channel 
-                elif self.set_channel == 'right':
-                    data = 0.005 * np.random.uniform(-1, 1, (self.blocksize, 2))
-                    data[:, 0] = 0  # Blocking out the left channel
+        with self.lock: # Lock to make it thread-safe
+            if self.set_channel == 'left': # Play sound from left channel
+                if self.next_burst_time <= frames:
+                    # Generate burst data
+                    num_samples = int(self.burst_duration)
+                    data = 0.005 * np.random.uniform(-1, 1, (num_samples, 2))  # Random noise using numpy
+                    self.next_burst_time += self.burst_interval
                 else:
-                    data = np.zeros((self.blocksize, 2), dtype='float32')  # Silence
+                    data = np.zeros((frames, 2), dtype='float32')  # Silence
+                data[:, 1] = 0  # Blocking out the right channel 
+            elif self.set_channel == 'right':
+                if self.next_burst_time <= frames:
+                    # Generate burst data
+                    num_samples = int(self.burst_duration)
+                    data = 0.005 * np.random.uniform(-1, 1, (num_samples, 2))  # Random noise using numpy
+                    self.next_burst_time += self.burst_interval
+                else:
+                    data = np.zeros((frames, 2), dtype='float32')  # Silence
+                data[:, 0] = 0  # Blocking out the left channel
             else:
-                data = np.zeros((self.blocksize, 2), dtype='float32')  # Silence
+                data = np.zeros((frames, 2), dtype='float32') # Silence
 
-            # Reset frame counter after completing both noise and silence durations
-            if self.frame_counter >= (self.noise_duration_frames + self.silence_duration_frames):
-                self.frame_counter = 0
-
-        # Write to outports
+        # Write
         self.write_to_outports(data)
 
     def write_to_outports(self, data):
@@ -134,7 +135,7 @@ class JackClient:
             # Making sure the number of channels in data matches the number of outports
             if data.shape[1] != len(self.client.outports):
                 raise ValueError(
-                    "data has {} channels "
+                    "Data has {} channels "
                     "but only {} outports in pref OUTCHANNELS".format(
                     data.shape[1], len(self.client.outports)))
 
@@ -144,7 +145,7 @@ class JackClient:
                 buff[:] = data[:, n_outport]
 
         else:
-            raise ValueError("data must be 1D or 2D")
+            raise ValueError("Data must be 1D or 2D") 
 
     # Function to set which channel to play sound from
     def set_set_channel(self, mode):
@@ -154,7 +155,6 @@ class JackClient:
     def run(self):
         # Placeholder for any additional setup if needed
         pass
-
 
 # Define a client to play sounds
 jack_client = JackClient(name='jack_client')
