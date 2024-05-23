@@ -326,9 +326,9 @@ try:
                     print(f"Current Reward Port: {value}") # Current Reward Port
             
             elif msg == "Reward Poke Completed":
-                # Turn off the currently active LED
                 # Resetting audio parameters
                 jack_client.update_parameters()
+                # Turn off the currently active LED
                 if current_pin is not None:
                     pi.write(current_pin, 0)
                     print("Turning off currently active LED.")
