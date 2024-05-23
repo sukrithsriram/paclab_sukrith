@@ -102,26 +102,21 @@ class JackClient:
         with self.lock: # Making process() thread-safe
             current_time = time.time()
 
-            # Generate random values for parameters every time process is called
-            self.chunk_duration = random.uniform(0.01, 0.05)
-            self.pause_duration = random.uniform(0.1, 0.5)
-            self.amplitude = random.uniform(0.01, 0.1)
-
             # Initialize data with zeros (silence)
             data = np.zeros((self.blocksize, 2), dtype='float32')
 
             # Check if time for chunk or gap
-            if current_time - self.last_chunk_time >= self.global_chunk_duration + self.global_pause_duration:
+            if current_time - self.last_chunk_time >= self.chunk_duration + self.pause_duration:
                 self.last_chunk_time = current_time  # Updating the last chunk time
-            elif current_time - self.last_chunk_time >= self.global_chunk_duration:
+            elif current_time - self.last_chunk_time >= self.chunk_duration:
                 pass  # Silence is playing
             else:
                 # Generate random noise for the chunks
                 if self.set_channel == 'left': # Play sound from left channel
-                    data = self.global_amplitude * np.random.uniform(-1, 1, (self.blocksize, 2)) # Random noise using numpy
+                    data = self.amplitude * np.random.uniform(-1, 1, (self.blocksize, 2)) # Random noise using numpy
                     data[:, 1] = 0  # Blocking out the right channel 
                 elif self.set_channel == 'right':
-                    data = self.global_amplitude * np.random.uniform(-1, 1, (self.blocksize, 2))
+                    data = self.amplitude * np.random.uniform(-1, 1, (self.blocksize, 2))
                     data[:, 0] = 0  # Blocking out the left channel
 
         # Write
