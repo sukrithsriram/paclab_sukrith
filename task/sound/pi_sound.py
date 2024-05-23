@@ -18,14 +18,14 @@ os.system('jackd -P75 -p16 -t2000 -dalsa -dhw:sndrpihifiberry -P -r192000 -n3 -s
 time.sleep(1)
 
 class JackClient:
-    def __init__(self, name='jack_client', outchannels=None, burst_duration=44100, burst_interval=44100*5):
+    def __init__(self, name='jack_client', outchannels=None):
         self.name = name
         self.set_channel = 'none'  # 'left', 'right', or 'none'
-        self.lock = threading.Lock()  # Lock for thread-safe set_channel updates
-        self.burst_duration = 0.01  # Duration of each burst in seconds
-        self.pause_duration = 0.08  # Pause duration between bursts in seconds
+        self.lock = threading.Lock()  # Lock for thread-safe set_channel() updates
+        self.chunk_duration = 0.01  # Duration of each chunk in seconds
+        self.pause_duration = 0.08  # Pause duration between chunk in seconds
         self.amplitude = 0.01
-        self.last_burst_time = time.time()  # Variable to store the time of the last burst
+        self.last_chunk_time = time.time()  # Variable to store the time of the last burst
 
         # Creating a jack client
         self.client = jack.Client(self.name)
@@ -98,19 +98,19 @@ class JackClient:
 
     # Process callback function (used to play sound)
     def process(self, frames):
-        with self.lock: # Lock to make it thread-safe
+        with self.lock: # Making process() thread-safe
             current_time = time.time()
 
             # Initialize data with zeros (silence)
             data = np.zeros((self.blocksize, 2), dtype='float32')
 
-            # Check if it's time for a new burst or pause
-            if current_time - self.last_burst_time >= self.burst_duration + self.pause_duration:
-                self.last_burst_time = current_time  # Update the last burst time
-            elif current_time - self.last_burst_time >= self.burst_duration:
-                pass  # No need to change data, it's already initialized as silence
+            # Check if time for chunk or gap
+            if current_time - self.last_chunk_time >= self.chunk_duration + self.pause_duration:
+                self.last_chunk_time = current_time  # Updating the last chunk time
+            elif current_time - self.last_chunk_time >= self.chunk_duration:
+                pass  # Silence is playing
             else:
-                # Generate random noise for the burst
+                # Generate random noise for the chunks
                 if self.set_channel == 'left': # Play sound from left channel
                     data = self.amplitude * np.random.uniform(-1, 1, (self.blocksize, 2)) # Random noise using numpy
                     data[:, 1] = 0  # Blocking out the right channel 
