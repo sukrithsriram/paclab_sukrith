@@ -322,9 +322,9 @@ try:
                 else:
                     print("No LED is currently active.")
                 # Resetting audio parameters
-                self.chunk_duration = random.uniform(0.01, 0.05)  # Duration of each chunk in seconds
-                self.pause_duration = random.uniform(0.05, 0.2)  # Pause duration between chunk in seconds
-                self.amplitude = random.uniform(0.005, 0.02)      
+                JackClient.chunk_duration = random.uniform(0.01, 0.05)  # Duration of each chunk in seconds
+                JackClient.pause_duration = random.uniform(0.05, 0.2)  # Pause duration between chunk in seconds
+                JackClient.amplitude = random.uniform(0.005, 0.02)      
                 # Reset play mode to 'none'
                 jack_client.set_set_channel('none')
            
