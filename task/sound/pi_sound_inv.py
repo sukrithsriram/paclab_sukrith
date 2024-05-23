@@ -18,19 +18,23 @@ os.system('jackd -P75 -p16 -t2000 -dalsa -dhw:sndrpihifiberry -P -r192000 -n3 -s
 time.sleep(1)
 
 class JackClient:
-    def __init__(self, name='jack_client', outchannels=None):
+    def __init__(self, name='jack_client', outchannels=None, burst_duration=44100, burst_interval=44100*5):
         self.name = name
         self.set_channel = 'none'  # 'left', 'right', or 'none'
         self.lock = threading.Lock()  # Lock for thread-safe set_channel updates
+        self.burst_duration = 0.01  # Duration of each burst in seconds
+        self.pause_duration = 0.08  # Pause duration between bursts in seconds
+        self.amplitude = 0.01
+        self.last_burst_time = time.time()  # Variable to store the time of the last burst
 
         # Creating a jack client
         self.client = jack.Client(self.name)
 
         # Pull these values from the initialized client
-        # These comes from the jackd daemon
+        # These come from the jackd daemon
         self.blocksize = self.client.blocksize
         self.fs = self.client.samplerate
-        print("received blocksize {} and fs {}".format(self.blocksize, self.fs))
+        print("Received blocksize {} and fs {}".format(self.blocksize, self.fs))
 
         # Set the number of output channels
         if outchannels is None:
@@ -76,7 +80,7 @@ class JackClient:
             # Error check
             if len(self.outchannels) > len(target_ports):
                 raise ValueError(
-                    "cannot connect {} ports, only {} available".format(
+                    "Cannot connect {} ports, only {} available".format(
                     len(self.outchannels),
                     len(target_ports),))
             
@@ -95,17 +99,28 @@ class JackClient:
     # Process callback function (used to play sound)
     def process(self, frames):
         with self.lock: # Lock to make it thread-safe
-            if self.set_channel == 'left': # Play sound from left channel
-                data = 0.005 * np.random.uniform(-1, 1, (self.blocksize, 2)) # Random noise using numpy
-                data[:, 1] = 0  # Blocking out the right channel 
-            elif self.set_channel == 'right':
-                data = 0.005 * np.random.uniform(-1, 1, (self.blocksize, 2))
-                data[:, 0] = 0  # Blocking out the left channel
+            current_time = time.time()
+
+            # Initialize data with zeros (silence)
+            data = np.zeros((self.blocksize, 2), dtype='float32')
+
+            # Check if it's time for a new burst or pause
+            if current_time - self.last_burst_time >= self.burst_duration + self.pause_duration:
+                self.last_burst_time = current_time  # Update the last burst time
+            elif current_time - self.last_burst_time >= self.burst_duration:
+                pass  # No need to change data, it's already initialized as silence
             else:
-                data = np.zeros((self.blocksize, 2), dtype='float32') # Silence
+                # Generate random noise for the burst
+                if self.set_channel == 'left': # Play sound from left channel
+                    data = self.amplitude * np.random.uniform(-1, 1, (self.blocksize, 2)) # Random noise using numpy
+                    data[:, 1] = 0  # Blocking out the right channel 
+                elif self.set_channel == 'right':
+                    data = self.amplitude * np.random.uniform(-1, 1, (self.blocksize, 2))
+                    data[:, 0] = 0  # Blocking out the left channel
 
         # Write
         self.write_to_outports(data)
+
 
     def write_to_outports(self, data):
         if data.ndim == 1:
