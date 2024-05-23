@@ -23,7 +23,7 @@ class JackClient:
         self.set_channel = 'none'  # 'left', 'right', or 'none'
         self.lock = threading.Lock()  # Lock for thread-safe set_channel() updates
         self.chunk_duration = 0.01  # Duration of each chunk in seconds
-        self.pause_duration = 0.08  # Pause duration between chunk in seconds
+        self.pause_duration = 0.1  # Pause duration between chunk in seconds
         self.amplitude = 0.01
         self.last_chunk_time = time.time()  # Variable to store the time of the last burst
 
