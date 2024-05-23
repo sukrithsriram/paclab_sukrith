@@ -22,9 +22,10 @@ class JackClient:
         self.name = name
         self.set_channel = 'none'  # 'left', 'right', or 'none'
         self.lock = threading.Lock()  # Lock for thread-safe set_channel updates
-        self.burst_duration = burst_duration  # Duration of each burst
-        self.burst_interval = burst_interval  # Interval between bursts
-        self.next_burst_time = 0  # Time of the next burst
+        self.burst_duration = 0.1  # Duration of each burst in seconds
+        self.pause_duration = 0.05  # Pause duration between bursts in seconds
+        self.amplitude = 0.005
+        self.last_burst_time = time.time()  # Variable to store the time of the last burst
 
         # Creating a jack client
         self.client = jack.Client(self.name)
@@ -98,29 +99,28 @@ class JackClient:
     # Process callback function (used to play sound)
     def process(self, frames):
         with self.lock: # Lock to make it thread-safe
-            if self.set_channel == 'left': # Play sound from left channel
-                if self.next_burst_time <= frames:
-                    # Generate burst data
-                    num_samples = int(self.burst_duration)
-                    data = 0.005 * np.random.uniform(-1, 1, (num_samples, 2))  # Random noise using numpy
-                    self.next_burst_time += self.burst_interval
-                else:
-                    data = np.zeros((frames, 2), dtype='float32')  # Silence
-                data[:, 1] = 0  # Blocking out the right channel 
-            elif self.set_channel == 'right':
-                if self.next_burst_time <= frames:
-                    # Generate burst data
-                    num_samples = int(self.burst_duration)
-                    data = 0.005 * np.random.uniform(-1, 1, (num_samples, 2))  # Random noise using numpy
-                    self.next_burst_time += self.burst_interval
-                else:
-                    data = np.zeros((frames, 2), dtype='float32')  # Silence
-                data[:, 0] = 0  # Blocking out the left channel
+            current_time = time.time()
+
+            # Initialize data with zeros (silence)
+            data = np.zeros((self.blocksize, 2), dtype='float32')
+
+            # Check if it's time for a new burst or pause
+            if current_time - self.last_burst_time >= self.burst_duration + self.pause_duration:
+                self.last_burst_time = current_time  # Update the last burst time
+            elif current_time - self.last_burst_time >= self.burst_duration:
+                pass  # No need to change data, it's already initialized as silence
             else:
-                data = np.zeros((frames, 2), dtype='float32') # Silence
+                # Generate random noise for the burst
+                if self.set_channel == 'left': # Play sound from left channel
+                    data = self.amplitude * np.random.uniform(-1, 1, (self.blocksize, 2)) # Random noise using numpy
+                    data[:, 1] = 0  # Blocking out the right channel 
+                elif self.set_channel == 'right':
+                    data = self.amplitude * np.random.uniform(-1, 1, (self.blocksize, 2))
+                    data[:, 0] = 0  # Blocking out the left channel
 
         # Write
         self.write_to_outports(data)
+
 
     def write_to_outports(self, data):
         if data.ndim == 1:
@@ -135,7 +135,7 @@ class JackClient:
             # Making sure the number of channels in data matches the number of outports
             if data.shape[1] != len(self.client.outports):
                 raise ValueError(
-                    "Data has {} channels "
+                    "data has {} channels "
                     "but only {} outports in pref OUTCHANNELS".format(
                     data.shape[1], len(self.client.outports)))
 
@@ -145,7 +145,7 @@ class JackClient:
                 buff[:] = data[:, n_outport]
 
         else:
-            raise ValueError("Data must be 1D or 2D") 
+            raise ValueError("data must be 1D or 2D") 
 
     # Function to set which channel to play sound from
     def set_set_channel(self, mode):
@@ -155,6 +155,7 @@ class JackClient:
     def run(self):
         # Placeholder for any additional setup if needed
         pass
+
 
 # Define a client to play sounds
 jack_client = JackClient(name='jack_client')
