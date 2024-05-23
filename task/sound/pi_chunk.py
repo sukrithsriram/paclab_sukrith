@@ -22,9 +22,9 @@ class JackClient:
         self.name = name
         self.set_channel = 'none'  # 'left', 'right', or 'none'
         self.lock = threading.Lock()  # Lock for thread-safe set_channel updates
-        self.burst_duration = 0.07  # Duration of each burst in seconds
-        self.pause_duration = 0.02  # Pause duration between bursts in seconds
-        self.amplitude = 0.005
+        self.burst_duration = 0.01  # Duration of each burst in seconds
+        self.pause_duration = 0.08  # Pause duration between bursts in seconds
+        self.amplitude = 0.01
         self.last_burst_time = time.time()  # Variable to store the time of the last burst
 
         # Creating a jack client
