@@ -97,6 +97,18 @@ class JackClient:
                 # Connect virtual outport to physical channel
                 self.client.outports[n].connect(physical_channel)
 
+    
+    # Method to update sound parameters dynamically
+    def update_parameters(self):
+        chunk_duration = random.uniform(0.01, 0.05)
+        pause_duration = random.uniform(0.05, 0.2)
+        amplitude = random.uniform(0.005, 0.02)
+
+        # Update sound parameters
+        self.chunk_duration = chunk_duration
+        self.pause_duration = pause_duration
+        self.amplitude = amplitude
+    
     # Process callback function (used to play sound)
     def process(self, frames):
         with self.lock: # Making process() thread-safe
@@ -273,7 +285,7 @@ try:
                 print("Received exit command. Terminating program.")
                 break  # Exit the loop
             
-            elif msg.startswith("Reward Port:"):
+            elif msg.startswith("Reward Port:"):    
                 print(msg)
                 # Extract the integer part from the message
                 msg_parts = msg.split()
@@ -315,16 +327,15 @@ try:
             
             elif msg == "Reward Poke Completed":
                 # Turn off the currently active LED
+                # Resetting audio parameters
+                jack_client.update_parameters()
                 if current_pin is not None:
                     pi.write(current_pin, 0)
                     print("Turning off currently active LED.")
                     current_pin = None  # Reset the current LED
                 else:
                     print("No LED is currently active.")
-                # Resetting audio parameters
-                JackClient.chunk_duration = random.uniform(0.01, 0.05)  # Duration of each chunk in seconds
-                JackClient.pause_duration = random.uniform(0.05, 0.2)  # Pause duration between chunk in seconds
-                JackClient.amplitude = random.uniform(0.005, 0.02)      
+
                 # Reset play mode to 'none'
                 jack_client.set_set_channel('none')
            
