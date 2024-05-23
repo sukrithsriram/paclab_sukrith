@@ -5,6 +5,7 @@ import os
 import jack
 import time
 import threading
+import random
 
 # Killing previous pigpiod and jackd background processes
 os.system('sudo killall pigpiod')
