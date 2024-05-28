@@ -131,8 +131,8 @@ class JackClient:
                     data = self.amplitude * np.random.uniform(-1, 1, (self.blocksize, 2))
                     data[:, 0] = 0  # Blocking out the left channel
 
-        # Write
-        self.write_to_outports(data)
+            # Write
+            self.write_to_outports(data)
 
     def write_to_outports(self, data):
         if data.ndim == 1:
@@ -326,9 +326,9 @@ try:
                     print(f"Current Reward Port: {value}") # Current Reward Port
             
             elif msg == "Reward Poke Completed":
+                # Turn off the currently active LED
                 # Resetting audio parameters
                 jack_client.update_parameters()
-                # Turn off the currently active LED
                 if current_pin is not None:
                     pi.write(current_pin, 0)
                     print("Turning off currently active LED.")
