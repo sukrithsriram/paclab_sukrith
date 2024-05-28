@@ -26,6 +26,7 @@ class JackClient:
         self.chunk_duration = random.uniform(0.01, 0.05)  # Duration of each chunk in seconds
         self.pause_duration = random.uniform(0.05, 0.2)  # Pause duration between chunk in seconds
         self.amplitude = random.uniform(0.005, 0.02)
+        #print(f"Current Parameters - Amplitude:{amplitude}, Chunk Duration: {chunk_duration} s, Pause Duration: {pause_duration}"
         self.last_chunk_time = time.time()  # Variable to store the time of the last burst
 
         # Creating a jack client
@@ -103,6 +104,7 @@ class JackClient:
         chunk_duration = random.uniform(0.01, 0.05)
         pause_duration = random.uniform(0.05, 0.2)
         amplitude = random.uniform(0.005, 0.02)
+        print(f"Current Parameters - Amplitude:{amplitude}, Chunk Duration: {chunk_duration} s, Pause Duration: {pause_duration}")
 
         # Update sound parameters
         self.chunk_duration = chunk_duration
