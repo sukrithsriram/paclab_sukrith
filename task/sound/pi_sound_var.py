@@ -230,7 +230,7 @@ def poke_detectedL(pin, level, tick):
     pi.write(17, 0)
     # Sending nosepoke_id wirelessly
     try:
-        print(f"Sending nosepoke_id = {nosepoke_idL} to the Laptop") 
+        print(f"Sending nosepoke_id = {nosepoke_idL}") 
         socket.send_string(str(nosepoke_idL))
     except Exception as e:
         print("Error sending nosepoke_id:", e)
@@ -247,7 +247,7 @@ def poke_detectedR(pin, level, tick):
     pi.write(10, 0)
     # Sending nosepoke_id wirelessly
     try:
-        print(f"Sending nosepoke_id = {nosepoke_idR} to the Laptop") 
+        print(f"Sending nosepoke_id = {nosepoke_idR}") 
         socket.send_string(str(nosepoke_idR))
     except Exception as e:
         print("Error sending nosepoke_id:", e)
@@ -269,6 +269,7 @@ try:
         
         # Check for incoming messages
         try:
+            #print("Waiting for message...")
             msg = socket.recv_string()
             if msg == 'exit': # Condition to terminate the main loop
                 pi.write(17, 0)
