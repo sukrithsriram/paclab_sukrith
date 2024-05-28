@@ -164,15 +164,8 @@ class JackClient:
         with self.lock:
             self.set_channel = mode
 
-    def run(self):
-        # Placeholder for any additional setup if needed
-        pass
-
-
 # Define a client to play sounds
 jack_client = JackClient(name='jack_client')
-jack_client_thread = threading.Thread(target=jack_client.run) # Creating a thread for the jack client
-jack_client_thread.start() # Starting the thread
 
 # Raspberry Pi's identity (Change this to the identity of the Raspberry Pi you are using)
 pi_identity = b"rpi22"
