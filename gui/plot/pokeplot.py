@@ -80,7 +80,7 @@ class Worker(QObject):
         self.reward_ports = []
 
         # Randomly choose either 3 or 4 as the initial reward port
-        self.reward_port = random.choice([1, 3])
+        self.reward_port = random.choice([5, 7])
         message = f"Reward Port: {self.reward_port}"
         print(message)
         
@@ -151,7 +151,7 @@ class Worker(QObject):
                 if color == "green" or color == "blue":
                     for identity in self.identities:
                         self.socket.send_multipart([identity, b"Reward Poke Completed"])
-                    self.reward_port = random.choice([1, 3])
+                    self.reward_port = random.choice([5, 7])
                     self.trials = 0
                     print(f"Reward Port: {self.reward_port}")  # Print the updated Reward Port
 
@@ -460,6 +460,15 @@ class ConfigurationDialog(QDialog):
         self.frequency_edit = QLineEdit()
         self.duty_cycle_label = QLabel("PWM Duty Cycle:")
         self.duty_cycle_edit = QLineEdit()
+        self.amplitude_label = QLabel("Amplitude:")
+        self.amplitude_min_edit = QLineEdit()
+        self.amplitude_max_edit = QLineEdit()
+        self.chunksize_label = QLabel("Chunk Duration:")
+        self.chunksize_min_edit = QLineEdit()
+        self.chunksize_max_edit = QLineEdit()
+        self.pausesize_label = QLabel("Gap Duration:")
+        self.pausesize_min_edit = QLineEdit()
+        self.pausesize_max_edit = QLineEdit()
 
         # Create button box with OK and Cancel buttons
         self.button_box = QDialogButtonBox(QDialogButtonBox.Ok | QDialogButtonBox.Cancel)
@@ -467,6 +476,15 @@ class ConfigurationDialog(QDialog):
         self.button_box.rejected.connect(self.reject)
 
         # Arrange widgets in a vertical layout
+        amplitude_layout = QHBoxLayout()
+        amplitude_layout.addWidget(self.amplitude_min_edit)
+        amplitude_layout.addWidget(self.amplitude_max_edit)
+        chunk_layout = QHBoxLayout()
+        chunk_layout.addWidget(self.chunksize_min_edit)
+        chunk_layout.addWidget(self.chunksize_max_edit)
+        pause_layout = QHBoxLayout()
+        pause_layout.addWidget(self.pausesize_min_edit)
+        pause_layout.addWidget(self.pausesize_max_edit)
         layout = QVBoxLayout()
         layout.addWidget(self.name_label)
         layout.addWidget(self.name_edit)
@@ -474,6 +492,12 @@ class ConfigurationDialog(QDialog):
         layout.addWidget(self.frequency_edit)
         layout.addWidget(self.duty_cycle_label)
         layout.addWidget(self.duty_cycle_edit)
+        layout.addWidget(self.amplitude_label)
+        layout.addLayout(amplitude_layout)
+        layout.addWidget(self.chunksize_label)
+        layout.addLayout(chunk_layout)
+        layout.addWidget(self.pausesize_label)
+        layout.addLayout(pause_layout)
         layout.addWidget(self.button_box)
         self.setLayout(layout)
 
