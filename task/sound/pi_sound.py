@@ -118,8 +118,8 @@ class JackClient:
                     data = self.amplitude * np.random.uniform(-1, 1, (self.blocksize, 2))
                     data[:, 0] = 0  # Blocking out the left channel
 
-        # Write
-        self.write_to_outports(data)
+            # Write
+            self.write_to_outports(data)
 
 
     def write_to_outports(self, data):
