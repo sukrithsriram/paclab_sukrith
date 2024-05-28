@@ -7,6 +7,7 @@ import math
 import pyqtgraph as pg
 import random
 import csv
+import json
 from PyQt5 import QtWidgets
 from PyQt5.QtWidgets import QGroupBox, QLabel, QGraphicsEllipseItem, QListWidget, QListWidgetItem, QGraphicsTextItem, QGraphicsScene, QGraphicsView, QWidget, QVBoxLayout, QPushButton, QApplication, QHBoxLayout, QLineEdit, QListWidget, QFileDialog, QDialog, QLabel, QDialogButtonBox
 from PyQt5.QtCore import QPointF, QTimer, QTime, pyqtSignal, QObject, QThread, pyqtSlot,  QMetaObject, Qt
@@ -507,14 +508,14 @@ class ConfigurationDialog(QDialog):
 
     def get_configuration(self):
         name = self.name_edit.text()
-        frequency = int(self.frequency_edit.text())
-        duty_cycle = int(self.duty_cycle_edit.text())
-        amplitude_min = int(self.amplitude_min_edit.text())
-        amplitude_max = int(self.amplitude_max_edit.text())
-        chunk_min = int(self.chunksize_min_edit.text())
-        chunk_max = int(self.chunksize_max_edit.text())
-        pause_min = int(self.pausesize_min_edit.text())
-        pause_max = int(self.pausesize_max_edit.text())       
+        frequency = float(self.frequency_edit.text())
+        duty_cycle = float(self.duty_cycle_edit.text())
+        amplitude_min = float(self.amplitude_min_edit.text())
+        amplitude_max = float(self.amplitude_max_edit.text())
+        chunk_min = float(self.chunksize_min_edit.text())
+        chunk_max = float(self.chunksize_max_edit.text())
+        pause_min = float(self.pausesize_min_edit.text())
+        pause_max = float(self.pausesize_max_edit.text())       
         return {"name": name, "pwm_frequency": frequency, "pwm_duty_cycle": duty_cycle, "amplitude_min": amplitude_min, "amplitude_max": amplitude_max, "chunk_min": chunk_min, "chunk_max": chunk_max, "pause_min": pause_min, "pause_max": pause_max}
 
 class ConfigurationList(QWidget):
