@@ -415,10 +415,10 @@ class PlotWindow(QWidget):
             [relative_time],
             [poked_port_value],
             pen=None,
-            symbol="o",
-            symbolSize=9,
+            symbol="arrow_down", # "o" for dots
+            symbolSize=18, # use 8 or lower if using dots
             symbolBrush=brush_color,
-            #symbolPen=None,
+            symbolPen=None,
         )
 
     def update_plot(self):
