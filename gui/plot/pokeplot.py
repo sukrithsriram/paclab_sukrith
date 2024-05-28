@@ -431,9 +431,11 @@ class ConfigurationDetailsDialog(QDialog):
 
         # Create labels to display configuration parameters
         self.name_label = QLabel(f"Name: {config['name']}")
-        self.value_label = QLabel(f"Value: {config['value']}")
         self.frequency_label = QLabel(f"PWM Frequency: {config['pwm_frequency']}")
         self.duty_cycle_label = QLabel(f"PWM Duty Cycle: {config['pwm_duty_cycle']}")
+        self.amplitude_label = QLabel(f"Amplitude: {config['amplitude_min']} - {config['amplitude_max']}")
+        self.chunk_label = QLabel(f"Chunk Duration: {config['chunk_min']} - {config['chunk_max']}")
+        self.pause_label = QLabel(f"Pause Duration: {config['pause_min']} - {config['pause_max']}")
 
         # Create button box with OK button
         self.button_box = QDialogButtonBox(QDialogButtonBox.Ok)
@@ -442,9 +444,11 @@ class ConfigurationDetailsDialog(QDialog):
         # Arrange widgets in a vertical layout
         layout = QVBoxLayout()
         layout.addWidget(self.name_label)
-        layout.addWidget(self.value_label)
         layout.addWidget(self.frequency_label)
         layout.addWidget(self.duty_cycle_label)
+        layout.addWidget(self.amplitude_label)
+        layout.addWidget(self.chunk_label)
+        layout.addWidget(self.pause_label)
         layout.addWidget(self.button_box)
         self.setLayout(layout)
 
@@ -505,7 +509,13 @@ class ConfigurationDialog(QDialog):
         name = self.name_edit.text()
         frequency = int(self.frequency_edit.text())
         duty_cycle = int(self.duty_cycle_edit.text())
-        return {"name": name, "pwm_frequency": frequency, "pwm_duty_cycle": duty_cycle}
+        amplitude_min = int(self.amplitude_min_edit.text())
+        amplitude_max = int(self.amplitude_max_edit.text())
+        chunk_min = int(self.chunksize_min_edit.text())
+        chunk_max = int(self.chunksize_max_edit.text())
+        pause_min = int(self.pausesize_min_edit.text())
+        pause_max = int(self.pausesize_max_edit.text())       
+        return {"name": name, "pwm_frequency": frequency, "pwm_duty_cycle": duty_cycle, "amplitude_min": amplitude_min, "amplitude_max": amplitude_max, "chunk_min": chunk_min, "chunk_max": chunk_max, "pause_min": pause_min, "pause_max": pause_max}
 
 class ConfigurationList(QWidget):
     def __init__(self):
