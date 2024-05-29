@@ -3,13 +3,14 @@ import sys
 import zmq
 import numpy as np
 import time
+import os
 import math
 import pyqtgraph as pg
 import random
 import csv
 import json
 from PyQt5 import QtWidgets
-from PyQt5.QtWidgets import QGroupBox, QLabel, QGraphicsEllipseItem, QListWidget, QListWidgetItem, QGraphicsTextItem, QGraphicsScene, QGraphicsView, QWidget, QVBoxLayout, QPushButton, QApplication, QHBoxLayout, QLineEdit, QListWidget, QFileDialog, QDialog, QLabel, QDialogButtonBox
+from PyQt5.QtWidgets import QAction, QGroupBox, QLabel, QGraphicsEllipseItem, QListWidget, QListWidgetItem, QGraphicsTextItem, QGraphicsScene, QGraphicsView, QWidget, QVBoxLayout, QPushButton, QApplication, QHBoxLayout, QLineEdit, QListWidget, QFileDialog, QDialog, QLabel, QDialogButtonBox
 from PyQt5.QtCore import QPointF, QTimer, QTime, pyqtSignal, QObject, QThread, pyqtSlot,  QMetaObject, Qt
 from PyQt5.QtGui import QColor
 
@@ -52,7 +53,7 @@ class Worker(QObject):
         self.initial_time = None
         self.context = zmq.Context()
         self.socket = self.context.socket(zmq.ROUTER)
-        self.socket.bind("tcp://*:5555")
+        self.socket.bind("tcp://*:5555") # Change Port number if you want to run multiple instances
 
         self.last_pi_received = None
         self.timer = None
@@ -249,6 +250,7 @@ class PiWidget(QWidget):
         self.worker.moveToThread(self.thread) # Move the worker object to the thread
         self.start_button.clicked.connect(self.start_sequence) # Connect the start button to the start_sequence function
         self.stop_button.clicked.connect(self.stop_sequence) # Connect the stop button to the stop_sequence function
+        
         # Connect the pokedportsignal from the Worker to a new slot
         self.worker.pokedportsignal.connect(self.emit_update_signal) # Connect the pokedportsignal to the emit_update_signal function
         self.worker.pokedportsignal.connect(self.reset_last_poke_time)
@@ -328,7 +330,6 @@ class PiWidget(QWidget):
         self.poke_time_label.setText(f"Time since last poke: {int(minutes)}:{int(seconds)}")
 
 
-
     def save_results_to_csv(self):
         self.worker.save_results_to_csv()  # Call worker method to save results
     
@@ -374,7 +375,7 @@ class PlotWindow(QWidget):
             name="Active Pi",
             pen=None,
             symbol="o",
-            symbolSize=7,
+            symbolSize=1,
             symbolBrush="r",
         )
 
@@ -524,10 +525,11 @@ class ConfigurationList(QWidget):
         self.configurations = []
         self.current_config = None
         self.init_ui()
+        self.load_default()  # Call the method to load configurations from a default directory during initialization
 
-    # Creating the GUI for the Configuration List
     def init_ui(self):
         self.config_list = QListWidget()
+        
         self.add_button = QPushButton('Add Config')
         self.remove_button = QPushButton('Remove Config')
         self.selected_config_label = QLabel()
@@ -547,7 +549,6 @@ class ConfigurationList(QWidget):
         self.setWindowTitle('Configuration List')
         self.show()
 
-    # Function to add configurations to the list
     def add_configuration(self):
         dialog = ConfigurationDialog(self)
         if dialog.exec_() == QDialog.Accepted:
@@ -556,7 +557,12 @@ class ConfigurationList(QWidget):
             self.configurations.append(new_config)
             self.update_config_list()
 
-    # Function to remove configurations from the list
+            # Prompt the user to specify the file path and name to save the configuration
+            file_path, _ = QFileDialog.getSaveFileName(self, "Save Configuration", "", "JSON Files (*.json)")
+            if file_path:
+                with open(file_path, 'w') as file:
+                    json.dump(new_config, file, indent=4)
+
     def remove_configuration(self):
         selected_item = self.config_list.currentItem()
         if selected_item:
@@ -564,13 +570,44 @@ class ConfigurationList(QWidget):
             self.configurations.remove(selected_config)
             self.update_config_list()
 
+            # Get the filename from the configuration data
+            config_name = selected_config["name"] # Make sure filename is the same as name in the json
+            
+            # Construct the full file path
+            file_path = os.path.join("/dev/paclab_sukrith/configs", f"{config_name}.json")
+
+            # Check if the file exists and delete it
+            if os.path.exists(file_path):
+                os.remove(file_path)
+
+    def load_configurations(self):
+        folder = QFileDialog.getExistingDirectory(self, "Select Configuration Folder")
+        if folder:
+            self.configurations = self.import_configs_from_folder(folder)
+            self.update_config_list()
+
+    def load_default(self):
+        default_directory = os.path.abspath("/dev/paclab_sukrith/configs")
+        if os.path.isdir(default_directory):
+            self.configurations = self.import_configs_from_folder(default_directory)
+            self.update_config_list()
+
+    def import_configs_from_folder(self, folder):
+        configurations = []
+        for filename in os.listdir(folder):
+            if filename.endswith(".json"):
+                file_path = os.path.join(folder, filename)
+                with open(file_path, 'r') as file:
+                    config = json.load(file)
+                    configurations.append(config)
+        return configurations
+
     def update_config_list(self):
         self.config_list.clear()
         for config in self.configurations:
             item = QListWidgetItem(config["name"])
             item.setData(Qt.UserRole, config)
             self.config_list.addItem(item)
-        # Connect the config_item_clicked method to the itemClicked signal
         self.config_list.itemClicked.connect(self.config_item_clicked)
 
     def config_item_clicked(self, item):
@@ -579,12 +616,13 @@ class ConfigurationList(QWidget):
         self.selected_config_label.setText(f"Selected Config: {selected_config['name']}")
         dialog = ConfigurationDetailsDialog(selected_config, self)
         dialog.exec_()
+
     
 class MainWindow(QtWidgets.QMainWindow):
     def __init__(self):
         super().__init__()
         # Main Window Title
-        self.setWindowTitle("GUI (Not-A-Pilot)")
+        self.setWindowTitle("GUI")
 
         # Creating instances of PiWidget and ConfigurationList
         self.Pi_widget = PiWidget(self)
@@ -592,6 +630,15 @@ class MainWindow(QtWidgets.QMainWindow):
 
         # Initializing PlotWindow after PiWidget
         self.plot_window = PlotWindow(self.Pi_widget)
+        
+        # Creating actions
+        load_action = QAction('Load Config Directory', self)
+        load_action.triggered.connect(self.config_list.load_configurations)
+
+        # Creating menu bar
+        menubar = self.menuBar()
+        file_menu = menubar.addMenu('File')
+        file_menu.addAction(load_action)
 
         # Creating container widgets for each component
         config_list_container = QWidget()
@@ -637,4 +684,9 @@ if __name__ == '__main__':
     main_window = MainWindow()
     sys.exit(app.exec())
 
-    
+
+
+
+
+
+
