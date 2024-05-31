@@ -527,6 +527,11 @@ class ConfigurationList(QWidget):
         self.init_ui()
         self.load_default()  # Call the method to load configurations from a default directory during initialization
 
+        # Initialize ZMQ context and socket for publishing
+        self.context = zmq.Context()
+        self.publisher = self.context.socket(zmq.PUB)
+        self.publisher.bind("tcp://*:5556")  # Binding to port 5556 for publishing
+    
     def init_ui(self):
         self.config_list = QListWidget()
         
@@ -574,7 +579,7 @@ class ConfigurationList(QWidget):
             config_name = selected_config["name"] # Make sure filename is the same as name in the json
             
             # Construct the full file path
-            file_path = os.path.join("/dev/paclab_sukrith/configs", f"{config_name}.json")
+            file_path = os.path.join("/home/mouse/dev/paclab_sukrith/configs", f"{config_name}.json")
 
             # Check if the file exists and delete it
             if os.path.exists(file_path):
@@ -587,7 +592,7 @@ class ConfigurationList(QWidget):
             self.update_config_list()
 
     def load_default(self):
-        default_directory = os.path.abspath("/dev/paclab_sukrith/configs")
+        default_directory = os.path.abspath("/home/mouse/dev/paclab_sukrith/configs")
         if os.path.isdir(default_directory):
             self.configurations = self.import_configs_from_folder(default_directory)
             self.update_config_list()
@@ -616,6 +621,10 @@ class ConfigurationList(QWidget):
         self.selected_config_label.setText(f"Selected Config: {selected_config['name']}")
         dialog = ConfigurationDetailsDialog(selected_config, self)
         dialog.exec_()
+        
+        # Serialize JSON data and send it over ZMQ to all IPs connected
+        json_data = json.dumps(selected_config)
+        self.publisher.send_json(json_data)
 
     
 class MainWindow(QtWidgets.QMainWindow):
@@ -683,7 +692,6 @@ if __name__ == '__main__':
     app = QApplication(sys.argv)
     main_window = MainWindow()
     sys.exit(app.exec())
-
 
 
 
