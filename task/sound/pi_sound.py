@@ -176,8 +176,8 @@ poke_socket = poke_context.socket(zmq.DEALER)
 poke_socket.identity = pi_identity # Setting the identity of the socket
 
 # Creating a ZeroMQ context and socket for receiving JSON files
-receiver_context = zmq.Context()
-receiver_socket = receiver_context.socket(zmq.SUB)
+json_context = zmq.Context()
+json_socket = json_context.socket(zmq.SUB)
 
 # Connect to the server
 router_ip = "tcp://192.168.0.207:5555" # Connecting to Laptop IP address (192.168.0.99 for laptop, 192.168.0.207 for seaturtle)
@@ -187,10 +187,10 @@ print(f"Connected to router at {router_ip}")  # Print acknowledgment
 
 #JSON socket
 router_ip2 = "tcp://192.168.0.207:5556"
-receiver_socket.connect(router_ip2) 
+json_socket.connect(router_ip2) 
 
 # Subscribe to all incoming messages
-receiver_socket.subscribe(b"")
+json_socket.subscribe(b"")
 
 print(f"Connected to router at {router_ip2}")  # Print acknowledgment
 
@@ -275,7 +275,7 @@ pi.callback(nosepoke_pinR, pigpio.RISING_EDGE, poke_detectedR)
 # Create a Poller object
 poller = zmq.Poller()
 poller.register(poke_socket, zmq.POLLIN)
-poller.register(receiver_socket, zmq.POLLIN)
+poller.register(json_socket, zmq.POLLIN)
 
 # Initialize variables for sound parameters
 chunk_min = 0.01
@@ -295,9 +295,9 @@ try:
         # Wait for events on registered sockets
         socks = dict(poller.poll())
         
-        # Check for incoming messages on receiver_socket
-        if receiver_socket in socks and socks[receiver_socket] == zmq.POLLIN:
-            json_data = receiver_socket.recv_json()  # Blocking receive
+        # Check for incoming messages on json_socket
+        if json_socket in socks and socks[json_socket] == zmq.POLLIN:
+            json_data = json_socket.recv_json()  # Blocking receive
             # Deserialize JSON data
             config_data = json.loads(json_data)
             print(config_data)
@@ -387,8 +387,8 @@ except KeyboardInterrupt:
 finally:
     poke_socket.close()
     poke_context.term()
-    receiver_socket.close()
-    receiver_context.term()
+    json_socket.close()
+    json_context.term()
         
     
 
