@@ -1,9 +1,9 @@
     {
         "name": "config2",
-        "pwm_frequency": 1,
-        "pwm_duty_cycle": 60,
-        "amplitude_min": 0.15,
-        "amplitude_max": 0.25,
+        "pwm_frequency": 3,
+        "pwm_duty_cycle": 20,
+        "amplitude_min": 0.02,
+        "amplitude_max": 0.05,
         "chunk_min": 0.06,
         "chunk_max": 0.12,
         "pause_min": 0.3,
