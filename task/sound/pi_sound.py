@@ -278,6 +278,8 @@ poller.register(poke_socket, zmq.POLLIN)
 poller.register(json_socket, zmq.POLLIN)
 
 # Initialize variables for sound parameters
+pwm_frequency = 1
+pwm_duty_cycle = 50
 chunk_min = 0.01
 chunk_max = 0.05
 pause_min = 0.05
@@ -305,6 +307,8 @@ try:
             #if 'chunk_min' in config_data and 'pause_duration' in config_data and 'amplitude_min' in config_data and 'amplitude_max' in config_data:
             
             # Update parameters from JSON data
+            pwm_frequency = config_data['pwm_frequency']
+            pwm_duty_cycle = config_data['pwm_duty_cycle']
             chunk_min = config_data['chunk_min']
             chunk_max = config_data['chunk_max']
             pause_min = config_data['pause_min']
@@ -343,8 +347,8 @@ try:
                 if value == 5:
                     reward_pin = 27  # Example pin for case 1 (Change this to the actual)
                     pi.set_mode(reward_pin, pigpio.OUTPUT)
-                    pi.set_PWM_frequency(reward_pin, 1)
-                    pi.set_PWM_dutycycle(reward_pin, 50)
+                    pi.set_PWM_frequency(reward_pin, pwm_frequency)
+                    pi.set_PWM_dutycycle(reward_pin, pwm_duty_cycle)
                     # Playing sound from the left speaker
                     jack_client.set_set_channel('left')
                     print("Turning Nosepoke 5 Green")
@@ -354,8 +358,8 @@ try:
                 elif value == 7:
                     reward_pin = 9  # Example pin for case 2
                     pi.set_mode(reward_pin, pigpio.OUTPUT)
-                    pi.set_PWM_frequency(reward_pin, 1)
-                    pi.set_PWM_dutycycle(reward_pin, 50)
+                    pi.set_PWM_frequency(reward_pin, pwm_frequency)
+                    pi.set_PWM_dutycycle(reward_pin, pwm_duty_cycle)
                     # Playing sound from the right speaker
                     jack_client.set_set_channel('right')
                     print("Turning Nosepoke 7 Green")
@@ -368,6 +372,8 @@ try:
             elif msg == "Reward Poke Completed":
                 # Turn off the currently active LED
                 # Resetting audio parameters
+                pwm_frequency = config_data['pwm_frequency']
+                pwm_duty_cycle = config_data['pwm_duty_cycle']
                 jack_client.update_parameters(chunk_min, chunk_max, pause_min, pause_max, amplitude_min, amplitude_max)
                 if current_pin is not None:
                     pi.write(current_pin, 0)
