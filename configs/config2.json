@@ -1,5 +1,5 @@
     {
-        "name": "Config 2",
+        "name": "config2",
         "pwm_frequency": 1,
         "pwm_duty_cycle": 60,
         "amplitude_min": 0.15,
