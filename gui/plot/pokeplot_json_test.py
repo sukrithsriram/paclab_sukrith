@@ -48,7 +48,7 @@ class PiSignal(QGraphicsEllipseItem):
 class Worker(QObject):
     pokedportsignal = pyqtSignal(int, str)
 
-    def __init__(self, pi_widget, configuration_list):
+    def __init__(self, pi_widget):
         super().__init__()
         self.initial_time = None
         self.context = zmq.Context()
@@ -64,12 +64,6 @@ class Worker(QObject):
         self.identities = set()
         self.last_poke_timestamp = None  # Attribute to store the timestamp of the last poke event
 
-        # Initializing object
-        self.configuration_list = configuration_list
-        
-        # Connect signals from ConfigurationList to slots in Worker
-        self.configuration_list.configSelected.connect(self.handle_config_selected)
-        
         # Initialize reward_port and related variables
         self.reward_port = None
         self.previous_port = None
@@ -171,13 +165,6 @@ class Worker(QObject):
                 print("Invalid Pi number received:", poked_port)
         except ValueError:
             print("Connected to Raspberry Pi:", message)
-    
-    def handle_config_selected(self, config):
-        # Handle the selected configuration change
-        print("Selected configuration changed:", config)
-        # Send the config dictionary directly as JSON to all connected IPs
-        for identity in self.identities:
-            self.socket.send_json(config, identity)
 
     def save_results_to_csv(self):
         # Save results to a CSV file
@@ -194,11 +181,10 @@ class PiWidget(QWidget):
     updateSignal = pyqtSignal(int, str) # Signal to emit the number and color of the active Pi
     resetSignal = pyqtSignal()
 
-    def __init__(self, main_window, configuration_list, *args, **kwargs):
+    def __init__(self, main_window, *args, **kwargs):
         super(PiWidget, self).__init__(*args, **kwargs)
 
         # Creating the GUI to display the Pi signals
-        self. configuration_list = configuration_list
         self.main_window = main_window
         self.scene = QGraphicsScene(self)
         self.view = QGraphicsView(self.scene)
@@ -259,7 +245,7 @@ class PiWidget(QWidget):
         self.setLayout(layout)
 
         # Creating an instance of the Worker Class and a Thread to handle the communication with the Raspberry Pi
-        self.worker = Worker(self, configuration_list)
+        self.worker = Worker(self)
         self.thread = QThread()
         self.worker.moveToThread(self.thread) # Move the worker object to the thread
         self.start_button.clicked.connect(self.start_sequence) # Connect the start button to the start_sequence function
@@ -440,7 +426,7 @@ class PlotWindow(QWidget):
         # Update plot with timestamps and signals
         self.line.setData(x=self.timestamps, y=self.signal)
 
-class ConfigDetailsDialog(QDialog):
+class ConfigurationDetailsDialog(QDialog):
     def __init__(self, config, parent=None):
         super().__init__(parent)
         self.setWindowTitle("Configuration Details")
@@ -468,7 +454,7 @@ class ConfigDetailsDialog(QDialog):
         layout.addWidget(self.button_box)
         self.setLayout(layout)
 
-class ConfigDialog(QDialog):
+class ConfigurationDialog(QDialog):
     def __init__(self, parent=None):
         super().__init__(parent)
         self.setWindowTitle("Add Configuration")
@@ -533,10 +519,7 @@ class ConfigDialog(QDialog):
         pause_max = float(self.pausesize_max_edit.text())       
         return {"name": name, "pwm_frequency": frequency, "pwm_duty_cycle": duty_cycle, "amplitude_min": amplitude_min, "amplitude_max": amplitude_max, "chunk_min": chunk_min, "chunk_max": chunk_max, "pause_min": pause_min, "pause_max": pause_max}
 
-class ConfigList(QWidget):
-    # Define signals to emit configuration changes
-    configSelected = pyqtSignal(dict)
-    
+class ConfigurationList(QWidget):
     def __init__(self):
         super().__init__()
         self.configurations = []
@@ -544,6 +527,11 @@ class ConfigList(QWidget):
         self.init_ui()
         self.load_default()  # Call the method to load configurations from a default directory during initialization
 
+        # Initialize ZMQ context and socket for publishing
+        self.context = zmq.Context()
+        self.publisher = self.context.socket(zmq.PUB)
+        self.publisher.bind("tcp://*:5556")  # Binding to port 5556 for publishing
+    
     def init_ui(self):
         self.config_list = QListWidget()
         
@@ -567,7 +555,7 @@ class ConfigList(QWidget):
         self.show()
 
     def add_configuration(self):
-        dialog = ConfigDialog(self)
+        dialog = ConfigurationDialog(self)
         if dialog.exec_() == QDialog.Accepted:
             new_config = dialog.get_configuration()
             new_config["value"] = 0  # Placeholder value
@@ -631,24 +619,23 @@ class ConfigList(QWidget):
         selected_config = item.data(Qt.UserRole)
         self.current_config = selected_config
         self.selected_config_label.setText(f"Selected Config: {selected_config['name']}")
-        dialog = ConfigDetailsDialog(selected_config, self)
+        dialog = ConfigurationDetailsDialog(selected_config, self)
         dialog.exec_()
-        # Emit the configSelected signal with the selected configuration
-        self.configSelected.emit(selected_config)
-
+        
+        # Serialize JSON data and send it over ZMQ to all IPs connected
+        json_data = json.dumps(selected_config)
+        self.publisher.send_json(json_data)
 
     
 class MainWindow(QtWidgets.QMainWindow):
-    def __init__(self, configuration_list):
+    def __init__(self):
         super().__init__()
         # Main Window Title
         self.setWindowTitle("GUI")
-        
-        self.configuration_list = configuration_list
 
-        # Creating instances of PiWidget and ConfigList
-        self.Pi_widget = PiWidget(self, configuration_list)
-        self.config_list = ConfigList()
+        # Creating instances of PiWidget and ConfigurationList
+        self.Pi_widget = PiWidget(self)
+        self.config_list = ConfigurationList()
 
         # Initializing PlotWindow after PiWidget
         self.plot_window = PlotWindow(self.Pi_widget)
