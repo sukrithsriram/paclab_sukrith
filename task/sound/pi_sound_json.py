@@ -6,6 +6,7 @@ import jack
 import time
 import threading
 import random
+import json
 
 # Killing previous pigpiod and jackd background processes
 os.system('sudo killall pigpiod')
@@ -173,20 +174,29 @@ jack_client = JackClient(name='jack_client')
 pi_identity = b"rpi22"
 
 # Creating a ZeroMQ context and socket for communication with the central system
-context = zmq.Context()
-socket = context.socket(zmq.DEALER)
-socket.identity = pi_identity # Setting the identity of the socket
+poke_context = zmq.Context()
+poke_socket = poke_context.socket(zmq.DEALER)
+poke_socket.identity = pi_identity # Setting the identity of the socket
+
+# Creating a ZeroMQ context and socket for receiving JSON files
+receiver_context = zmq.Context()
+receiver_socket = receiver_context.socket(zmq.SUB)
 
 # Connect to the server
 router_ip = "tcp://192.168.0.207:5555" # Connecting to Laptop IP address (192.168.0.99 for laptop, 192.168.0.207 for seaturtle)
-socket.connect(router_ip) 
-socket.send_string("rpi22") # Send the identity of the Raspberry Pi to the server
+poke_socket.connect(router_ip) 
+poke_socket.send_string("rpi22") # Send the identity of the Raspberry Pi to the server
 print(f"Connected to router at {router_ip}")  # Print acknowledgment
 
-# Socket for receiving JSON data
-json_socket = context.socket(zmq.SUB)
-json_socket.connect("tcp://192.168.0.207:5556")  # Connect to the JSON socket
-json_socket.subscribe(b"")  # Subscribe to all messages
+#JSON socket
+router_ip2 = "tcp://192.168.0.207:5556"
+receiver_socket.connect(router_ip2) 
+
+# Subscribe to all incoming messages
+receiver_socket.subscribe(b"")
+
+print(f"Connected to router at {router_ip2}")  # Print acknowledgment
+
 
 
 # Pigpio configuration
@@ -239,7 +249,7 @@ def poke_detectedL(pin, level, tick):
     # Sending nosepoke_id wirelessly
     try:
         print(f"Sending nosepoke_id = {nosepoke_idL}") 
-        socket.send_string(str(nosepoke_idL))
+        poke_socket.send_string(str(nosepoke_idL))
     except Exception as e:
         print("Error sending nosepoke_id:", e)
 
@@ -256,7 +266,7 @@ def poke_detectedR(pin, level, tick):
     # Sending nosepoke_id wirelessly
     try:
         print(f"Sending nosepoke_id = {nosepoke_idR}") 
-        socket.send_string(str(nosepoke_idR))
+        poke_socket.send_string(str(nosepoke_idR))
     except Exception as e:
         print("Error sending nosepoke_id:", e)
 
@@ -274,15 +284,9 @@ try:
     current_pin = None  # Track the currently active LED
     
     while True:
-        
         # Check for incoming messages
         try:
-            #print("Waiting for message...")
-            msg = socket.recv_string()
-            # Receive JSON data
-            json_data = json_socket.recv_string()
-            config = json.loads(json_data)
-            print("Received JSON data:", config)
+            msg = poke_socket.recv_string(flags=zmq.NOBLOCK)  # Non-blocking receive
             if msg == 'exit': # Condition to terminate the main loop
                 pi.write(17, 0)
                 pi.write(10, 0)
@@ -351,9 +355,21 @@ try:
         except zmq.Again:
             pass  # No messages received
         
+        # Receive JSON file
+        try:
+            json_data = receiver_socket.recv_json()#flags=zmq.NOBLOCK)  # Non-blocking receive
+            # Deserialize JSON data
+            config_data = json.loads(json_data)
+            print(config_data)
+        except zmq.Again:
+            pass  # No JSON data received
+
 except KeyboardInterrupt:
     pi.stop()
 finally:
-    socket.close()
-    context.term()
+    poke_socket.close()
+    poke_context.term()
+    receiver_socket.close()
+    receiver_context.term()
+        
 
