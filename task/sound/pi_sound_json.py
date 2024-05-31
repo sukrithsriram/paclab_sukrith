@@ -101,16 +101,13 @@ class JackClient:
 
     
     # Method to update sound parameters dynamically
-    def update_parameters(self):
-        chunk_duration = random.uniform(0.01, 0.05)
-        pause_duration = random.uniform(0.05, 0.2)
-        amplitude = random.uniform(0.005, 0.02)
-        print(f"Current Parameters - Amplitude:{amplitude}, Chunk Duration: {chunk_duration} s, Pause Duration: {pause_duration}")
-
+    def update_parameters(self, chunk_min, chunk_max, pause_min, pause_max, amplitude_min, amplitude_max):
         # Update sound parameters
-        self.chunk_duration = chunk_duration
-        self.pause_duration = pause_duration
-        self.amplitude = amplitude
+        self.chunk_duration = random.uniform(chunk_min, chunk_max)
+        self.pause_duration = random.uniform(pause_min, pause_max)
+        self.amplitude = random.uniform(amplitude_min, amplitude_max)
+
+        print(f"Current Parameters - Amplitude: {self.amplitude}, Chunk Duration: {self.chunk_duration} s, Pause Duration: {self.pause_duration}")
     
     # Process callback function (used to play sound)
     def process(self, frames):
@@ -280,6 +277,14 @@ poller = zmq.Poller()
 poller.register(poke_socket, zmq.POLLIN)
 poller.register(receiver_socket, zmq.POLLIN)
 
+# Initialize variables for sound parameters
+chunk_min = 0.01
+chunk_max = 0.05
+pause_min = 0.05
+pause_max = 0.2
+amplitude_min = 0.005
+amplitude_max = 0.02
+
 # Main loop to keep the program running and exit when it receives an exit command
 try:
     # Initialize reward_pin variable
@@ -296,6 +301,18 @@ try:
             # Deserialize JSON data
             config_data = json.loads(json_data)
             print(config_data)
+
+            #if 'chunk_min' in config_data and 'pause_duration' in config_data and 'amplitude_min' in config_data and 'amplitude_max' in config_data:
+            
+            # Update parameters from JSON data
+            chunk_min = config_data['chunk_min']
+            chunk_max = config_data['chunk_max']
+            pause_min = config_data['pause_min']
+            pause_max = config_data['pause_max']
+            amplitude_min = config_data['amplitude_min']
+            amplitude_max = config_data['amplitude_max']
+            jack_client.update_parameters(chunk_min, chunk_max, pause_min, pause_max, amplitude_min, amplitude_max)
+            print("Parameters updated")
             
         # Check for incoming messages on poke_socket
         if poke_socket in socks and socks[poke_socket] == zmq.POLLIN:
@@ -351,7 +368,7 @@ try:
             elif msg == "Reward Poke Completed":
                 # Turn off the currently active LED
                 # Resetting audio parameters
-                jack_client.update_parameters()
+                jack_client.update_parameters(chunk_min, chunk_max, pause_min, pause_max, amplitude_min, amplitude_max)
                 if current_pin is not None:
                     pi.write(current_pin, 0)
                     print("Turning off currently active LED.")
@@ -372,5 +389,3 @@ finally:
     poke_context.term()
     receiver_socket.close()
     receiver_context.term()
-        
-
