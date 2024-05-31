@@ -197,8 +197,6 @@ receiver_socket.subscribe(b"")
 
 print(f"Connected to router at {router_ip2}")  # Print acknowledgment
 
-
-
 # Pigpio configuration
 a_state = 0
 count = 0
@@ -277,6 +275,11 @@ pi.callback(nosepoke_pinL, pigpio.RISING_EDGE, poke_detectedL)
 pi.callback(nosepoke_pinR, pigpio.FALLING_EDGE, poke_inR)
 pi.callback(nosepoke_pinR, pigpio.RISING_EDGE, poke_detectedR)
 
+# Create a Poller object
+poller = zmq.Poller()
+poller.register(poke_socket, zmq.POLLIN)
+poller.register(receiver_socket, zmq.POLLIN)
+
 # Main loop to keep the program running and exit when it receives an exit command
 try:
     # Initialize reward_pin variable
@@ -284,9 +287,19 @@ try:
     current_pin = None  # Track the currently active LED
     
     while True:
-        # Check for incoming messages
-        try:
-            msg = poke_socket.recv_string(flags=zmq.NOBLOCK)  # Non-blocking receive
+        # Wait for events on registered sockets
+        socks = dict(poller.poll())
+        
+        # Check for incoming messages on receiver_socket
+        if receiver_socket in socks and socks[receiver_socket] == zmq.POLLIN:
+            json_data = receiver_socket.recv_json()  # Blocking receive
+            # Deserialize JSON data
+            config_data = json.loads(json_data)
+            print(config_data)
+            
+        # Check for incoming messages on poke_socket
+        if poke_socket in socks and socks[poke_socket] == zmq.POLLIN:
+            msg = poke_socket.recv_string()  # Blocking receive #flags=zmq.NOBLOCK)  # Non-blocking receive
             if msg == 'exit': # Condition to terminate the main loop
                 pi.write(17, 0)
                 pi.write(10, 0)
@@ -351,18 +364,6 @@ try:
            
             else:
                 print("Unknown message received:", msg)
-
-        except zmq.Again:
-            pass  # No messages received
-        
-        # Receive JSON file
-        try:
-            json_data = receiver_socket.recv_json()#flags=zmq.NOBLOCK)  # Non-blocking receive
-            # Deserialize JSON data
-            config_data = json.loads(json_data)
-            print(config_data)
-        except zmq.Again:
-            pass  # No JSON data received
 
 except KeyboardInterrupt:
     pi.stop()
