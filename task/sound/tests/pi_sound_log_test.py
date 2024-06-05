@@ -273,6 +273,12 @@ def poke_detectedR(pin, level, tick):
         poke_socket.send_string(str(nosepoke_idR))
     except Exception as e:
         print("Error sending nosepoke_id:", e)
+        
+#~ def open_valve(pin):
+    #~ pi.set_mode(pin, pigpio.OUTPUT)
+    #~ pi.write(pin, 1)
+    #~ time.sleep(0.05)
+    #~ pi.write(pin, 0)
 
 # Set up pigpio and callbacks
 pi = pigpio.pi()
@@ -389,6 +395,9 @@ try:
                     print(f"Current Reward Port: {value}") # Current Reward Port
             
             elif msg == "Reward Poke Completed":
+                # Opening a solenoid
+                #open_valve(26) # Pins: Left - 6, Right - 26
+                
                 # Turn off the currently active LED
                 # Resetting audio parameters
                 pwm_frequency = config_data['pwm_frequency']
