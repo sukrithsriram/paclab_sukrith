@@ -558,7 +558,6 @@ class ConfigurationList(QWidget):
         dialog = ConfigurationDialog(self)
         if dialog.exec_() == QDialog.Accepted:
             new_config = dialog.get_configuration()
-            new_config["value"] = 0  # Placeholder value
             self.configurations.append(new_config)
             self.update_config_list()
 
