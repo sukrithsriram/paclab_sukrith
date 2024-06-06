@@ -176,7 +176,7 @@ class Worker(QObject):
                 for timestamp, poked_port, reward_port in zip(self.timestamps, self.poked_port_numbers, self.reward_ports):
                     writer.writerow([timestamp, poked_port, reward_port])
 
-# Modify PiWidget Class
+# PiWidget Class that represents all PiSignals
 class PiWidget(QWidget):
     updateSignal = pyqtSignal(int, str) # Signal to emit the number and color of the active Pi
     resetSignal = pyqtSignal()
@@ -191,7 +191,6 @@ class PiWidget(QWidget):
         self.total_ports = 8
         self.Pi_signals = [PiSignal(i, self.total_ports) for i in range(self.total_ports)]
         [self.scene.addItem(Pi) for Pi in self.Pi_signals]
-        self.last_poke_timestamp = None
 
         # Creating buttons to start and stop the sequence of communication with the Raspberry Pi
         self.poked_port_numbers = []
@@ -227,6 +226,10 @@ class PiWidget(QWidget):
         self.details_layout.addWidget(self.blue_label)
         self.details_layout.addWidget(self.green_label)
         self.details_layout.addWidget(self.fraction_correct_label)
+        
+        # Initialize QTimer for resetting last poke time
+        self.last_poke_timer = QTimer()
+        self.last_poke_timer.timeout.connect(self.update_last_poke_time)
 
         # Create an HBoxLayout for start and stop buttons
         start_stop_layout = QHBoxLayout()
@@ -284,7 +287,6 @@ class PiWidget(QWidget):
                 self.fraction_correct = self.green_count / (self.blue_count + self.green_count)
                 self.fraction_correct_label.setText(f"Fraction Correct (FC): {self.fraction_correct:.3f}")
 
-
     def start_sequence(self):
         # Start the worker thread when the start button is pressed
         self.thread.start()
@@ -313,36 +315,24 @@ class PiWidget(QWidget):
            
     @pyqtSlot()
     def reset_last_poke_time(self):
-        #print("Resetting last poke time...")  # Debug print to check if the method is called
+        # Stop the timer if it's active
+        self.last_poke_timer.stop()
 
+        # Start the timer again
+        self.last_poke_timer.start(1000)  # Set interval to 1000 milliseconds (1 second)
+        
+    @pyqtSlot()
+    def update_last_poke_time(self):
         # Calculate the elapsed time since the last poke
         current_time = time.time()
         elapsed_time = current_time - self.last_poke_timestamp
 
-        #print(f"Current time: {current_time}")
-        #print(f"Last poke timestamp: {self.last_poke_timestamp}")
-        #print(f"Elapsed time since last poke: {elapsed_time}")  # Debug print to check elapsed time
-
         # Update the QLabel text with the time since the last poke
         minutes, seconds = divmod(elapsed_time, 60)  # Convert seconds to minutes and seconds
-        print(f"Elapsed time since last poke: {int(minutes)}:{int(seconds)}")  # Debug print to check elapsed time
-
-        self.poke_time_label.setText(f"Time since last poke: {int(minutes)}:{int(seconds)}")
-
+        self.poke_time_label.setText(f"Time since last poke: {str(int(minutes)).zfill(2)}:{str(int(seconds)).zfill(2)}")
 
     def save_results_to_csv(self):
         self.worker.save_results_to_csv()  # Call worker method to save results
-    
-    def reset_experiment(self):
-        # Emit the reset signal
-        self.stop_sequence()
-        self.worker.reward_port = None
-        self.worker.previous_port = None
-        self.worker.trials = 0
-        self.worker.timestamps = []
-        self.worker.reward_ports = []
-        self.worker.poked_port_numbers = []
-        self.resetSignal.emit()
 
 class PlotWindow(QWidget):
     def __init__(self, pi_widget, *args, **kwargs):
