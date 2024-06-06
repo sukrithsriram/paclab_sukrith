@@ -179,7 +179,6 @@ class Worker(QObject):
 # PiWidget Class that represents all PiSignals
 class PiWidget(QWidget):
     updateSignal = pyqtSignal(int, str) # Signal to emit the number and color of the active Pi
-    resetSignal = pyqtSignal()
 
     def __init__(self, main_window, *args, **kwargs):
         super(PiWidget, self).__init__(*args, **kwargs)
@@ -199,8 +198,6 @@ class PiWidget(QWidget):
         self.stop_button = QPushButton("Stop Experiment")
         self.save_results_button = QPushButton("Save Results")
         self.save_results_button.clicked.connect(self.save_results_to_csv)  # Connect save button to save method
-        self.reset_button = QPushButton("Reset Experiment")
-        self.reset_button.clicked.connect(self.reset_experiment)
 
         self.timer = QTimer(self)
         self.timer.timeout.connect(self.update_time_elapsed)
@@ -240,7 +237,6 @@ class PiWidget(QWidget):
         layout = QVBoxLayout(self)
         layout.addWidget(self.view)  # Assuming self.view exists
         layout.addLayout(start_stop_layout)  # Add the QHBoxLayout to the QVBoxLayout
-        #layout.addWidget(self.reset_button)
         layout.addWidget(self.save_results_button)  # Add save button to layout
         layout.addLayout(self.details_layout)
 
@@ -373,8 +369,6 @@ class PlotWindow(QWidget):
         pi_widget.updateSignal.connect(self.handle_update_signal)
         # Connect the signal from Worker to a slot
         pi_widget.worker.pokedportsignal.connect(self.plot_poked_port)
-        # Connect the reset signal to the clear_plot slot
-        pi_widget.resetSignal.connect(self.clear_plot)
 
     def start_plot(self):
         # Activating the plot window
