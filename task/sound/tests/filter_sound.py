@@ -3,6 +3,7 @@ import numpy as np
 import os
 import jack
 import time
+import scipy
 
 # Kill pigpiod and jackd if they are running
 os.system('sudo killall pigpiod')
@@ -91,12 +92,27 @@ class JackClient(object):
     def process(self, frames):
         # Generate some fake data
         # In the future this will be pulled from the queue
-        data = 0.001 * np.random.uniform(-1, 1, self.blocksize)
+        data = np.random.uniform(-1, 1, self.blocksize) # Generating a random white noise signal
+        self.table = np.zeros((self.blocksize, 2)) # Creating a table of zeros with 2 columns
+        self.table[:, 0] = data # Assigning the random white noise signal to a channel in (0,1)
+        amplitude = 0.001 
+        self.table = self.table * amplitude # Scaling the signal by amplitude
+        self.table = self.table.astype(np.float32) # Converting the table to float32
+                if self.highpass is not None:
+                    bhi, ahi = scipy.signal.butter(
+                        2, self.highpass / (self.fs / 2), 'high')
+                    self.table = scipy.signal.filtfilt(bhi, ahi, self.table)
+                
+                if self.lowpass is not None:
+                    blo, alo = scipy.signal.butter(
+                        2, self.lowpass / (self.fs / 2), 'low')
+                    self.table = scipy.signal.filtfilt(blo, alo, self.table)
+
         #data = np.zeros(self.blocksize, dtype='float32')
         #print("data shape:", data.shape)
 
         # Write
-        self.write_to_outports(data)
+        self.write_to_outports(self.table)
 
     def write_to_outports(self, data):
         data = data.squeeze()
@@ -122,6 +138,7 @@ class JackClient(object):
 
         else:
             raise ValueError("data must be 1D or 2D")
+
 
 # Define a client to play sounds
 jack_client = JackClient(name='jack_client')
