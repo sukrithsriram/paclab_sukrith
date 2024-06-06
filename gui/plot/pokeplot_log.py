@@ -9,8 +9,6 @@ import pyqtgraph as pg
 import random
 import csv
 import json
-from datetime import datetime
-import logging 
 from PyQt5 import QtWidgets
 from PyQt5.QtWidgets import QAction, QGroupBox, QLabel, QGraphicsEllipseItem, QListWidget, QListWidgetItem, QGraphicsTextItem, QGraphicsScene, QGraphicsView, QWidget, QVBoxLayout, QPushButton, QApplication, QHBoxLayout, QLineEdit, QListWidget, QFileDialog, QDialog, QLabel, QDialogButtonBox
 from PyQt5.QtCore import QPointF, QTimer, QTime, pyqtSignal, QObject, QThread, pyqtSlot,  QMetaObject, Qt
@@ -290,7 +288,6 @@ class PiWidget(QWidget):
     def start_sequence(self):
         # Start the worker thread when the start button is pressed
         self.thread.start()
-        
         print("Experiment Started!")
         QMetaObject.invokeMethod(self.worker, "start_sequence", Qt.QueuedConnection)
 
@@ -530,6 +527,11 @@ class ConfigurationList(QWidget):
         self.init_ui()
         self.load_default()  # Call the method to load configurations from a default directory during initialization
 
+        # Initialize ZMQ context and socket for publishing
+        self.context = zmq.Context()
+        self.publisher = self.context.socket(zmq.PUB)
+        self.publisher.bind("tcp://*:5556")  # Binding to port 5556 for publishing
+    
     def init_ui(self):
         self.config_list = QListWidget()
         
@@ -556,7 +558,6 @@ class ConfigurationList(QWidget):
         dialog = ConfigurationDialog(self)
         if dialog.exec_() == QDialog.Accepted:
             new_config = dialog.get_configuration()
-            new_config["value"] = 0  # Placeholder value
             self.configurations.append(new_config)
             self.update_config_list()
 
@@ -619,6 +620,10 @@ class ConfigurationList(QWidget):
         self.selected_config_label.setText(f"Selected Config: {selected_config['name']}")
         dialog = ConfigurationDetailsDialog(selected_config, self)
         dialog.exec_()
+        
+        # Serialize JSON data and send it over ZMQ to all IPs connected
+        json_data = json.dumps(selected_config)
+        self.publisher.send_json(json_data)
 
     
 class MainWindow(QtWidgets.QMainWindow):
@@ -681,10 +686,11 @@ class MainWindow(QtWidgets.QMainWindow):
             self.Pi_widget.worker.socket.send_multipart([identity, b"exit"])
         event.accept()
 
+
 # Running the GUI
 if __name__ == '__main__':
     d = datetime.now()
-    sys.stdout = open(f'/home/mouse/dev/paclab_sukrith/logs/exp_{d}.txt', 'w') #datetime.date.today()}_{d.strftime("%H:%M:%S")
+    sys.stdout = open(f'/home/mouse/dev/paclab_sukrith/logs/exp_{d}.txt', 'w') #look into tee or logging
     app = QApplication(sys.argv)
     main_window = MainWindow()
     sys.exit(app.exec())
