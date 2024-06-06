@@ -372,8 +372,8 @@ try:
             elif msg == "Reward Poke Completed":
                 # Turn off the currently active LED
                 # Resetting audio parameters
-                pwm_frequency = config_data['pwm_frequency']
-                pwm_duty_cycle = config_data['pwm_duty_cycle']
+                #pwm_frequency = config_data['pwm_frequency']
+                #pwm_duty_cycle = config_data['pwm_duty_cycle']
                 jack_client.update_parameters(chunk_min, chunk_max, pause_min, pause_max, amplitude_min, amplitude_max)
                 if current_pin is not None:
                     pi.write(current_pin, 0)
