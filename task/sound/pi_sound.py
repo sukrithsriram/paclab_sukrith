@@ -265,6 +265,19 @@ def poke_detectedR(pin, level, tick):
     except Exception as e:
         print("Error sending nosepoke_id:", e)
 
+def open_valve(port):
+    if port == 5:
+        pi.set_mode(6, pigpio.OUTPUT)
+        pi.write(6, 1)
+        time.sleep(0.05)
+        pi.write(6, 0)
+    if port == 7:
+        pi.set_mode(26, pigpio.OUTPUT)
+        pi.write(26, 1)
+        time.sleep(0.05)
+        pi.write(26, 0)
+        
+
 # Set up pigpio and callbacks
 pi = pigpio.pi()
 pi.callback(nosepoke_pinL, pigpio.FALLING_EDGE, poke_inL)
@@ -292,6 +305,7 @@ try:
     # Initialize reward_pin variable
     reward_pin = None
     current_pin = None  # Track the currently active LED
+    prev_port = None
     
     while True:
         # Wait for events on registered sockets
@@ -345,7 +359,7 @@ try:
                 
                 # Manipulate pin values based on the integer value
                 if value == 5:
-                    reward_pin = 27  # Example pin for case 1 (Change this to the actual)
+                    reward_pin = 27  # Example pin for case 1 
                     pi.set_mode(reward_pin, pigpio.OUTPUT)
                     pi.set_PWM_frequency(reward_pin, pwm_frequency)
                     pi.set_PWM_dutycycle(reward_pin, pwm_duty_cycle)
@@ -353,6 +367,7 @@ try:
                     jack_client.set_set_channel('left')
                     print("Turning Nosepoke 5 Green")
 
+                    prev_port = value
                     current_pin = reward_pin
 
                 elif value == 7:
@@ -364,17 +379,22 @@ try:
                     jack_client.set_set_channel('right')
                     print("Turning Nosepoke 7 Green")
 
+                    prev_port = value
                     current_pin = reward_pin
 
                 else:
                     print(f"Current Reward Port: {value}") # Current Reward Port
             
             elif msg == "Reward Poke Completed":
-                # Turn off the currently active LED
-                # Resetting audio parameters
+                # Opening Solenoid Valve
+                open_valve(prev_port)
+                
+                # Resetting parameters
                 #pwm_frequency = config_data['pwm_frequency']
                 #pwm_duty_cycle = config_data['pwm_duty_cycle']
+                
                 jack_client.update_parameters(chunk_min, chunk_max, pause_min, pause_max, amplitude_min, amplitude_max)
+                #Turn off the currently active LED
                 if current_pin is not None:
                     pi.write(current_pin, 0)
                     print("Turning off currently active LED.")
