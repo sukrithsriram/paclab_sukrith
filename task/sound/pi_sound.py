@@ -341,6 +341,13 @@ try:
                 pi.write(27, 0)
                 pi.write(9, 0)
                 print("Received exit command. Terminating program.")
+                
+                # Stop the Jack client
+                jack_client.client.deactivate()
+                
+                # Wait for the client to finish processing any remaining chunks
+                time.sleep(jack_client.chunk_duration + jack_client.pause_duration)
+                
                 break  # Exit the loop
             
             elif msg.startswith("Reward Port:"):    
