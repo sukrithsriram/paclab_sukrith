@@ -199,7 +199,6 @@ class PiWidget(QWidget):
         self.save_results_button = QPushButton("Save Results")
         self.save_results_button.clicked.connect(self.save_results_to_csv)  # Connect save button to save method
 
-
         self.timer = QTimer(self)
         self.timer.timeout.connect(self.update_time_elapsed)
         
@@ -247,12 +246,12 @@ class PiWidget(QWidget):
         # Creating an instance of the Worker Class and a Thread to handle the communication with the Raspberry Pi
         self.worker = Worker(self)
         self.thread = QThread()
-        self.worker.moveToThread(self.thread) # Move the worker object to the thread
-        self.start_button.clicked.connect(self.start_sequence) # Connect the start button to the start_sequence function
-        self.stop_button.clicked.connect(self.stop_sequence) # Connect the stop button to the stop_sequence function
+        self.worker.moveToThread(self.thread)  # Move the worker object to the thread
+        self.start_button.clicked.connect(self.start_sequence)  # Connect the start button to the start_sequence function
+        self.stop_button.clicked.connect(self.stop_sequence)  # Connect the stop button to the stop_sequence function
         
         # Connect the pokedportsignal from the Worker to a new slot
-        self.worker.pokedportsignal.connect(self.emit_update_signal) # Connect the pokedportsignal to the emit_update_signal function
+        self.worker.pokedportsignal.connect(self.emit_update_signal)  # Connect the pokedportsignal to the emit_update_signal function
         self.worker.pokedportsignal.connect(self.reset_last_poke_time)
 
     # Function to emit the update signal
@@ -290,6 +289,9 @@ class PiWidget(QWidget):
         print("Experiment Started!")
         QMetaObject.invokeMethod(self.worker, "start_sequence", Qt.QueuedConnection)
 
+        # Start the plot
+        self.main_window.plot_window.start_plot()
+
         # Start the timer
         self.start_time.start()
         self.timer.start(10)  # Update every second        
@@ -299,6 +301,9 @@ class PiWidget(QWidget):
         QMetaObject.invokeMethod(self.worker, "stop_sequence", Qt.QueuedConnection)
         print("Experiment Stopped!")
         self.thread.quit()
+
+        # Stop the plot
+        self.main_window.plot_window.stop_plot()
 
         # Stop the timer
         self.timer.stop()
@@ -337,10 +342,11 @@ class PlotWindow(QWidget):
 
         self.is_active = False  # Flag to check if the Start Button is pressed
         self.timer = QTimer(self)  # Create a QTimer object
+        self.timer.timeout.connect(self.update_plot)  # Connect the timer to update the plot
 
         # Entering the plot parameters and titles
         self.plot_graph = pg.PlotWidget()
-        self.start_time = time.time()
+        self.start_time = None  # Initialize start_time to None
         self.plot_graph.setXRange(0, 1600)  # Set x-axis range to [0, 1600]
         self.layout = QVBoxLayout(self)
         self.layout.addWidget(self.plot_graph)
@@ -371,17 +377,17 @@ class PlotWindow(QWidget):
         # Connect the signal from Worker to a slot
         pi_widget.worker.pokedportsignal.connect(self.plot_poked_port)
 
-
     def start_plot(self):
-        # Activating the plot window
+        # Activating the plot window and start the timer
         self.is_active = True
-        self.timer.start()
+        self.start_time = time.time()  # Set the start time
+        self.timer.start(10)  # Start the timer to update every second
 
     def stop_plot(self):
-        # Deactivating the plot window
+        # Deactivating the plot window and stop the timer
         self.is_active = False
         self.timer.stop()
-    
+
     def clear_plot(self):
         # Clear the plot by clearing data lists
         self.timestamps.clear()
@@ -390,23 +396,25 @@ class PlotWindow(QWidget):
         self.update_plot()
 
     def handle_update_signal(self, update_value):
-        # Append current timestamp and update value to the lists
-        self.timestamps.append(time.time())
-        self.signal.append(update_value)
-        self.update_plot()
+        if self.is_active:
+            # Append current timestamp and update value to the lists
+            self.timestamps.append(time.time() - self.start_time)
+            self.signal.append(update_value)
+            self.update_plot()
 
     def plot_poked_port(self, poked_port_value, color):
-        brush_color = "g" if color == "green" else "r" if color == "red" else "b"
-        relative_time = time.time() - self.start_time  # Get relative time
-        self.plot_graph.plot(
-            [relative_time],
-            [poked_port_value],
-            pen=None,
-            symbol="arrow_down", # "o" for dots
-            symbolSize=18, # use 8 or lower if using dots
-            symbolBrush=brush_color,
-            symbolPen=None,
-        )
+        if self.is_active:
+            brush_color = "g" if color == "green" else "r" if color == "red" else "b"
+            relative_time = time.time() - self.start_time  # Get relative time
+            self.plot_graph.plot(
+                [relative_time],
+                [poked_port_value],
+                pen=None,
+                symbol="arrow_down",  # "o" for dots
+                symbolSize=18,  # use 8 or lower if using dots
+                symbolBrush=brush_color,
+                symbolPen=None,
+            )
 
     def update_plot(self):
         # Update plot with timestamps and signals
