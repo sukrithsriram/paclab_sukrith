@@ -9,6 +9,7 @@ import pyqtgraph as pg
 import random
 import csv
 import json
+from datetime import datetime
 from PyQt5 import QtWidgets
 from PyQt5.QtWidgets import QAction, QGroupBox, QLabel, QGraphicsEllipseItem, QListWidget, QListWidgetItem, QGraphicsTextItem, QGraphicsScene, QGraphicsView, QWidget, QVBoxLayout, QPushButton, QApplication, QHBoxLayout, QLineEdit, QListWidget, QFileDialog, QDialog, QLabel, QDialogButtonBox
 from PyQt5.QtCore import QPointF, QTimer, QTime, pyqtSignal, QObject, QThread, pyqtSlot,  QMetaObject, Qt
@@ -362,8 +363,13 @@ class PlotWindow(QWidget):
         super().__init__(*args, **kwargs)
 
         self.is_active = False  # Flag to check if the Start Button is pressed
+        self.start_time = None
         self.timer = QTimer(self)  # Create a QTimer object
         self.timer.timeout.connect(self.update_plot)  # Connect the timer to update the plot
+        
+        # Create QTimer for updating time bar
+        self.time_bar_timer = QTimer(self)
+        self.time_bar_timer.timeout.connect(self.update_time_bar)
 
         # Entering the plot parameters and titles
         self.plot_graph = pg.PlotWidget()
@@ -381,6 +387,10 @@ class PlotWindow(QWidget):
         self.plot_graph.setYRange(1, 8)
         self.timestamps = []  # List to store timestamps
         self.signal = []  # List to store active Pi signals
+        
+        # Setting Initial Time Bar
+        self.line_of_current_time_color = 0.5
+        self.line_of_current_time = self.plot_graph.plot(x=[0, 0], y=[-1, 8], pen=pg.mkPen(self.line_of_current_time_color))
 
         # Plotting the initial graph
         self.line = self.plot_graph.plot(
@@ -401,13 +411,19 @@ class PlotWindow(QWidget):
     def start_plot(self):
         # Activating the plot window and start the timer
         self.is_active = True
-        self.start_time = time.time()  # Set the start time
+        self.start_time = datetime.now()  # Set the start time
         self.timer.start(10)  # Start the timer to update every second
+
+        # Start the timer for updating the time bar when the plot starts
+        self.time_bar_timer.start(100)  # Update every 100 milliseconds
 
     def stop_plot(self):
         # Deactivating the plot window and stop the timer
         self.is_active = False
         self.timer.stop()
+        
+        # Stop the timer for updating the time bar when the plot stops
+        self.time_bar_timer.stop()
 
     def clear_plot(self):
         # Clear the plot by clearing data lists
@@ -416,17 +432,32 @@ class PlotWindow(QWidget):
         # Update the plot with cleared data
         self.update_plot()
 
+    def update_time_bar(self):
+        # Using current time to approximately update timebar
+        if self.start_time is not None:
+            current_time = datetime.now()
+            approx_time_in_session = (
+                current_time - self.start_time).total_seconds()
+
+            # Update the current time line
+            self.line_of_current_time_color = np.mod(
+                self.line_of_current_time_color + 0.1, 2)
+            self.line_of_current_time.setData(
+                x=[approx_time_in_session, approx_time_in_session], y=[-1, 9],
+                pen=pg.mkPen(np.abs(self.line_of_current_time_color - 1)),
+            )
+    
     def handle_update_signal(self, update_value):
         if self.is_active:
             # Append current timestamp and update value to the lists
-            self.timestamps.append(time.time() - self.start_time)
+            self.timestamps.append((datetime.now() - self.start_time).total_seconds())
             self.signal.append(update_value)
             self.update_plot()
 
     def plot_poked_port(self, poked_port_value, color):
         if self.is_active:
             brush_color = "g" if color == "green" else "r" if color == "red" else "b"
-            relative_time = time.time() - self.start_time  # Get relative time
+            relative_time = (datetime.now() - self.start_time).total_seconds()  # Convert to seconds
             self.plot_graph.plot(
                 [relative_time],
                 [poked_port_value],
