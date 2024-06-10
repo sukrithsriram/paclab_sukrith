@@ -321,8 +321,6 @@ try:
             #if 'chunk_min' in config_data and 'pause_duration' in config_data and 'amplitude_min' in config_data and 'amplitude_max' in config_data:
             
             # Update parameters from JSON data
-            pwm_frequency = config_data['pwm_frequency']
-            pwm_duty_cycle = config_data['pwm_duty_cycle']
             chunk_min = config_data['chunk_min']
             chunk_max = config_data['chunk_max']
             pause_min = config_data['pause_min']
@@ -396,10 +394,7 @@ try:
                 # Opening Solenoid Valve
                 open_valve(prev_port)
                 
-                # Resetting parameters
-                #pwm_frequency = config_data['pwm_frequency']
-                #pwm_duty_cycle = config_data['pwm_duty_cycle']
-                
+                # Updating Parameters
                 jack_client.update_parameters(chunk_min, chunk_max, pause_min, pause_max, amplitude_min, amplitude_max)
                 #Turn off the currently active LED
                 if current_pin is not None:
