@@ -208,8 +208,7 @@ class PiWidget(QWidget):
 
         self.start_button = QPushButton("Start Experiment")
         self.stop_button = QPushButton("Stop Experiment")
-        self.save_results_button = QPushButton("Save Results")
-        self.save_results_button.clicked.connect(self.save_results_to_csv)  # Connect save button to save method
+        self.stop_button.clicked.connect(self.save_results_to_csv)  # Connect save button to save method
 
         self.timer = QTimer(self)
         self.timer.timeout.connect(self.update_time_elapsed)
@@ -253,7 +252,6 @@ class PiWidget(QWidget):
         layout = QVBoxLayout(self)
         layout.addWidget(self.view)  # Assuming self.view exists
         layout.addLayout(start_stop_layout)  # Add the QHBoxLayout to the QVBoxLayout
-        layout.addWidget(self.save_results_button)  # Add save button to layout
         layout.addLayout(self.details_layout)
 
         # Set the layout for the widget
@@ -434,7 +432,7 @@ class PlotWindow(QWidget):
                 [poked_port_value],
                 pen=None,
                 symbol="arrow_down",  # "o" for dots
-                symbolSize=18,  # use 8 or lower if using dots
+                symbolSize=22,  # use 8 or lower if using dots
                 symbolBrush=brush_color,
                 symbolPen=None,
             )
