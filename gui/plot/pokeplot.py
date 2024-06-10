@@ -67,12 +67,13 @@ class Worker(QObject):
         # Initialize reward_port and related variables
         self.reward_port = None
         self.previous_port = None
-        
-        self.trials = 0
 
-        # Placeholder for timestamps and ports visited
+        # Initializing lists for timestamps and ports visited
+        self.trials = 0
         self.timestamps = []
         self.reward_ports = []
+        self.unique_ports_visited = []  # List to store unique ports visited in each trial
+        self.average_unique_ports = 0  # Variable to store the average number of unique ports visited
 
     @pyqtSlot()
     def start_sequence(self):
@@ -100,12 +101,22 @@ class Worker(QObject):
         if self.timer is not None: 
             self.timer.stop()
             self.timer.timeout.disconnect(self.update_Pi)
+    
+    def update_unique_ports(self):
+        # Calculate unique ports visited in the current trial
+        unique_ports = set(self.poked_port_numbers)
+        self.unique_ports_visited.append(len(unique_ports))
 
+    def calculate_average_unique_ports(self):
+        # Calculate the average number of unique ports visited per trial
+        if self.unique_ports_visited:
+            self.average_unique_ports = sum(self.unique_ports_visited) / len(self.unique_ports_visited)
+            
     @pyqtSlot()
     def update_Pi(self):
         current_time = time.time()
         elapsed_time = current_time - self.initial_time
-        
+
         # Update the last poke timestamp whenever a poke event occurs
         self.last_poke_timestamp = current_time
 
@@ -123,10 +134,10 @@ class Worker(QObject):
 
         try:
             poked_port = int(message)
-            
-            if 1 <= poked_port <= self.total_ports: 
-                poked_port_signal = self.Pi_signals[poked_port - 1] 
-                
+
+            if 1 <= poked_port <= self.total_ports:
+                poked_port_signal = self.Pi_signals[poked_port - 1]
+
                 # Check if the received Pi number matches the current Reward Port
                 if poked_port == self.reward_port:
                     color = "green" if self.trials == 0 else "blue"
@@ -135,21 +146,24 @@ class Worker(QObject):
                 else:
                     color = "red"
                     self.trials += 1
-                
+
                 # Set the color of the PiSignal object
-                poked_port_signal.set_color(color) 
-                
-                self.poked_port_numbers.append(poked_port) 
-                print("Sequence:", self.poked_port_numbers) 
+                poked_port_signal.set_color(color)
+
+                self.poked_port_numbers.append(poked_port)
+                print("Sequence:", self.poked_port_numbers)
                 self.last_pi_received = identity
-                
+
                 # Emit the signal with the appropriate color
                 self.pokedportsignal.emit(poked_port, color)
-                
+
                 # Record timestamp and port visited
                 self.timestamps.append(elapsed_time)
                 self.reward_ports.append(self.reward_port)
-                
+
+                # Update unique ports visited in each trial
+                self.update_unique_ports()
+
                 if color == "green" or color == "blue":
                     for identity in self.identities:
                         self.socket.send_multipart([identity, b"Reward Poke Completed"])
@@ -161,8 +175,6 @@ class Worker(QObject):
                     for identity in self.identities:
                         self.socket.send_multipart([identity, bytes(f"Reward Port: {self.reward_port}", 'utf-8')])
 
-            else:
-                print("Invalid Pi number received:", poked_port)
         except ValueError:
             print("Connected to Raspberry Pi:", message)
 
@@ -217,12 +229,16 @@ class PiWidget(QWidget):
         self.blue_label = QLabel("Number of Trials: 0", self)
         self.green_label = QLabel("Number of Correct Trials: 0", self)
         self.fraction_correct_label = QLabel("Fraction Correct (FC): 0.000", self)
+        self.rcp_label = QLabel("Rank of Correct Port (RCP): 0", self) # Check if correct 
+
+        # Making Widgets for the labels
         self.details_layout.addWidget(self.time_label)
         self.details_layout.addWidget(self.poke_time_label)
         self.details_layout.addWidget(self.red_label)
         self.details_layout.addWidget(self.blue_label)
         self.details_layout.addWidget(self.green_label)
         self.details_layout.addWidget(self.fraction_correct_label)
+        self.details_layout.addWidget(self.rcp_label)
         
         # Initialize QTimer for resetting last poke time
         self.last_poke_timer = QTimer()
@@ -253,6 +269,7 @@ class PiWidget(QWidget):
         # Connect the pokedportsignal from the Worker to a new slot
         self.worker.pokedportsignal.connect(self.emit_update_signal)  # Connect the pokedportsignal to the emit_update_signal function
         self.worker.pokedportsignal.connect(self.reset_last_poke_time)
+        self.worker.pokedportsignal.connect(self.calc_and_update_avg_unique_ports)
 
     # Function to emit the update signal
     def emit_update_signal(self, poked_port_number, color):
@@ -323,6 +340,12 @@ class PiWidget(QWidget):
         # Start the timer again
         self.last_poke_timer.start(1000)  # Set interval to 1000 milliseconds (1 second)
         
+    @pyqtSlot()
+    def calc_and_update_avg_unique_ports(self):
+        self.worker.calculate_average_unique_ports()
+        average_unique_ports = self.worker.average_unique_ports
+        self.rcp_label.setText(f"Rank of Correct Port: {average_unique_ports:.2f}")
+    
     @pyqtSlot()
     def update_last_poke_time(self):
         # Calculate the elapsed time since the last poke
