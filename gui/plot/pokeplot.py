@@ -493,8 +493,6 @@ class ConfigurationDetailsDialog(QDialog):
         # Arrange widgets in a vertical layout
         layout = QVBoxLayout()
         layout.addWidget(self.name_label)
-        layout.addWidget(self.frequency_label)
-        layout.addWidget(self.duty_cycle_label)
         layout.addWidget(self.amplitude_label)
         layout.addWidget(self.chunk_label)
         layout.addWidget(self.pause_label)
@@ -537,10 +535,6 @@ class ConfigurationDialog(QDialog):
         layout = QVBoxLayout()
         layout.addWidget(self.name_label)
         layout.addWidget(self.name_edit)
-        layout.addWidget(self.frequency_label)
-        layout.addWidget(self.frequency_edit)
-        layout.addWidget(self.duty_cycle_label)
-        layout.addWidget(self.duty_cycle_edit)
         layout.addWidget(self.amplitude_label)
         layout.addLayout(amplitude_layout)
         layout.addWidget(self.chunksize_label)
@@ -552,8 +546,6 @@ class ConfigurationDialog(QDialog):
 
     def get_configuration(self):
         name = self.name_edit.text()
-        frequency = float(self.frequency_edit.text())
-        duty_cycle = float(self.duty_cycle_edit.text())
         amplitude_min = float(self.amplitude_min_edit.text())
         amplitude_max = float(self.amplitude_max_edit.text())
         chunk_min = float(self.chunksize_min_edit.text())
