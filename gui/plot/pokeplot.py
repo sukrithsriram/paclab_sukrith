@@ -74,6 +74,7 @@ class Worker(QObject):
         self.timestamps = []
         self.reward_ports = []
         self.unique_ports_visited = []  # List to store unique ports visited in each trial
+        self.unique_ports_colors = {}  # Dictionary to store color for each unique port
         self.average_unique_ports = 0  # Variable to store the average number of unique ports visited
 
     @pyqtSlot()
@@ -203,7 +204,7 @@ class PiWidget(QWidget):
         self.total_ports = 8
         self.Pi_signals = [PiSignal(i, self.total_ports) for i in range(self.total_ports)]
         [self.scene.addItem(Pi) for Pi in self.Pi_signals]
-
+        
         # Creating buttons to start and stop the sequence of communication with the Raspberry Pi
         self.poked_port_numbers = []
 
@@ -316,7 +317,7 @@ class PiWidget(QWidget):
         # Stop the worker thread when the stop button is pressed
         QMetaObject.invokeMethod(self.worker, "stop_sequence", Qt.QueuedConnection)
         print("Experiment Stopped!")
-        self.thread.quit()
+        #self.thread.quit()
 
         # Stop the plot
         self.main_window.plot_window.stop_plot()
@@ -424,13 +425,15 @@ class PlotWindow(QWidget):
         
         # Stop the timer for updating the time bar when the plot stops
         self.time_bar_timer.stop()
+        self.clear_plot()
 
     def clear_plot(self):
         # Clear the plot by clearing data lists
         self.timestamps.clear()
         self.signal.clear()
         # Update the plot with cleared data
-        self.update_plot()
+        self.line.setData(x=[], y=[])
+        self.line_of_current_time.setData(x=[], y=[])
 
     def update_time_bar(self):
         # Using current time to approximately update timebar
@@ -479,8 +482,6 @@ class ConfigurationDetailsDialog(QDialog):
 
         # Create labels to display configuration parameters
         self.name_label = QLabel(f"Name: {config['name']}")
-        self.frequency_label = QLabel(f"PWM Frequency: {config['pwm_frequency']}")
-        self.duty_cycle_label = QLabel(f"PWM Duty Cycle: {config['pwm_duty_cycle']}")
         self.amplitude_label = QLabel(f"Amplitude: {config['amplitude_min']} - {config['amplitude_max']}")
         self.chunk_label = QLabel(f"Chunk Duration: {config['chunk_min']} - {config['chunk_max']}")
         self.pause_label = QLabel(f"Pause Duration: {config['pause_min']} - {config['pause_max']}")
@@ -508,10 +509,6 @@ class ConfigurationDialog(QDialog):
         # Create labels and line edits for configuration parameters
         self.name_label = QLabel("Name:")
         self.name_edit = QLineEdit()
-        self.frequency_label = QLabel("PWM Frequency:")
-        self.frequency_edit = QLineEdit()
-        self.duty_cycle_label = QLabel("PWM Duty Cycle:")
-        self.duty_cycle_edit = QLineEdit()
         self.amplitude_label = QLabel("Amplitude:")
         self.amplitude_min_edit = QLineEdit()
         self.amplitude_max_edit = QLineEdit()
@@ -563,7 +560,7 @@ class ConfigurationDialog(QDialog):
         chunk_max = float(self.chunksize_max_edit.text())
         pause_min = float(self.pausesize_min_edit.text())
         pause_max = float(self.pausesize_max_edit.text())       
-        return {"name": name, "pwm_frequency": frequency, "pwm_duty_cycle": duty_cycle, "amplitude_min": amplitude_min, "amplitude_max": amplitude_max, "chunk_min": chunk_min, "chunk_max": chunk_max, "pause_min": pause_min, "pause_max": pause_max}
+        return {"name": name, "amplitude_min": amplitude_min, "amplitude_max": amplitude_max, "chunk_min": chunk_min, "chunk_max": chunk_max, "pause_min": pause_min, "pause_max": pause_max}
 
 class ConfigurationList(QWidget):
     def __init__(self):
