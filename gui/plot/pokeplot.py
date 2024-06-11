@@ -46,7 +46,9 @@ class PiSignal(QGraphicsEllipseItem):
         else:
             print("Invalid color:", color)
 
+# Worker class to lower the load on the GUI
 class Worker(QObject):
+    # Signal emitted when a poke event occurs
     pokedportsignal = pyqtSignal(int, str)
 
     def __init__(self, pi_widget):
@@ -54,7 +56,7 @@ class Worker(QObject):
         self.initial_time = None
         self.context = zmq.Context()
         self.socket = self.context.socket(zmq.ROUTER)
-        self.socket.bind("tcp://*:5555") # Change Port number if you want to run multiple instances
+        self.socket.bind("tcp://*:5555")  # Change Port number if you want to run multiple instances
 
         self.last_pi_received = None
         self.timer = None
@@ -77,6 +79,7 @@ class Worker(QObject):
         self.unique_ports_colors = {}  # Dictionary to store color for each unique port
         self.average_unique_ports = 0  # Variable to store the average number of unique ports visited
 
+    # Method to start the sequence
     @pyqtSlot()
     def start_sequence(self):
         # Reset data when starting a new sequence
@@ -98,22 +101,26 @@ class Worker(QObject):
         self.timer.timeout.connect(self.update_Pi)
         self.timer.start(10)
 
+    # Method to stop the sequence
     @pyqtSlot()
     def stop_sequence(self):
         if self.timer is not None: 
             self.timer.stop()
             self.timer.timeout.disconnect(self.update_Pi)
     
+    # Method to update unique ports visited
     def update_unique_ports(self):
         # Calculate unique ports visited in the current trial
         unique_ports = set(self.poked_port_numbers)
         self.unique_ports_visited.append(len(unique_ports))
 
+    # Method to calculate the average number of unique ports visited
     def calculate_average_unique_ports(self):
         # Calculate the average number of unique ports visited per trial
         if self.unique_ports_visited:
             self.average_unique_ports = sum(self.unique_ports_visited) / len(self.unique_ports_visited)
             
+    # Method to handle the update of Pis
     @pyqtSlot()
     def update_Pi(self):
         current_time = time.time()
@@ -135,51 +142,46 @@ class Worker(QObject):
         self.socket.send_multipart([identity, bytes(f"Reward Port: {self.reward_port}", 'utf-8')])
 
         try:
-            poked_port = int(message)
+            message_str = message.decode('utf-8')
+            if "Current Parameters" in message_str:
+                print("Updated:", message_str)
+            else:
+                poked_port = int(message_str)
+                if 1 <= poked_port <= self.total_ports:
+                    poked_port_signal = self.Pi_signals[poked_port - 1]
 
-            if 1 <= poked_port <= self.total_ports:
-                poked_port_signal = self.Pi_signals[poked_port - 1]
+                    if poked_port == self.reward_port:
+                        color = "green" if self.trials == 0 else "blue"
+                        if self.trials > 0:
+                            self.trials = 0
+                    else:
+                        color = "red"
+                        self.trials += 1
 
-                # Check if the received Pi number matches the current Reward Port
-                if poked_port == self.reward_port:
-                    color = "green" if self.trials == 0 else "blue"
-                    if self.trials > 0:
-                        self.trials = 0  # Reset attempts since change
-                else:
-                    color = "red"
-                    self.trials += 1
+                    poked_port_signal.set_color(color)
+                    self.poked_port_numbers.append(poked_port)
+                    print("Sequence:", self.poked_port_numbers)
+                    self.last_pi_received = identity
 
-                # Set the color of the PiSignal object
-                poked_port_signal.set_color(color)
+                    self.pokedportsignal.emit(poked_port, color)
+                    self.timestamps.append(elapsed_time)
+                    self.reward_ports.append(self.reward_port)
+                    self.update_unique_ports()
 
-                self.poked_port_numbers.append(poked_port)
-                print("Sequence:", self.poked_port_numbers)
-                self.last_pi_received = identity
+                    if color == "green" or color == "blue":
+                        for identity in self.identities:
+                            self.socket.send_multipart([identity, b"Reward Poke Completed"])
+                        self.reward_port = random.choice([5, 7])
+                        self.trials = 0
+                        print(f"Reward Port: {self.reward_port}")
 
-                # Emit the signal with the appropriate color
-                self.pokedportsignal.emit(poked_port, color)
-
-                # Record timestamp and port visited
-                self.timestamps.append(elapsed_time)
-                self.reward_ports.append(self.reward_port)
-
-                # Update unique ports visited in each trial
-                self.update_unique_ports()
-
-                if color == "green" or color == "blue":
-                    for identity in self.identities:
-                        self.socket.send_multipart([identity, b"Reward Poke Completed"])
-                    self.reward_port = random.choice([5, 7])
-                    self.trials = 0
-                    print(f"Reward Port: {self.reward_port}")  # Print the updated Reward Port
-
-                    # Send the message to all connected Pis
-                    for identity in self.identities:
-                        self.socket.send_multipart([identity, bytes(f"Reward Port: {self.reward_port}", 'utf-8')])
+                        for identity in self.identities:
+                            self.socket.send_multipart([identity, bytes(f"Reward Port: {self.reward_port}", 'utf-8')])
 
         except ValueError:
-            print("Connected to Raspberry Pi:", message)
+            print("Connected to Raspberry Pi:", message_str)
 
+    # Method to save results to a CSV file
     def save_results_to_csv(self):
         # Save results to a CSV file
         filename, _ = QFileDialog.getSaveFileName(None, "Save Results", "", "CSV Files (*.csv)")
@@ -726,6 +728,9 @@ if __name__ == '__main__':
     app = QApplication(sys.argv)
     main_window = MainWindow()
     sys.exit(app.exec())
+
+
+
 
 
 
