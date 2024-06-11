@@ -266,6 +266,7 @@ def poke_detectedR(pin, level, tick):
     except Exception as e:
         print("Error sending nosepoke_id:", e)
 
+# Function to open the solenoid valve when the reward port is poked
 def open_valve(port):
     if port == 5:
         pi.set_mode(6, pigpio.OUTPUT)
