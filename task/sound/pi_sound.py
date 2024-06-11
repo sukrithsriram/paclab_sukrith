@@ -102,12 +102,13 @@ class JackClient:
     
     # Method to update sound parameters dynamically
     def update_parameters(self, chunk_min, chunk_max, pause_min, pause_max, amplitude_min, amplitude_max):
-        # Update sound parameters
         self.chunk_duration = random.uniform(chunk_min, chunk_max)
         self.pause_duration = random.uniform(pause_min, pause_max)
         self.amplitude = random.uniform(amplitude_min, amplitude_max)
 
-        print(f"Current Parameters - Amplitude: {self.amplitude}, Chunk Duration: {self.chunk_duration} s, Pause Duration: {self.pause_duration}")
+        parameter_message = f"Current Parameters - Amplitude: {self.amplitude}, Chunk Duration: {self.chunk_duration} s, Pause Duration: {self.pause_duration}"
+        print(parameter_message)
+        poke_socket.send_string(parameter_message)  # Send the parameter message
     
     # Process callback function (used to play sound)
     def process(self, frames):
@@ -419,5 +420,4 @@ finally:
     json_context.term()
         
     
-
 
