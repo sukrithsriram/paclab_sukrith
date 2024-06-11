@@ -95,6 +95,9 @@ class Worker(QObject):
         # Send the message to all connected Pis
         for identity in self.identities:
             self.socket.send_multipart([identity, bytes(message, 'utf-8')])
+            
+        # Set the color of the initial reward port to green
+        self.Pi_signals[self.reward_port - 1].set_color("green")
 
         # Start the timer loop
         self.timer = QTimer()
@@ -128,13 +131,6 @@ class Worker(QObject):
 
         # Update the last poke timestamp whenever a poke event occurs
         self.last_poke_timestamp = current_time
-
-        # Update the color of PiSignal objects based on the current Reward Port number
-        for index, Pi in enumerate(self.Pi_signals):
-            if index + 1 == self.reward_port:
-                Pi.set_color("green")
-            else:
-                Pi.set_color("gray")
 
         # Receive message from the socket
         identity, message = self.socket.recv_multipart()
@@ -174,6 +170,13 @@ class Worker(QObject):
                         self.reward_port = random.choice([5, 7])
                         self.trials = 0
                         print(f"Reward Port: {self.reward_port}")
+
+                        # Reset color of all non-reward ports to gray and reward port to green
+                        for index, Pi in enumerate(self.Pi_signals):
+                            if index + 1 == self.reward_port:
+                                Pi.set_color("green")
+                            else:
+                                Pi.set_color("gray")
 
                         for identity in self.identities:
                             self.socket.send_multipart([identity, bytes(f"Reward Port: {self.reward_port}", 'utf-8')])
