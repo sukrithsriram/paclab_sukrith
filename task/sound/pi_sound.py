@@ -266,7 +266,6 @@ def poke_detectedR(pin, level, tick):
     except Exception as e:
         print("Error sending nosepoke_id:", e)
 
-# Function to open the solenoid valve when the reward port is poked
 def open_valve(port):
     if port == 5:
         pi.set_mode(6, pigpio.OUTPUT)
@@ -279,6 +278,14 @@ def open_valve(port):
         time.sleep(0.05)
         pi.write(26, 0)
         
+def flash():
+    pi.set_mode(22, pigpio.OUTPUT)
+    pi.write(22, 1)
+    pi.set_mode(11, pigpio.OUTPUT)
+    pi.write(11, 1)
+    time.sleep(0.05)
+    pi.write(22, 0)
+    pi.write(11, 0)  
 
 # Set up pigpio and callbacks
 pi = pigpio.pi()
@@ -334,6 +341,7 @@ try:
             
         # Check for incoming messages on poke_socket
         if poke_socket in socks and socks[poke_socket] == zmq.POLLIN:
+            flash()
             msg = poke_socket.recv_string()  # Blocking receive #flags=zmq.NOBLOCK)  # Non-blocking receive
             if msg == 'exit': # Condition to terminate the main loop
                 pi.write(17, 0)
