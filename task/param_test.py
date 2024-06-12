@@ -28,7 +28,7 @@ class JackClient:
         self.name = name
         self.set_channel = 'none'  # 'left', 'right', or 'none'
         self.lock = threading.Lock()  # Lock for thread-safe set_channel() updates
-        self.chunk_duration = random.uniform(0.01, 0.05)  # Duration of each chunk in seconds
+        self.chunk_duration = 0.01  # Duration of each chunk in seconds
         self.pause_duration = random.uniform(0.05, 0.2)  # Pause duration between chunk in seconds
         self.amplitude = random.uniform(0.005, 0.02)
         #print(f"Current Parameters - Amplitude:{amplitude}, Chunk Duration: {chunk_duration} s, Pause Duration: {pause_duration}"
@@ -219,8 +219,10 @@ def poke_inL(pin, level, tick):
         # Write to left pin
         print("Left poke detected!")
         pi.set_mode(17, pigpio.OUTPUT)
-        pi.write(17, 1)
-
+        if params['nosepokeL_type'] == "901":
+            pi.write(17, 1)
+        elif params['nosepokeL_type'] == "903":
+            pi.write(17, 0)
     # Reset poke detected flags
     left_poke_detected = False
 
@@ -232,8 +234,11 @@ def poke_inR(pin, level, tick):
         # Write to left pin
         print("Right poke detected!")
         pi.set_mode(10, pigpio.OUTPUT)
-        pi.write(10, 1)
-
+        if params['nosepokeR_type'] == "901":
+            pi.write(10, 1)
+        elif params['nosepokeR_type'] == "903":
+            pi.write(10, 0)
+            
     # Reset poke detected flags
     right_poke_detected = False
 
@@ -247,7 +252,11 @@ def poke_detectedL(pin, level, tick):
     print("Poke Count:", count)
     nosepoke_idL = params['nosepokeL_id']  # Set the left nosepoke_id here according to the pi
     pi.set_mode(17, pigpio.OUTPUT)
-    pi.write(17, 0)
+    if params['nosepokeL_type'] == "901":
+        pi.write(17, 0)
+    elif params['nosepokeL_type'] == "903":
+        pi.write(17, 1)
+        
     # Sending nosepoke_id wirelessly
     try:
         print(f"Sending nosepoke_id = {nosepoke_idL}") 
@@ -264,7 +273,11 @@ def poke_detectedR(pin, level, tick):
     print("Poke Count:", count)
     nosepoke_idR = params['nosepokeR_id']  # Set the right nosepoke_id here according to the pi
     pi.set_mode(10, pigpio.OUTPUT)
-    pi.write(10, 0)
+    if params['nosepokeR_type'] == "901":
+        pi.write(10, 0)
+    elif params['nosepokeR_type'] == "903":
+        pi.write(10, 1)
+
     # Sending nosepoke_id wirelessly
     try:
         print(f"Sending nosepoke_id = {nosepoke_idR}") 
@@ -273,12 +286,12 @@ def poke_detectedR(pin, level, tick):
         print("Error sending nosepoke_id:", e)
 
 def open_valve(port):
-    if port == nosepokeL_id:
+    if port == int(params['nosepokeL_id']):
         pi.set_mode(6, pigpio.OUTPUT)
         pi.write(6, 1)
         time.sleep(0.05)
         pi.write(6, 0)
-    if port == nosepokeR_id:
+    if port == int(params['nosepokeR_id']):
         pi.set_mode(26, pigpio.OUTPUT)
         pi.write(26, 1)
         time.sleep(0.05)
@@ -347,8 +360,9 @@ try:
             
         # Check for incoming messages on poke_socket
         if poke_socket in socks and socks[poke_socket] == zmq.POLLIN:
-            flash()
+            #flash()
             msg = poke_socket.recv_string()  # Blocking receive #flags=zmq.NOBLOCK)  # Non-blocking receive
+    
             if msg == 'exit': # Condition to terminate the main loop
                 pi.write(17, 0)
                 pi.write(10, 0)
@@ -363,6 +377,9 @@ try:
                 time.sleep(jack_client.chunk_duration + jack_client.pause_duration)
                 
                 break  # Exit the loop
+            
+            elif msg == 'start':
+                flash()
             
             elif msg.startswith("Reward Port:"):    
                 print(msg)
@@ -379,7 +396,7 @@ try:
                     pi.write(current_pin, 0)
                 
                 # Manipulate pin values based on the integer value
-                if value == nosepokeL_id:
+                if value == int(params['nosepokeL_id']):
                     reward_pin = 27  # Example pin for case 1 
                     pi.set_mode(reward_pin, pigpio.OUTPUT)
                     pi.set_PWM_frequency(reward_pin, pwm_frequency)
@@ -391,7 +408,7 @@ try:
                     prev_port = value
                     current_pin = reward_pin
 
-                elif value == nosepokeR_id:
+                elif value == int(params['nosepokeR_id']):
                     reward_pin = 9  # Example pin for case 2
                     pi.set_mode(reward_pin, pigpio.OUTPUT)
                     pi.set_PWM_frequency(reward_pin, pwm_frequency)
