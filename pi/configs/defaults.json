@@ -24,12 +24,12 @@
         "pause_max": 6.0
     },
     "Poketrain": {
-        "amplitude_min": 0.8,
-        "amplitude_max": 1.2,
-        "chunk_min": 6.0,
-        "chunk_max": 10.0,
-        "pause_min": 2.0,
-        "pause_max": 4.0
+        "amplitude_min": 0.0,
+        "amplitude_max": 0.0,
+        "chunk_min": 0.0,
+        "chunk_max": 0.0,
+        "pause_min": 0.0,
+        "pause_max": 0.0
     },
     "Audio": {
         "amplitude_min": 1.0,
