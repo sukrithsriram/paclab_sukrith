@@ -544,7 +544,8 @@ class ConfigurationDialog(QDialog):
         self.init_ui()
 
     def init_ui(self):
-        self.layout = QVBoxLayout(self)
+        layout = QVBoxLayout(self)
+        
         # Create labels and line edits for configuration parameters
         self.name_label = QLabel(f"Name: {self.name}")
         self.task_label = QLabel(f"Task: {self.task}")
@@ -562,20 +563,20 @@ class ConfigurationDialog(QDialog):
         self.button_box = QDialogButtonBox(QDialogButtonBox.Ok | QDialogButtonBox.Cancel)
         self.button_box.accepted.connect(self.accept)
         self.button_box.rejected.connect(self.reject)
-        self.ok_button = QPushButton("OK")
-        self.ok_button.clicked.connect(self.accept)
 
         # Arrange widgets in a vertical layout
         amplitude_layout = QHBoxLayout()
         amplitude_layout.addWidget(self.amplitude_min_edit)
         amplitude_layout.addWidget(self.amplitude_max_edit)
+
         chunk_layout = QHBoxLayout()
         chunk_layout.addWidget(self.chunksize_min_edit)
         chunk_layout.addWidget(self.chunksize_max_edit)
+
         pause_layout = QHBoxLayout()
         pause_layout.addWidget(self.pausesize_min_edit)
         pause_layout.addWidget(self.pausesize_max_edit)
-        layout = QVBoxLayout()
+
         layout.addWidget(self.name_label)
         layout.addWidget(self.task_label)
         layout.addWidget(self.amplitude_label)
@@ -585,19 +586,31 @@ class ConfigurationDialog(QDialog):
         layout.addWidget(self.pausesize_label)
         layout.addLayout(pause_layout)
         layout.addWidget(self.button_box)
-        layout.addWidget(self.ok_button)
+
         self.setLayout(layout)
 
     def get_configuration(self):
-        name = self.name
-        task = self.task
-        amplitude_min = float(self.amplitude_min_edit.text())
-        amplitude_max = float(self.amplitude_max_edit.text())
-        chunk_min = float(self.chunksize_min_edit.text())
-        chunk_max = float(self.chunksize_max_edit.text())
-        pause_min = float(self.pausesize_min_edit.text())
-        pause_max = float(self.pausesize_max_edit.text())       
-        return {"name": name, "task": task,"amplitude_min": amplitude_min, "amplitude_max": amplitude_max, "chunk_min": chunk_min, "chunk_max": chunk_max, "pause_min": pause_min, "pause_max": pause_max}
+        try:
+            amplitude_min = float(self.amplitude_min_edit.text())
+            amplitude_max = float(self.amplitude_max_edit.text())
+            chunk_min = float(self.chunksize_min_edit.text())
+            chunk_max = float(self.chunksize_max_edit.text())
+            pause_min = float(self.pausesize_min_edit.text())
+            pause_max = float(self.pausesize_max_edit.text())
+        except ValueError:
+            # Handle invalid input
+            return None
+        
+        return {
+            "name": self.name,
+            "task": self.task,
+            "amplitude_min": amplitude_min,
+            "amplitude_max": amplitude_max,
+            "chunk_min": chunk_min,
+            "chunk_max": chunk_max,
+            "pause_min": pause_min,
+            "pause_max": pause_max
+        }
 
 class ConfigurationList(QWidget):
     def __init__(self):
