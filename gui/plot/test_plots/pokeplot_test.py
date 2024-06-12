@@ -9,8 +9,9 @@ import pyqtgraph as pg
 import random
 import csv
 import json
+from datetime import datetime
 from PyQt5 import QtWidgets
-from PyQt5.QtWidgets import QAction, QGroupBox, QLabel, QGraphicsEllipseItem, QListWidget, QListWidgetItem, QGraphicsTextItem, QGraphicsScene, QGraphicsView, QWidget, QVBoxLayout, QPushButton, QApplication, QHBoxLayout, QLineEdit, QListWidget, QFileDialog, QDialog, QLabel, QDialogButtonBox
+from PyQt5.QtWidgets import QAction, QComboBox, QGroupBox, QLabel, QGraphicsEllipseItem, QListWidget, QListWidgetItem, QGraphicsTextItem, QGraphicsScene, QGraphicsView, QWidget, QVBoxLayout, QPushButton, QApplication, QHBoxLayout, QLineEdit, QListWidget, QFileDialog, QDialog, QLabel, QDialogButtonBox, QTreeWidget, QTreeWidgetItem
 from PyQt5.QtCore import QPointF, QTimer, QTime, pyqtSignal, QObject, QThread, pyqtSlot,  QMetaObject, Qt
 from PyQt5.QtGui import QColor
 
@@ -45,22 +46,17 @@ class PiSignal(QGraphicsEllipseItem):
         else:
             print("Invalid color:", color)
 
+# Worker class to lower the load on the GUI
 class Worker(QObject):
+    # Signal emitted when a poke event occurs
     pokedportsignal = pyqtSignal(int, str)
 
     def __init__(self, pi_widget):
         super().__init__()
         self.initial_time = None
-        
-        # Making a ZMQ context to receive poke information 
-        self.poke_context = zmq.Context()
-        self.poke_socket = self.poke_context.socket(zmq.ROUTER)
-        self.poke_socket.bind("tcp://*:5555") # Change Port number if you want to run multiple instances
-        
-        # Making a ZMQ context to receive params information 
-        self.param_context = zmq.Context()
-        self.param_socket = self.poke_context.socket(zmq.ROUTER)
-        self.param_socket.bind("tcp://*:5557") # Change Port number if you want to run multiple instances
+        self.context = zmq.Context()
+        self.socket = self.context.socket(zmq.ROUTER)
+        self.socket.bind("tcp://*:5555")  # Change Port number if you want to run multiple instances
 
         self.last_pi_received = None
         self.timer = None
@@ -74,13 +70,16 @@ class Worker(QObject):
         # Initialize reward_port and related variables
         self.reward_port = None
         self.previous_port = None
-        
-        self.trials = 0
 
-        # Placeholder for timestamps and ports visited
+        # Initializing lists for timestamps and ports visited
+        self.trials = 0
         self.timestamps = []
         self.reward_ports = []
+        self.unique_ports_visited = []  # List to store unique ports visited in each trial
+        self.unique_ports_colors = {}  # Dictionary to store color for each unique port
+        self.average_unique_ports = 0  # Variable to store the average number of unique ports visited
 
+    # Method to start the sequence
     @pyqtSlot()
     def start_sequence(self):
         # Reset data when starting a new sequence
@@ -88,100 +87,109 @@ class Worker(QObject):
         self.timestamps = []
         self.reward_ports = []
 
+        # Sending initialization message to Pi
+        for identity in self.identities:
+            self.socket.send_multipart([identity, b"start"])
+        #time.sleep(1)
+        
         # Randomly choose either 3 or 4 as the initial reward port
         self.reward_port = random.choice([5, 7])
-        message = f"Reward Port: {self.reward_port}"
-        print(message)
+        reward_message = f"Reward Port: {self.reward_port}"
+        print(reward_message)
         
         # Send the message to all connected Pis
         for identity in self.identities:
-            self.poke_socket.send_multipart([identity, bytes(message, 'utf-8')])
+            self.socket.send_multipart([identity, bytes(reward_message, 'utf-8')])
+            
+        # Set the color of the initial reward port to green
+        self.Pi_signals[self.reward_port - 1].set_color("green")
 
         # Start the timer loop
         self.timer = QTimer()
         self.timer.timeout.connect(self.update_Pi)
         self.timer.start(10)
 
+    # Method to stop the sequence
     @pyqtSlot()
     def stop_sequence(self):
         if self.timer is not None: 
             self.timer.stop()
             self.timer.timeout.disconnect(self.update_Pi)
+    
+    # Method to update unique ports visited
+    def update_unique_ports(self):
+        # Calculate unique ports visited in the current trial
+        unique_ports = set(self.poked_port_numbers)
+        self.unique_ports_visited.append(len(unique_ports))
 
+    # Method to calculate the average number of unique ports visited
+    def calculate_average_unique_ports(self):
+        # Calculate the average number of unique ports visited per trial
+        if self.unique_ports_visited:
+            self.average_unique_ports = sum(self.unique_ports_visited) / len(self.unique_ports_visited)
+            
+    # Method to handle the update of Pis
     @pyqtSlot()
     def update_Pi(self):
         current_time = time.time()
         elapsed_time = current_time - self.initial_time
-        
+
         # Update the last poke timestamp whenever a poke event occurs
         self.last_poke_timestamp = current_time
 
-        # Update the color of PiSignal objects based on the current Reward Port number
-        for index, Pi in enumerate(self.Pi_signals):
-            if index + 1 == self.reward_port:
-                Pi.set_color("green")
-            else:
-                Pi.set_color("gray")
-
         # Receive message from the socket
-        identity, message = self.poke_socket.recv_multipart()
+        identity, message = self.socket.recv_multipart()
         self.identities.add(identity)
+        self.socket.send_multipart([identity, bytes(f"Reward Port: {self.reward_port}", 'utf-8')])
 
-            try:
-                poked_port = int(message)
-                
-                if 1 <= poked_port <= self.total_ports: 
-                    poked_port_signal = self.Pi_signals[poked_port - 1] 
-                    
-                    # Check if the received Pi number matches the current Reward Port
+        try:
+            message_str = message.decode('utf-8')
+            if "Current Parameters" in message_str:
+                print("Updated:", message_str)
+            else:
+                poked_port = int(message_str)
+                if 1 <= poked_port <= self.total_ports:
+                    poked_port_signal = self.Pi_signals[poked_port - 1]
+
                     if poked_port == self.reward_port:
                         color = "green" if self.trials == 0 else "blue"
                         if self.trials > 0:
-                            self.trials = 0  # Reset attempts since change
+                            self.trials = 0
                     else:
                         color = "red"
                         self.trials += 1
-                    
-                    # Set the color of the PiSignal object
-                    poked_port_signal.set_color(color) 
-                    
-                    self.poked_port_numbers.append(poked_port) 
-                    print("Sequence:", self.poked_port_numbers) 
+
+                    poked_port_signal.set_color(color)
+                    self.poked_port_numbers.append(poked_port)
+                    print("Sequence:", self.poked_port_numbers)
                     self.last_pi_received = identity
-                    
-                    # Emit the signal with the appropriate color
+
                     self.pokedportsignal.emit(poked_port, color)
-                    
-                    # Record timestamp and port visited
                     self.timestamps.append(elapsed_time)
                     self.reward_ports.append(self.reward_port)
-                    
+                    self.update_unique_ports()
+
                     if color == "green" or color == "blue":
                         for identity in self.identities:
-                            self.poke_socket.send_multipart([identity, b"Reward Poke Completed"])
+                            self.socket.send_multipart([identity, b"Reward Poke Completed"])
                         self.reward_port = random.choice([5, 7])
                         self.trials = 0
-                        print(f"Reward Port: {self.reward_port}")  # Print the updated Reward Port
+                        print(f"Reward Port: {self.reward_port}")
 
-                        # Send the message to all connected Pis
+                        # Reset color of all non-reward ports to gray and reward port to green
+                        for index, Pi in enumerate(self.Pi_signals):
+                            if index + 1 == self.reward_port:
+                                Pi.set_color("green")
+                            else:
+                                Pi.set_color("gray")
+
                         for identity in self.identities:
-                            self.poke_socket.send_multipart([identity, bytes(f"Reward Port: {self.reward_port}", 'utf-8')])
+                            self.socket.send_multipart([identity, bytes(f"Reward Port: {self.reward_port}", 'utf-8')])
 
-                else:
-                    print("Invalid Pi number received:", poked_port)
-            except ValueError:
-                print("Connected to Raspberry Pi:", message)
-                
-        # Check if the received message is the current parameters string
-        try:
-            current_params = message.decode('utf-8')  # Decode the message bytes to string
-            print("Current Parameters:", current_params)
-            # Process the current parameters string as needed
-            # For example, you can split the string to extract individual parameter values
-        except UnicodeDecodeError:
-            # If the message is not the current parameters string, proceed with normal processing
-            self.poke_socket.send_multipart([identity, bytes(f"Reward Port: {self.reward_port}", 'utf-8')])
+        except ValueError:
+            print("Connected to Raspberry Pi:", message_str)
 
+    # Method to save results to a CSV file
     def save_results_to_csv(self):
         # Save results to a CSV file
         filename, _ = QFileDialog.getSaveFileName(None, "Save Results", "", "CSV Files (*.csv)")
@@ -192,10 +200,9 @@ class Worker(QObject):
                 for timestamp, poked_port, reward_port in zip(self.timestamps, self.poked_port_numbers, self.reward_ports):
                     writer.writerow([timestamp, poked_port, reward_port])
 
-# Modify PiWidget Class
+# PiWidget Class that represents all PiSignals
 class PiWidget(QWidget):
     updateSignal = pyqtSignal(int, str) # Signal to emit the number and color of the active Pi
-    resetSignal = pyqtSignal()
 
     def __init__(self, main_window, *args, **kwargs):
         super(PiWidget, self).__init__(*args, **kwargs)
@@ -207,17 +214,13 @@ class PiWidget(QWidget):
         self.total_ports = 8
         self.Pi_signals = [PiSignal(i, self.total_ports) for i in range(self.total_ports)]
         [self.scene.addItem(Pi) for Pi in self.Pi_signals]
-        self.last_poke_timestamp = None
-
+        
         # Creating buttons to start and stop the sequence of communication with the Raspberry Pi
         self.poked_port_numbers = []
 
         self.start_button = QPushButton("Start Experiment")
         self.stop_button = QPushButton("Stop Experiment")
-        self.save_results_button = QPushButton("Save Results")
-        self.save_results_button.clicked.connect(self.save_results_to_csv)  # Connect save button to save method
-        self.reset_button = QPushButton("Reset Experiment")
-        self.reset_button.clicked.connect(self.reset_experiment)
+        self.stop_button.clicked.connect(self.save_results_to_csv)  # Connect save button to save method
 
         self.timer = QTimer(self)
         self.timer.timeout.connect(self.update_time_elapsed)
@@ -237,12 +240,20 @@ class PiWidget(QWidget):
         self.blue_label = QLabel("Number of Trials: 0", self)
         self.green_label = QLabel("Number of Correct Trials: 0", self)
         self.fraction_correct_label = QLabel("Fraction Correct (FC): 0.000", self)
+        self.rcp_label = QLabel("Rank of Correct Port (RCP): 0", self) # Check if correct 
+
+        # Making Widgets for the labels
         self.details_layout.addWidget(self.time_label)
         self.details_layout.addWidget(self.poke_time_label)
         self.details_layout.addWidget(self.red_label)
         self.details_layout.addWidget(self.blue_label)
         self.details_layout.addWidget(self.green_label)
         self.details_layout.addWidget(self.fraction_correct_label)
+        self.details_layout.addWidget(self.rcp_label)
+        
+        # Initialize QTimer for resetting last poke time
+        self.last_poke_timer = QTimer()
+        self.last_poke_timer.timeout.connect(self.update_last_poke_time)
 
         # Create an HBoxLayout for start and stop buttons
         start_stop_layout = QHBoxLayout()
@@ -253,8 +264,6 @@ class PiWidget(QWidget):
         layout = QVBoxLayout(self)
         layout.addWidget(self.view)  # Assuming self.view exists
         layout.addLayout(start_stop_layout)  # Add the QHBoxLayout to the QVBoxLayout
-        #layout.addWidget(self.reset_button)
-        layout.addWidget(self.save_results_button)  # Add save button to layout
         layout.addLayout(self.details_layout)
 
         # Set the layout for the widget
@@ -263,13 +272,14 @@ class PiWidget(QWidget):
         # Creating an instance of the Worker Class and a Thread to handle the communication with the Raspberry Pi
         self.worker = Worker(self)
         self.thread = QThread()
-        self.worker.moveToThread(self.thread) # Move the worker object to the thread
-        self.start_button.clicked.connect(self.start_sequence) # Connect the start button to the start_sequence function
-        self.stop_button.clicked.connect(self.stop_sequence) # Connect the stop button to the stop_sequence function
+        self.worker.moveToThread(self.thread)  # Move the worker object to the thread
+        self.start_button.clicked.connect(self.start_sequence)  # Connect the start button to the start_sequence function
+        self.stop_button.clicked.connect(self.stop_sequence)  # Connect the stop button to the stop_sequence function
         
         # Connect the pokedportsignal from the Worker to a new slot
-        self.worker.pokedportsignal.connect(self.emit_update_signal) # Connect the pokedportsignal to the emit_update_signal function
+        self.worker.pokedportsignal.connect(self.emit_update_signal)  # Connect the pokedportsignal to the emit_update_signal function
         self.worker.pokedportsignal.connect(self.reset_last_poke_time)
+        self.worker.pokedportsignal.connect(self.calc_and_update_avg_unique_ports)
 
     # Function to emit the update signal
     def emit_update_signal(self, poked_port_number, color):
@@ -300,12 +310,14 @@ class PiWidget(QWidget):
                 self.fraction_correct = self.green_count / (self.blue_count + self.green_count)
                 self.fraction_correct_label.setText(f"Fraction Correct (FC): {self.fraction_correct:.3f}")
 
-
     def start_sequence(self):
         # Start the worker thread when the start button is pressed
         self.thread.start()
         print("Experiment Started!")
         QMetaObject.invokeMethod(self.worker, "start_sequence", Qt.QueuedConnection)
+
+        # Start the plot
+        self.main_window.plot_window.start_plot()
 
         # Start the timer
         self.start_time.start()
@@ -315,7 +327,10 @@ class PiWidget(QWidget):
         # Stop the worker thread when the stop button is pressed
         QMetaObject.invokeMethod(self.worker, "stop_sequence", Qt.QueuedConnection)
         print("Experiment Stopped!")
-        self.thread.quit()
+        #self.thread.quit()
+
+        # Stop the plot
+        self.main_window.plot_window.stop_plot()
 
         # Stop the timer
         self.timer.stop()
@@ -329,47 +344,47 @@ class PiWidget(QWidget):
            
     @pyqtSlot()
     def reset_last_poke_time(self):
-        #print("Resetting last poke time...")  # Debug print to check if the method is called
+        # Stop the timer if it's active
+        self.last_poke_timer.stop()
 
+        # Start the timer again
+        self.last_poke_timer.start(1000)  # Set interval to 1000 milliseconds (1 second)
+        
+    @pyqtSlot()
+    def calc_and_update_avg_unique_ports(self):
+        self.worker.calculate_average_unique_ports()
+        average_unique_ports = self.worker.average_unique_ports
+        self.rcp_label.setText(f"Rank of Correct Port: {average_unique_ports:.2f}")
+    
+    @pyqtSlot()
+    def update_last_poke_time(self):
         # Calculate the elapsed time since the last poke
         current_time = time.time()
         elapsed_time = current_time - self.last_poke_timestamp
 
-        #print(f"Current time: {current_time}")
-        #print(f"Last poke timestamp: {self.last_poke_timestamp}")
-        #print(f"Elapsed time since last poke: {elapsed_time}")  # Debug print to check elapsed time
-
         # Update the QLabel text with the time since the last poke
         minutes, seconds = divmod(elapsed_time, 60)  # Convert seconds to minutes and seconds
-        print(f"Elapsed time since last poke: {int(minutes)}:{int(seconds)}")  # Debug print to check elapsed time
-
-        self.poke_time_label.setText(f"Time since last poke: {int(minutes)}:{int(seconds)}")
-
+        self.poke_time_label.setText(f"Time since last poke: {str(int(minutes)).zfill(2)}:{str(int(seconds)).zfill(2)}")
 
     def save_results_to_csv(self):
         self.worker.save_results_to_csv()  # Call worker method to save results
-    
-    def reset_experiment(self):
-        # Emit the reset signal
-        self.stop_sequence()
-        self.worker.reward_port = None
-        self.worker.previous_port = None
-        self.worker.trials = 0
-        self.worker.timestamps = []
-        self.worker.reward_ports = []
-        self.worker.poked_port_numbers = []
-        self.resetSignal.emit()
 
 class PlotWindow(QWidget):
     def __init__(self, pi_widget, *args, **kwargs):
         super().__init__(*args, **kwargs)
 
         self.is_active = False  # Flag to check if the Start Button is pressed
+        self.start_time = None
         self.timer = QTimer(self)  # Create a QTimer object
+        self.timer.timeout.connect(self.update_plot)  # Connect the timer to update the plot
+        
+        # Create QTimer for updating time bar
+        self.time_bar_timer = QTimer(self)
+        self.time_bar_timer.timeout.connect(self.update_time_bar)
 
         # Entering the plot parameters and titles
         self.plot_graph = pg.PlotWidget()
-        self.start_time = time.time()
+        self.start_time = None  # Initialize start_time to None
         self.plot_graph.setXRange(0, 1600)  # Set x-axis range to [0, 1600]
         self.layout = QVBoxLayout(self)
         self.layout.addWidget(self.plot_graph)
@@ -383,6 +398,10 @@ class PlotWindow(QWidget):
         self.plot_graph.setYRange(1, 8)
         self.timestamps = []  # List to store timestamps
         self.signal = []  # List to store active Pi signals
+        
+        # Setting Initial Time Bar
+        self.line_of_current_time_color = 0.5
+        self.line_of_current_time = self.plot_graph.plot(x=[0, 0], y=[-1, 8], pen=pg.mkPen(self.line_of_current_time_color))
 
         # Plotting the initial graph
         self.line = self.plot_graph.plot(
@@ -399,44 +418,68 @@ class PlotWindow(QWidget):
         pi_widget.updateSignal.connect(self.handle_update_signal)
         # Connect the signal from Worker to a slot
         pi_widget.worker.pokedportsignal.connect(self.plot_poked_port)
-        # Connect the reset signal to the clear_plot slot
-        pi_widget.resetSignal.connect(self.clear_plot)
 
     def start_plot(self):
-        # Activating the plot window
+        # Activating the plot window and start the timer
         self.is_active = True
-        self.timer.start()
+        self.start_time = datetime.now()  # Set the start time
+        self.timer.start(10)  # Start the timer to update every second
+
+        # Start the timer for updating the time bar when the plot starts
+        self.time_bar_timer.start(100)  # Update every 100 milliseconds
 
     def stop_plot(self):
-        # Deactivating the plot window
+        # Deactivating the plot window and stop the timer
         self.is_active = False
         self.timer.stop()
-    
+        
+        # Stop the timer for updating the time bar when the plot stops
+        self.time_bar_timer.stop()
+        self.clear_plot()
+
     def clear_plot(self):
         # Clear the plot by clearing data lists
         self.timestamps.clear()
         self.signal.clear()
         # Update the plot with cleared data
-        self.update_plot()
+        self.line.setData(x=[], y=[])
+        self.line_of_current_time.setData(x=[], y=[])
 
+    def update_time_bar(self):
+        # Using current time to approximately update timebar
+        if self.start_time is not None:
+            current_time = datetime.now()
+            approx_time_in_session = (
+                current_time - self.start_time).total_seconds()
+
+            # Update the current time line
+            self.line_of_current_time_color = np.mod(
+                self.line_of_current_time_color + 0.1, 2)
+            self.line_of_current_time.setData(
+                x=[approx_time_in_session, approx_time_in_session], y=[-1, 9],
+                pen=pg.mkPen(np.abs(self.line_of_current_time_color - 1)),
+            )
+    
     def handle_update_signal(self, update_value):
-        # Append current timestamp and update value to the lists
-        self.timestamps.append(time.time())
-        self.signal.append(update_value)
-        self.update_plot()
+        if self.is_active:
+            # Append current timestamp and update value to the lists
+            self.timestamps.append((datetime.now() - self.start_time).total_seconds())
+            self.signal.append(update_value)
+            self.update_plot()
 
     def plot_poked_port(self, poked_port_value, color):
-        brush_color = "g" if color == "green" else "r" if color == "red" else "b"
-        relative_time = time.time() - self.start_time  # Get relative time
-        self.plot_graph.plot(
-            [relative_time],
-            [poked_port_value],
-            pen=None,
-            symbol="arrow_down", # "o" for dots
-            symbolSize=18, # use 8 or lower if using dots
-            symbolBrush=brush_color,
-            symbolPen=None,
-        )
+        if self.is_active:
+            brush_color = "g" if color == "green" else "r" if color == "red" else "b"
+            relative_time = (datetime.now() - self.start_time).total_seconds()  # Convert to seconds
+            self.plot_graph.plot(
+                [relative_time],
+                [poked_port_value],
+                pen=None,
+                symbol="arrow_down",  # "o" for dots
+                symbolSize=22,  # use 8 or lower if using dots
+                symbolBrush=brush_color,
+                symbolPen=None,
+            )
 
     def update_plot(self):
         # Update plot with timestamps and signals
@@ -449,8 +492,6 @@ class ConfigurationDetailsDialog(QDialog):
 
         # Create labels to display configuration parameters
         self.name_label = QLabel(f"Name: {config['name']}")
-        self.frequency_label = QLabel(f"PWM Frequency: {config['pwm_frequency']}")
-        self.duty_cycle_label = QLabel(f"PWM Duty Cycle: {config['pwm_duty_cycle']}")
         self.amplitude_label = QLabel(f"Amplitude: {config['amplitude_min']} - {config['amplitude_max']}")
         self.chunk_label = QLabel(f"Chunk Duration: {config['chunk_min']} - {config['chunk_max']}")
         self.pause_label = QLabel(f"Pause Duration: {config['pause_min']} - {config['pause_max']}")
@@ -462,26 +503,52 @@ class ConfigurationDetailsDialog(QDialog):
         # Arrange widgets in a vertical layout
         layout = QVBoxLayout()
         layout.addWidget(self.name_label)
-        layout.addWidget(self.frequency_label)
-        layout.addWidget(self.duty_cycle_label)
         layout.addWidget(self.amplitude_label)
         layout.addWidget(self.chunk_label)
         layout.addWidget(self.pause_label)
         layout.addWidget(self.button_box)
         self.setLayout(layout)
 
-class ConfigurationDialog(QDialog):
+class PresetTaskDialog(QDialog):
     def __init__(self, parent=None):
         super().__init__(parent)
-        self.setWindowTitle("Add Configuration")
+        self.setWindowTitle("Enter Name and Select Task")
 
-        # Create labels and line edits for configuration parameters
+        self.layout = QVBoxLayout(self)
+
         self.name_label = QLabel("Name:")
-        self.name_edit = QLineEdit()
-        self.frequency_label = QLabel("PWM Frequency:")
-        self.frequency_edit = QLineEdit()
-        self.duty_cycle_label = QLabel("PWM Duty Cycle:")
-        self.duty_cycle_edit = QLineEdit()
+        self.name_edit = QLineEdit(self)
+
+        self.task_label = QLabel("Select Task:")
+        self.task_combo = QComboBox(self)
+        self.task_combo.addItems(["Fixed", "Sweep", "Distractor", "Poketrain", "Audio"])  # Add your preset tasks here
+
+        self.ok_button = QPushButton("OK")
+        self.ok_button.clicked.connect(self.accept)
+
+        self.layout.addWidget(self.name_label)
+        self.layout.addWidget(self.name_edit)
+        self.layout.addWidget(self.task_label)
+        self.layout.addWidget(self.task_combo)
+        self.layout.addWidget(self.ok_button)
+
+    def get_name_and_task(self):
+        return self.name_edit.text(), self.task_combo.currentText()
+
+class ConfigurationDialog(QDialog):
+    def __init__(self, parent=None, name="", task=""):
+        super().__init__(parent)
+        self.setWindowTitle("Add Configuration Details")
+        self.name = name
+        self.task = task
+        self.init_ui()
+
+    def init_ui(self):
+        layout = QVBoxLayout(self)
+        
+        # Create labels and line edits for configuration parameters
+        self.name_label = QLabel(f"Name: {self.name}")
+        self.task_label = QLabel(f"Task: {self.task}")
         self.amplitude_label = QLabel("Amplitude:")
         self.amplitude_min_edit = QLineEdit()
         self.amplitude_max_edit = QLineEdit()
@@ -501,19 +568,17 @@ class ConfigurationDialog(QDialog):
         amplitude_layout = QHBoxLayout()
         amplitude_layout.addWidget(self.amplitude_min_edit)
         amplitude_layout.addWidget(self.amplitude_max_edit)
+
         chunk_layout = QHBoxLayout()
         chunk_layout.addWidget(self.chunksize_min_edit)
         chunk_layout.addWidget(self.chunksize_max_edit)
+
         pause_layout = QHBoxLayout()
         pause_layout.addWidget(self.pausesize_min_edit)
         pause_layout.addWidget(self.pausesize_max_edit)
-        layout = QVBoxLayout()
+
         layout.addWidget(self.name_label)
-        layout.addWidget(self.name_edit)
-        layout.addWidget(self.frequency_label)
-        layout.addWidget(self.frequency_edit)
-        layout.addWidget(self.duty_cycle_label)
-        layout.addWidget(self.duty_cycle_edit)
+        layout.addWidget(self.task_label)
         layout.addWidget(self.amplitude_label)
         layout.addLayout(amplitude_layout)
         layout.addWidget(self.chunksize_label)
@@ -521,19 +586,31 @@ class ConfigurationDialog(QDialog):
         layout.addWidget(self.pausesize_label)
         layout.addLayout(pause_layout)
         layout.addWidget(self.button_box)
+
         self.setLayout(layout)
 
     def get_configuration(self):
-        name = self.name_edit.text()
-        frequency = float(self.frequency_edit.text())
-        duty_cycle = float(self.duty_cycle_edit.text())
-        amplitude_min = float(self.amplitude_min_edit.text())
-        amplitude_max = float(self.amplitude_max_edit.text())
-        chunk_min = float(self.chunksize_min_edit.text())
-        chunk_max = float(self.chunksize_max_edit.text())
-        pause_min = float(self.pausesize_min_edit.text())
-        pause_max = float(self.pausesize_max_edit.text())       
-        return {"name": name, "pwm_frequency": frequency, "pwm_duty_cycle": duty_cycle, "amplitude_min": amplitude_min, "amplitude_max": amplitude_max, "chunk_min": chunk_min, "chunk_max": chunk_max, "pause_min": pause_min, "pause_max": pause_max}
+        try:
+            amplitude_min = float(self.amplitude_min_edit.text())
+            amplitude_max = float(self.amplitude_max_edit.text())
+            chunk_min = float(self.chunksize_min_edit.text())
+            chunk_max = float(self.chunksize_max_edit.text())
+            pause_min = float(self.pausesize_min_edit.text())
+            pause_max = float(self.pausesize_max_edit.text())
+        except ValueError:
+            # Handle invalid input
+            return None
+        
+        return {
+            "name": self.name,
+            "task": self.task,
+            "amplitude_min": amplitude_min,
+            "amplitude_max": amplitude_max,
+            "chunk_min": chunk_min,
+            "chunk_max": chunk_max,
+            "pause_min": pause_min,
+            "pause_max": pause_max
+        }
 
 class ConfigurationList(QWidget):
     def __init__(self):
@@ -544,12 +621,13 @@ class ConfigurationList(QWidget):
         self.load_default()  # Call the method to load configurations from a default directory during initialization
 
         # Initialize ZMQ context and socket for publishing
-        self.json_context = zmq.Context()
-        self.publisher = self.json_context.socket(zmq.PUB)
+        self.context = zmq.Context()
+        self.publisher = self.context.socket(zmq.PUB)
         self.publisher.bind("tcp://*:5556")  # Binding to port 5556 for publishing
     
     def init_ui(self):
-        self.config_list = QListWidget()
+        self.config_tree = QTreeWidget()
+        self.config_tree.setHeaderHidden(True)
         
         self.add_button = QPushButton('Add Config')
         self.remove_button = QPushButton('Remove Config')
@@ -561,7 +639,7 @@ class ConfigurationList(QWidget):
 
         main_layout = QVBoxLayout()
         main_layout.addWidget(self.selected_config_label)
-        main_layout.addWidget(self.config_list)
+        main_layout.addWidget(self.config_tree)
         main_layout.addLayout(button_layout)
 
         self.setLayout(main_layout)
@@ -571,31 +649,34 @@ class ConfigurationList(QWidget):
         self.show()
 
     def add_configuration(self):
-        dialog = ConfigurationDialog(self)
-        if dialog.exec_() == QDialog.Accepted:
-            new_config = dialog.get_configuration()
-            new_config["value"] = 0  # Placeholder value
-            self.configurations.append(new_config)
-            self.update_config_list()
+        preset_task_dialog = PresetTaskDialog(self)
+        if preset_task_dialog.exec_() == QDialog.Accepted:
+            name, task = preset_task_dialog.get_name_and_task()
 
-            # Prompt the user to specify the file path and name to save the configuration
-            file_path, _ = QFileDialog.getSaveFileName(self, "Save Configuration", "", "JSON Files (*.json)")
-            if file_path:
+            dialog = ConfigurationDialog(self, name, task)
+            if dialog.exec_() == QDialog.Accepted:
+                new_config = dialog.get_configuration()
+                self.configurations.append(new_config)
+                self.update_config_list()
+
+                # Automatically save the configuration with the name included in the dialog
+                config_name = new_config["name"]
+                file_path = os.path.join("/home/mouse/dev/paclab_sukrith/task/configs/task", f"{config_name}.json")
                 with open(file_path, 'w') as file:
                     json.dump(new_config, file, indent=4)
 
     def remove_configuration(self):
-        selected_item = self.config_list.currentItem()
-        if selected_item:
-            selected_config = selected_item.data(Qt.UserRole)
+        selected_item = self.config_tree.currentItem()
+        if selected_item and selected_item.parent():
+            selected_config = selected_item.data(0, Qt.UserRole)
             self.configurations.remove(selected_config)
             self.update_config_list()
 
             # Get the filename from the configuration data
-            config_name = selected_config["name"] # Make sure filename is the same as name in the json
+            config_name = selected_config["name"]  # Make sure filename is the same as name in the json
             
             # Construct the full file path
-            file_path = os.path.join("/home/mouse/dev/paclab_sukrith/configs", f"{config_name}.json")
+            file_path = os.path.join("/home/mouse/dev/paclab_sukrith/task/configs/task", f"{config_name}.json")
 
             # Check if the file exists and delete it
             if os.path.exists(file_path):
@@ -608,7 +689,7 @@ class ConfigurationList(QWidget):
             self.update_config_list()
 
     def load_default(self):
-        default_directory = os.path.abspath("/home/mouse/dev/paclab_sukrith/configs")
+        default_directory = os.path.abspath("/home/mouse/dev/paclab_sukrith/task/configs/task")
         if os.path.isdir(default_directory):
             self.configurations = self.import_configs_from_folder(default_directory)
             self.update_config_list()
@@ -624,24 +705,35 @@ class ConfigurationList(QWidget):
         return configurations
 
     def update_config_list(self):
-        self.config_list.clear()
+        self.config_tree.clear()
+        categories = {}
+
         for config in self.configurations:
-            item = QListWidgetItem(config["name"])
-            item.setData(Qt.UserRole, config)
-            self.config_list.addItem(item)
-        self.config_list.itemClicked.connect(self.config_item_clicked)
+            category = config.get("task", "Uncategorized")
+            if category not in categories:
+                category_item = QTreeWidgetItem([category])
+                self.config_tree.addTopLevelItem(category_item)
+                categories[category] = category_item
+            else:
+                category_item = categories[category]
+
+            config_item = QTreeWidgetItem([config["name"]])
+            config_item.setData(0, Qt.UserRole, config)
+            category_item.addChild(config_item)
+
+        self.config_tree.itemClicked.connect(self.config_item_clicked)
 
     def config_item_clicked(self, item):
-        selected_config = item.data(Qt.UserRole)
-        self.current_config = selected_config
-        self.selected_config_label.setText(f"Selected Config: {selected_config['name']}")
-        dialog = ConfigurationDetailsDialog(selected_config, self)
-        dialog.exec_()
-        
-        # Serialize JSON data and send it over ZMQ to all IPs connected
-        json_data = json.dumps(selected_config)
-        self.publisher.send_json(json_data)
-
+        if item.parent():  # Ensure it's a config item, not a category
+            selected_config = item.data(0, Qt.UserRole)
+            self.current_config = selected_config
+            self.selected_config_label.setText(f"Selected Config: {selected_config['name']}")
+            dialog = ConfigurationDetailsDialog(selected_config, self)
+            dialog.exec_()
+            
+            # Serialize JSON data and send it over ZMQ to all IPs connected
+            json_data = json.dumps(selected_config)
+            self.publisher.send_json(json_data)
     
 class MainWindow(QtWidgets.QMainWindow):
     def __init__(self):
@@ -700,7 +792,7 @@ class MainWindow(QtWidgets.QMainWindow):
     def closeEvent(self, event):
         # Iterate through identities and send 'exit' message
         for identity in self.Pi_widget.worker.identities:
-            self.Pi_widget.worker.poke_socket.send_multipart([identity, b"exit"])
+            self.Pi_widget.worker.socket.send_multipart([identity, b"exit"])
         event.accept()
 
 # Running the GUI
@@ -708,7 +800,6 @@ if __name__ == '__main__':
     app = QApplication(sys.argv)
     main_window = MainWindow()
     sys.exit(app.exec())
-
 
 
 
