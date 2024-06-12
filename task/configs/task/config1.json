@@ -1,5 +1,6 @@
     {
         "name": "config1",
+        "task": "sweep",
         "pwm_frequency": 1,
         "pwm_duty_cycle": 50,
         "amplitude_min": 0.005,
