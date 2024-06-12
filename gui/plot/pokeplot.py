@@ -87,14 +87,19 @@ class Worker(QObject):
         self.timestamps = []
         self.reward_ports = []
 
+        # Sending initialization message to Pi
+        for identity in self.identities:
+            self.socket.send_multipart([identity, b"start"])
+        #time.sleep(1)
+        
         # Randomly choose either 3 or 4 as the initial reward port
         self.reward_port = random.choice([5, 7])
-        message = f"Reward Port: {self.reward_port}"
-        print(message)
+        reward_message = f"Reward Port: {self.reward_port}"
+        print(reward_message)
         
         # Send the message to all connected Pis
         for identity in self.identities:
-            self.socket.send_multipart([identity, bytes(message, 'utf-8')])
+            self.socket.send_multipart([identity, bytes(reward_message, 'utf-8')])
             
         # Set the color of the initial reward port to green
         self.Pi_signals[self.reward_port - 1].set_color("green")
@@ -731,7 +736,6 @@ if __name__ == '__main__':
     app = QApplication(sys.argv)
     main_window = MainWindow()
     sys.exit(app.exec())
-
 
 
 
