@@ -612,11 +612,11 @@ class ConfigurationList(QWidget):
             self.configurations.append(new_config)
             self.update_config_list()
 
-            # Prompt the user to specify the file path and name to save the configuration
-            file_path, _ = QFileDialog.getSaveFileName(self, "Save Configuration", "", "JSON Files (*.json)")
-            if file_path:
-                with open(file_path, 'w') as file:
-                    json.dump(new_config, file, indent=4)
+            # Automatically save the configuration with the name included in the dialog
+            config_name = new_config["name"]
+            file_path = os.path.join("/home/mouse/dev/paclab_sukrith/configs", f"{config_name}.json")
+            with open(file_path, 'w') as file:
+                json.dump(new_config, file, indent=4)
 
     def remove_configuration(self):
         selected_item = self.config_tree.currentItem()
@@ -754,7 +754,6 @@ if __name__ == '__main__':
     app = QApplication(sys.argv)
     main_window = MainWindow()
     sys.exit(app.exec())
-
 
 
 
