@@ -509,16 +509,45 @@ class ConfigurationDetailsDialog(QDialog):
         layout.addWidget(self.button_box)
         self.setLayout(layout)
 
-class ConfigurationDialog(QDialog):
+class PresetTaskDialog(QDialog):
     def __init__(self, parent=None):
         super().__init__(parent)
-        self.setWindowTitle("Add Configuration")
+        self.setWindowTitle("Enter Name and Select Task")
 
-        # Create labels and line edits for configuration parameters
+        self.layout = QVBoxLayout(self)
+
         self.name_label = QLabel("Name:")
-        self.name_edit = QLineEdit()
-        self.task_label = QLabel("Task:")
-        self.task_edit = QLineEdit()
+        self.name_edit = QLineEdit(self)
+
+        self.task_label = QLabel("Select Task:")
+        self.task_combo = QComboBox(self)
+        self.task_combo.addItems(["Task 1", "Task 2", "Task 3"])  # Add your preset tasks here
+
+        self.ok_button = QPushButton("OK")
+        self.ok_button.clicked.connect(self.accept)
+
+        self.layout.addWidget(self.name_label)
+        self.layout.addWidget(self.name_edit)
+        self.layout.addWidget(self.task_label)
+        self.layout.addWidget(self.task_combo)
+        self.layout.addWidget(self.ok_button)
+
+    def get_name_and_task(self):
+        return self.name_edit.text(), self.task_combo.currentText()
+
+class ConfigurationDialog(QDialog):
+    def __init__(self, parent=None, name="", task=""):
+        super().__init__(parent)
+        self.setWindowTitle("Add Configuration Details")
+        self.name = name
+        self.task = task
+        self.init_ui()
+
+    def init_ui(self):
+        self.layout = QVBoxLayout(self)
+        # Create labels and line edits for configuration parameters
+        self.name_label = QLabel(f"Name: {self.name}")
+        self.task_label = QLabel(f"Task: {self.task}")
         self.amplitude_label = QLabel("Amplitude:")
         self.amplitude_min_edit = QLineEdit()
         self.amplitude_max_edit = QLineEdit()
@@ -533,6 +562,8 @@ class ConfigurationDialog(QDialog):
         self.button_box = QDialogButtonBox(QDialogButtonBox.Ok | QDialogButtonBox.Cancel)
         self.button_box.accepted.connect(self.accept)
         self.button_box.rejected.connect(self.reject)
+        self.ok_button = QPushButton("OK")
+        self.ok_button.clicked.connect(self.accept)
 
         # Arrange widgets in a vertical layout
         amplitude_layout = QHBoxLayout()
@@ -546,9 +577,7 @@ class ConfigurationDialog(QDialog):
         pause_layout.addWidget(self.pausesize_max_edit)
         layout = QVBoxLayout()
         layout.addWidget(self.name_label)
-        layout.addWidget(self.name_edit)
         layout.addWidget(self.task_label)
-        layout.addWidget(self.task_edit)
         layout.addWidget(self.amplitude_label)
         layout.addLayout(amplitude_layout)
         layout.addWidget(self.chunksize_label)
@@ -556,11 +585,12 @@ class ConfigurationDialog(QDialog):
         layout.addWidget(self.pausesize_label)
         layout.addLayout(pause_layout)
         layout.addWidget(self.button_box)
+        layout.addWidget(self.ok_button)
         self.setLayout(layout)
 
     def get_configuration(self):
-        name = self.name_edit.text()
-        task = self.task_edit.text()
+        name = self.name
+        task = self.task
         amplitude_min = float(self.amplitude_min_edit.text())
         amplitude_max = float(self.amplitude_max_edit.text())
         chunk_min = float(self.chunksize_min_edit.text())
@@ -606,17 +636,21 @@ class ConfigurationList(QWidget):
         self.show()
 
     def add_configuration(self):
-        dialog = ConfigurationDialog(self)
-        if dialog.exec_() == QDialog.Accepted:
-            new_config = dialog.get_configuration()
-            self.configurations.append(new_config)
-            self.update_config_list()
+        preset_task_dialog = PresetTaskDialog(self)
+        if preset_task_dialog.exec_() == QDialog.Accepted:
+            name, task = preset_task_dialog.get_name_and_task()
 
-            # Automatically save the configuration with the name included in the dialog
-            config_name = new_config["name"]
-            file_path = os.path.join("/home/mouse/dev/paclab_sukrith/configs", f"{config_name}.json")
-            with open(file_path, 'w') as file:
-                json.dump(new_config, file, indent=4)
+            dialog = ConfigurationDialog(self, name, task)
+            if dialog.exec_() == QDialog.Accepted:
+                new_config = dialog.get_configuration()
+                self.configurations.append(new_config)
+                self.update_config_list()
+
+                # Automatically save the configuration with the name included in the dialog
+                config_name = new_config["name"]
+                file_path = os.path.join("/home/mouse/dev/paclab_sukrith/configs", f"{config_name}.json")
+                with open(file_path, 'w') as file:
+                    json.dump(new_config, file, indent=4)
 
     def remove_configuration(self):
         selected_item = self.config_tree.currentItem()
@@ -629,7 +663,7 @@ class ConfigurationList(QWidget):
             config_name = selected_config["name"]  # Make sure filename is the same as name in the json
             
             # Construct the full file path
-            file_path = os.path.join("/home/mouse/dev/paclab_sukrith/task/configs/task", f"{config_name}.json")
+            file_path = os.path.join("/home/mouse/dev/paclab_sukrith/configs", f"{config_name}.json")
 
             # Check if the file exists and delete it
             if os.path.exists(file_path):
@@ -642,7 +676,7 @@ class ConfigurationList(QWidget):
             self.update_config_list()
 
     def load_default(self):
-        default_directory = os.path.abspath("/home/mouse/dev/paclab_sukrith/task/configs/task")
+        default_directory = os.path.abspath("/home/mouse/dev/paclab_sukrith/configs")
         if os.path.isdir(default_directory):
             self.configurations = self.import_configs_from_folder(default_directory)
             self.update_config_list()
@@ -662,7 +696,7 @@ class ConfigurationList(QWidget):
         categories = {}
 
         for config in self.configurations:
-            category = config.get("task", "Uncategorized")
+            category = config.get("category", "Uncategorized")
             if category not in categories:
                 category_item = QTreeWidgetItem([category])
                 self.config_tree.addTopLevelItem(category_item)
@@ -687,7 +721,6 @@ class ConfigurationList(QWidget):
             # Serialize JSON data and send it over ZMQ to all IPs connected
             json_data = json.dumps(selected_config)
             self.publisher.send_json(json_data)
-
     
 class MainWindow(QtWidgets.QMainWindow):
     def __init__(self):
