@@ -1,19 +1,19 @@
 {
     "Fixed": {
-        "amplitude_min": 1.0,
-        "amplitude_max": 1.0,
-        "chunk_min": 10.0,
-        "chunk_max": 10.0,
-        "pause_min": 5.0,
-        "pause_max": 5.0
+        "amplitude_min": 0.05,
+        "amplitude_max": 0.05,
+        "chunk_min": 0.01,
+        "chunk_max": 0.01,
+        "pause_min": 0.01,
+        "pause_max": 0.01
     },
     "Sweep": {
-        "amplitude_min": 0.5,
-        "amplitude_max": 2.0,
-        "chunk_min": 5.0,
-        "chunk_max": 15.0,
-        "pause_min": 3.0,
-        "pause_max": 7.0
+        "amplitude_min": 0.005,
+        "amplitude_max": 0.2,
+        "chunk_min": 0.01,
+        "chunk_max": 0.05,
+        "pause_min": 0.05,
+        "pause_max": 0.2
     },
     "Distractor": {
         "amplitude_min": 1.0,
