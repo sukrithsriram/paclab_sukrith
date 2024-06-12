@@ -578,7 +578,8 @@ class ConfigurationList(QWidget):
         self.publisher.bind("tcp://*:5556")  # Binding to port 5556 for publishing
     
     def init_ui(self):
-        self.config_list = QListWidget()
+        self.config_tree = QTreeWidget()
+        self.config_tree.setHeaderHidden(True)
         
         self.add_button = QPushButton('Add Config')
         self.remove_button = QPushButton('Remove Config')
@@ -590,7 +591,7 @@ class ConfigurationList(QWidget):
 
         main_layout = QVBoxLayout()
         main_layout.addWidget(self.selected_config_label)
-        main_layout.addWidget(self.config_list)
+        main_layout.addWidget(self.config_tree)
         main_layout.addLayout(button_layout)
 
         self.setLayout(main_layout)
@@ -613,14 +614,14 @@ class ConfigurationList(QWidget):
                     json.dump(new_config, file, indent=4)
 
     def remove_configuration(self):
-        selected_item = self.config_list.currentItem()
-        if selected_item:
-            selected_config = selected_item.data(Qt.UserRole)
+        selected_item = self.config_tree.currentItem()
+        if selected_item and selected_item.parent():
+            selected_config = selected_item.data(0, Qt.UserRole)
             self.configurations.remove(selected_config)
             self.update_config_list()
 
             # Get the filename from the configuration data
-            config_name = selected_config["name"] # Make sure filename is the same as name in the json
+            config_name = selected_config["name"]  # Make sure filename is the same as name in the json
             
             # Construct the full file path
             file_path = os.path.join("/home/mouse/dev/paclab_sukrith/configs", f"{config_name}.json")
@@ -652,23 +653,35 @@ class ConfigurationList(QWidget):
         return configurations
 
     def update_config_list(self):
-        self.config_list.clear()
+        self.config_tree.clear()
+        categories = {}
+
         for config in self.configurations:
-            item = QListWidgetItem(config["name"])
-            item.setData(Qt.UserRole, config)
-            self.config_list.addItem(item)
-        self.config_list.itemClicked.connect(self.config_item_clicked)
+            category = config.get("category", "Uncategorized")
+            if category not in categories:
+                category_item = QTreeWidgetItem([category])
+                self.config_tree.addTopLevelItem(category_item)
+                categories[category] = category_item
+            else:
+                category_item = categories[category]
+
+            config_item = QTreeWidgetItem([config["name"]])
+            config_item.setData(0, Qt.UserRole, config)
+            category_item.addChild(config_item)
+
+        self.config_tree.itemClicked.connect(self.config_item_clicked)
 
     def config_item_clicked(self, item):
-        selected_config = item.data(Qt.UserRole)
-        self.current_config = selected_config
-        self.selected_config_label.setText(f"Selected Config: {selected_config['name']}")
-        dialog = ConfigurationDetailsDialog(selected_config, self)
-        dialog.exec_()
-        
-        # Serialize JSON data and send it over ZMQ to all IPs connected
-        json_data = json.dumps(selected_config)
-        self.publisher.send_json(json_data)
+        if item.parent():  # Ensure it's a config item, not a category
+            selected_config = item.data(0, Qt.UserRole)
+            self.current_config = selected_config
+            self.selected_config_label.setText(f"Selected Config: {selected_config['name']}")
+            dialog = ConfigurationDetailsDialog(selected_config, self)
+            dialog.exec_()
+            
+            # Serialize JSON data and send it over ZMQ to all IPs connected
+            json_data = json.dumps(selected_config)
+            self.publisher.send_json(json_data)
 
     
 class MainWindow(QtWidgets.QMainWindow):
