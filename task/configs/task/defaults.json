@@ -1,0 +1,42 @@
+{
+    "Fixed": {
+        "amplitude_min": 1.0,
+        "amplitude_max": 1.0,
+        "chunk_min": 10.0,
+        "chunk_max": 10.0,
+        "pause_min": 5.0,
+        "pause_max": 5.0
+    },
+    "Sweep": {
+        "amplitude_min": 0.5,
+        "amplitude_max": 2.0,
+        "chunk_min": 5.0,
+        "chunk_max": 15.0,
+        "pause_min": 3.0,
+        "pause_max": 7.0
+    },
+    "Distractor": {
+        "amplitude_min": 1.0,
+        "amplitude_max": 1.5,
+        "chunk_min": 8.0,
+        "chunk_max": 12.0,
+        "pause_min": 4.0,
+        "pause_max": 6.0
+    },
+    "Poketrain": {
+        "amplitude_min": 0.8,
+        "amplitude_max": 1.2,
+        "chunk_min": 6.0,
+        "chunk_max": 10.0,
+        "pause_min": 2.0,
+        "pause_max": 4.0
+    },
+    "Audio": {
+        "amplitude_min": 1.0,
+        "amplitude_max": 2.0,
+        "chunk_min": 7.0,
+        "chunk_max": 14.0,
+        "pause_min": 3.0,
+        "pause_max": 5.0
+    }
+}
