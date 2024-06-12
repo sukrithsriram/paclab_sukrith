@@ -517,6 +517,8 @@ class ConfigurationDialog(QDialog):
         # Create labels and line edits for configuration parameters
         self.name_label = QLabel("Name:")
         self.name_edit = QLineEdit()
+        self.task_label = QLabel("Task:")
+        self.task_edit = QLineEdit()
         self.amplitude_label = QLabel("Amplitude:")
         self.amplitude_min_edit = QLineEdit()
         self.amplitude_max_edit = QLineEdit()
@@ -545,6 +547,8 @@ class ConfigurationDialog(QDialog):
         layout = QVBoxLayout()
         layout.addWidget(self.name_label)
         layout.addWidget(self.name_edit)
+        layout.addWidget(self.task_label)
+        layout.addWidget(self.task_edit)
         layout.addWidget(self.amplitude_label)
         layout.addLayout(amplitude_layout)
         layout.addWidget(self.chunksize_label)
@@ -556,13 +560,14 @@ class ConfigurationDialog(QDialog):
 
     def get_configuration(self):
         name = self.name_edit.text()
+        task = self.task_edit.text()
         amplitude_min = float(self.amplitude_min_edit.text())
         amplitude_max = float(self.amplitude_max_edit.text())
         chunk_min = float(self.chunksize_min_edit.text())
         chunk_max = float(self.chunksize_max_edit.text())
         pause_min = float(self.pausesize_min_edit.text())
         pause_max = float(self.pausesize_max_edit.text())       
-        return {"name": name, "amplitude_min": amplitude_min, "amplitude_max": amplitude_max, "chunk_min": chunk_min, "chunk_max": chunk_max, "pause_min": pause_min, "pause_max": pause_max}
+        return {"name": name, "task": task,"amplitude_min": amplitude_min, "amplitude_max": amplitude_max, "chunk_min": chunk_min, "chunk_max": chunk_max, "pause_min": pause_min, "pause_max": pause_max}
 
 class ConfigurationList(QWidget):
     def __init__(self):
@@ -624,7 +629,7 @@ class ConfigurationList(QWidget):
             config_name = selected_config["name"]  # Make sure filename is the same as name in the json
             
             # Construct the full file path
-            file_path = os.path.join("/home/mouse/dev/paclab_sukrith/configs", f"{config_name}.json")
+            file_path = os.path.join("/home/mouse/dev/paclab_sukrith/task/configs/task", f"{config_name}.json")
 
             # Check if the file exists and delete it
             if os.path.exists(file_path):
@@ -637,7 +642,7 @@ class ConfigurationList(QWidget):
             self.update_config_list()
 
     def load_default(self):
-        default_directory = os.path.abspath("/home/mouse/dev/paclab_sukrith/configs")
+        default_directory = os.path.abspath("/home/mouse/dev/paclab_sukrith/task/configs/task")
         if os.path.isdir(default_directory):
             self.configurations = self.import_configs_from_folder(default_directory)
             self.update_config_list()
@@ -657,7 +662,7 @@ class ConfigurationList(QWidget):
         categories = {}
 
         for config in self.configurations:
-            category = config.get("category", "Uncategorized")
+            category = config.get("task", "Uncategorized")
             if category not in categories:
                 category_item = QTreeWidgetItem([category])
                 self.config_tree.addTopLevelItem(category_item)
@@ -749,7 +754,6 @@ if __name__ == '__main__':
     app = QApplication(sys.argv)
     main_window = MainWindow()
     sys.exit(app.exec())
-
 
 
 
