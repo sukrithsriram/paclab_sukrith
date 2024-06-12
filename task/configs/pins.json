@@ -1,0 +1,12 @@
+{
+  "nosepoke_l": "8",
+  "nosepoke_r": "15",
+  "led_red_l": "17",
+  "led_red_r": "10",
+  "led_green_l": "27",
+  "led_green_r": "9",
+  "led_blue_l": "22",
+  "led_blue_r": "11",
+  "solenoid_l": "6",
+  "solenoid_r": "26"
+}
