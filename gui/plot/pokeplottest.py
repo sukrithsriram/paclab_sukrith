@@ -485,6 +485,8 @@ class PlotWindow(QWidget):
         # Update plot with timestamps and signals
         self.line.setData(x=self.timestamps, y=self.signal)
 
+
+
 class ConfigurationDetailsDialog(QDialog):
     def __init__(self, config, parent=None):
         super().__init__(parent)
@@ -651,7 +653,7 @@ class ConfigurationList(QWidget):
         self.show()
 
     def load_default_parameters(self):
-        with open('/home/mouse/dev/paclab_sukrith/task/configs/defaults.json', 'r') as file:
+        with open('/home/mouse/dev/paclab_sukrith/pi/configs/defaults.json', 'r') as file:
             return json.load(file)
 
     def add_configuration(self):
@@ -680,7 +682,7 @@ class ConfigurationList(QWidget):
 
                 # Automatically save the configuration with the name included in the dialog
                 config_name = new_config["name"]
-                file_path = os.path.join("/home/mouse/dev/paclab_sukrith/task/configs/task", f"{config_name}.json")
+                file_path = os.path.join("/home/mouse/dev/paclab_sukrith/pi/configs/task", f"{config_name}.json")
                 with open(file_path, 'w') as file:
                     json.dump(new_config, file, indent=4)
 
@@ -695,7 +697,7 @@ class ConfigurationList(QWidget):
             config_name = selected_config["name"] # Make sure filename is the same as name in the json
             
             # Construct the full file path
-            file_path = os.path.join("/home/mouse/dev/paclab_sukrith/task/configs/task", f"{config_name}.json")
+            file_path = os.path.join("/home/mouse/dev/paclab_sukrith/pi/configs/task", f"{config_name}.json")
 
             # Check if the file exists and delete it
             if os.path.exists(file_path):
@@ -708,7 +710,7 @@ class ConfigurationList(QWidget):
             self.update_config_list()
 
     def load_default(self):
-        default_directory = os.path.abspath("/home/mouse/dev/paclab_sukrith/task/configs/task")
+        default_directory = os.path.abspath("/home/mouse/dev/paclab_sukrith/pi/configs/task")
         if os.path.isdir(default_directory):
             self.configurations = self.import_configs_from_folder(default_directory)
             self.update_config_list()
