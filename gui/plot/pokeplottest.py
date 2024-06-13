@@ -11,7 +11,7 @@ import csv
 import json
 from datetime import datetime
 from PyQt5 import QtWidgets
-from PyQt5.QtWidgets import QMenu, QAction, QComboBox, QGroupBox, QLabel, QGraphicsEllipseItem, QListWidget, QListWidgetItem, QGraphicsTextItem, QGraphicsScene, QGraphicsView, QWidget, QVBoxLayout, QPushButton, QApplication, QHBoxLayout, QLineEdit, QListWidget, QFileDialog, QDialog, QLabel, QDialogButtonBox, QTreeWidget, QTreeWidgetItem
+from PyQt5.QtWidgets import QMenu, QAction, QComboBox, QGroupBox, QMessageBox, QLabel, QGraphicsEllipseItem, QListWidget, QListWidgetItem, QGraphicsTextItem, QGraphicsScene, QGraphicsView, QWidget, QVBoxLayout, QPushButton, QApplication, QHBoxLayout, QLineEdit, QListWidget, QFileDialog, QDialog, QLabel, QDialogButtonBox, QTreeWidget, QTreeWidgetItem
 from PyQt5.QtCore import QPointF, QTimer, QTime, pyqtSignal, QObject, QThread, pyqtSlot,  QMetaObject, Qt
 from PyQt5.QtGui import QColor
 
@@ -817,19 +817,33 @@ class ConfigurationList(QWidget):
             config_item.setData(0, Qt.UserRole, config)
             category_item.addChild(config_item)
 
-        self.config_tree.itemClicked.connect(self.config_item_clicked)
-
-    def config_item_clicked(self, item):
+        # Connect double-click signal to config_item_double_clicked slot
+        self.config_tree.itemDoubleClicked.connect(self.config_item_clicked)
+        
+    # Define the slot for double-clicked items
+    def config_item_clicked(self, item, column):
         if item.parent():  # Ensure it's a config item, not a category
             selected_config = item.data(0, Qt.UserRole)
             self.current_config = selected_config
             self.selected_config_label.setText(f"Selected Config: {selected_config['name']}")
             
-            # Maybe add an option to confirm selected mouse here later 
+            # Prompt to confirm selected configuration
+            confirm_dialog = QMessageBox()
+            confirm_dialog.setIcon(QMessageBox.Question)
+            confirm_dialog.setText(f"Do you want to use '{selected_config['name']}'?")
+            confirm_dialog.setWindowTitle("Confirm Configuration")
+            confirm_dialog.setStandardButtons(QMessageBox.Yes | QMessageBox.No)
+            confirm_dialog.setDefaultButton(QMessageBox.Yes)
+            
+            if confirm_dialog.exec_() == QMessageBox.Yes:
+                # Serialize JSON data and send it over ZMQ to all IPs connected
+                json_data = json.dumps(selected_config)
+                self.publisher.send_json(json_data)
+            else:
+                # Setting selected config to none
+                self.selected_config_label.setText(f"Selected Config: None")
 
-            # Serialize JSON data and send it over ZMQ to all IPs connected
-            json_data = json.dumps(selected_config)
-            self.publisher.send_json(json_data)
+                pass
 
     def show_context_menu(self, pos):
         item = self.config_tree.itemAt(pos)
