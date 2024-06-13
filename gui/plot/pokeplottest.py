@@ -219,9 +219,7 @@ class PiWidget(QWidget):
         # Creating buttons to start and stop the sequence of communication with the Raspberry Pi
         self.poked_port_numbers = []
 
-        self.start_button = QPushButton("Start Experiment")
-        self.start_button.clicked.connect(self.start_sequence)
-        
+        self.start_button = QPushButton("Start Experiment")        
         self.stop_button = QPushButton("Stop Experiment")
         self.stop_button.clicked.connect(self.save_results_to_csv)  # Connect save button to save method
 
