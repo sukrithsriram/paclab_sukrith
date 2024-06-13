@@ -11,7 +11,7 @@ import csv
 import json
 from datetime import datetime
 from PyQt5 import QtWidgets
-from PyQt5.QtWidgets import QAction, QGroupBox, QLabel, QGraphicsEllipseItem, QListWidget, QListWidgetItem, QGraphicsTextItem, QGraphicsScene, QGraphicsView, QWidget, QVBoxLayout, QPushButton, QApplication, QHBoxLayout, QLineEdit, QListWidget, QFileDialog, QDialog, QLabel, QDialogButtonBox, QTreeWidget, QTreeWidgetItem
+from PyQt5.QtWidgets import QMenu, QAction, QComboBox, QGroupBox, QLabel, QGraphicsEllipseItem, QListWidget, QListWidgetItem, QGraphicsTextItem, QGraphicsScene, QGraphicsView, QWidget, QVBoxLayout, QPushButton, QApplication, QHBoxLayout, QLineEdit, QListWidget, QFileDialog, QDialog, QLabel, QDialogButtonBox, QTreeWidget, QTreeWidgetItem
 from PyQt5.QtCore import QPointF, QTimer, QTime, pyqtSignal, QObject, QThread, pyqtSlot,  QMetaObject, Qt
 from PyQt5.QtGui import QColor
 
@@ -492,6 +492,7 @@ class ConfigurationDetailsDialog(QDialog):
 
         # Create labels to display configuration parameters
         self.name_label = QLabel(f"Name: {config['name']}")
+        self.task_label = QLabel(f"Task: {config['task']}")
         self.amplitude_label = QLabel(f"Amplitude: {config['amplitude_min']} - {config['amplitude_max']}")
         self.chunk_label = QLabel(f"Chunk Duration: {config['chunk_min']} - {config['chunk_max']}")
         self.pause_label = QLabel(f"Pause Duration: {config['pause_min']} - {config['pause_max']}")
@@ -503,31 +504,63 @@ class ConfigurationDetailsDialog(QDialog):
         # Arrange widgets in a vertical layout
         layout = QVBoxLayout()
         layout.addWidget(self.name_label)
+        layout.addWidget(self.task_label)
         layout.addWidget(self.amplitude_label)
         layout.addWidget(self.chunk_label)
         layout.addWidget(self.pause_label)
         layout.addWidget(self.button_box)
         self.setLayout(layout)
 
-class ConfigurationDialog(QDialog):
+class PresetTaskDialog(QDialog):
     def __init__(self, parent=None):
         super().__init__(parent)
-        self.setWindowTitle("Add Configuration")
+        self.setWindowTitle("Enter Name and Select Task")
 
-        # Create labels and line edits for configuration parameters
+        self.layout = QVBoxLayout(self)
+
         self.name_label = QLabel("Name:")
-        self.name_edit = QLineEdit()
-        self.task_label = QLabel("Task:")
-        self.task_edit = QLineEdit()
+        self.name_edit = QLineEdit(self)
+
+        self.task_label = QLabel("Select Task:")
+        self.task_combo = QComboBox(self)
+        self.task_combo.addItems(["Fixed", "Sweep", "Distractor", "Poketrain", "Audio"])  # Add your preset tasks here
+
+        self.ok_button = QPushButton("OK")
+        self.ok_button.clicked.connect(self.accept)
+
+        self.layout.addWidget(self.name_label)
+        self.layout.addWidget(self.name_edit)
+        self.layout.addWidget(self.task_label)
+        self.layout.addWidget(self.task_combo)
+        self.layout.addWidget(self.ok_button)
+
+    def get_name_and_task(self):
+        return self.name_edit.text(), self.task_combo.currentText()
+
+class ConfigurationDialog(QDialog):
+    def __init__(self, parent=None, name="", task="", default_params=None):
+        super().__init__(parent)
+        self.setWindowTitle("Add Configuration Details")
+        self.name = name
+        self.task = task
+        self.default_params = default_params if default_params else {}
+        self.init_ui()
+
+    def init_ui(self):
+        layout = QVBoxLayout(self)
+        
+        # Create labels and line edits for configuration parameters
+        self.name_label = QLabel(f"Name: {self.name}")
+        self.task_label = QLabel(f"Task: {self.task}")
         self.amplitude_label = QLabel("Amplitude:")
-        self.amplitude_min_edit = QLineEdit()
-        self.amplitude_max_edit = QLineEdit()
+        self.amplitude_min_edit = QLineEdit(str(self.default_params.get("amplitude_min", "")))
+        self.amplitude_max_edit = QLineEdit(str(self.default_params.get("amplitude_max", "")))
         self.chunksize_label = QLabel("Chunk Duration:")
-        self.chunksize_min_edit = QLineEdit()
-        self.chunksize_max_edit = QLineEdit()
+        self.chunksize_min_edit = QLineEdit(str(self.default_params.get("chunk_min", "")))
+        self.chunksize_max_edit = QLineEdit(str(self.default_params.get("chunk_max", "")))
         self.pausesize_label = QLabel("Gap Duration:")
-        self.pausesize_min_edit = QLineEdit()
-        self.pausesize_max_edit = QLineEdit()
+        self.pausesize_min_edit = QLineEdit(str(self.default_params.get("pause_min", "")))
+        self.pausesize_max_edit = QLineEdit(str(self.default_params.get("pause_max", "")))
 
         # Create button box with OK and Cancel buttons
         self.button_box = QDialogButtonBox(QDialogButtonBox.Ok | QDialogButtonBox.Cancel)
@@ -538,17 +571,17 @@ class ConfigurationDialog(QDialog):
         amplitude_layout = QHBoxLayout()
         amplitude_layout.addWidget(self.amplitude_min_edit)
         amplitude_layout.addWidget(self.amplitude_max_edit)
+
         chunk_layout = QHBoxLayout()
         chunk_layout.addWidget(self.chunksize_min_edit)
         chunk_layout.addWidget(self.chunksize_max_edit)
+
         pause_layout = QHBoxLayout()
         pause_layout.addWidget(self.pausesize_min_edit)
         pause_layout.addWidget(self.pausesize_max_edit)
-        layout = QVBoxLayout()
+
         layout.addWidget(self.name_label)
-        layout.addWidget(self.name_edit)
         layout.addWidget(self.task_label)
-        layout.addWidget(self.task_edit)
         layout.addWidget(self.amplitude_label)
         layout.addLayout(amplitude_layout)
         layout.addWidget(self.chunksize_label)
@@ -556,24 +589,38 @@ class ConfigurationDialog(QDialog):
         layout.addWidget(self.pausesize_label)
         layout.addLayout(pause_layout)
         layout.addWidget(self.button_box)
+
         self.setLayout(layout)
 
     def get_configuration(self):
-        name = self.name_edit.text()
-        task = self.task_edit.text()
-        amplitude_min = float(self.amplitude_min_edit.text())
-        amplitude_max = float(self.amplitude_max_edit.text())
-        chunk_min = float(self.chunksize_min_edit.text())
-        chunk_max = float(self.chunksize_max_edit.text())
-        pause_min = float(self.pausesize_min_edit.text())
-        pause_max = float(self.pausesize_max_edit.text())       
-        return {"name": name, "task": task,"amplitude_min": amplitude_min, "amplitude_max": amplitude_max, "chunk_min": chunk_min, "chunk_max": chunk_max, "pause_min": pause_min, "pause_max": pause_max}
+        try:
+            amplitude_min = float(self.amplitude_min_edit.text())
+            amplitude_max = float(self.amplitude_max_edit.text())
+            chunk_min = float(self.chunksize_min_edit.text())
+            chunk_max = float(self.chunksize_max_edit.text())
+            pause_min = float(self.pausesize_min_edit.text())
+            pause_max = float(self.pausesize_max_edit.text())
+        except ValueError:
+            # Handle invalid input
+            return None
+        
+        return {
+            "name": self.name,
+            "task": self.task,
+            "amplitude_min": amplitude_min,
+            "amplitude_max": amplitude_max,
+            "chunk_min": chunk_min,
+            "chunk_max": chunk_max,
+            "pause_min": pause_min,
+            "pause_max": pause_max
+        }
 
 class ConfigurationList(QWidget):
     def __init__(self):
         super().__init__()
         self.configurations = []
         self.current_config = None
+        self.default_parameters = self.load_default_parameters()
         self.init_ui()
         self.load_default()  # Call the method to load configurations from a default directory during initialization
 
@@ -581,10 +628,10 @@ class ConfigurationList(QWidget):
         self.context = zmq.Context()
         self.publisher = self.context.socket(zmq.PUB)
         self.publisher.bind("tcp://*:5556")  # Binding to port 5556 for publishing
-    
+
     def init_ui(self):
         self.config_tree = QTreeWidget()
-        self.config_tree.setHeaderHidden(True)
+        self.config_tree.setHeaderLabels(["Configurations"])
         
         self.add_button = QPushButton('Add Config')
         self.remove_button = QPushButton('Remove Config')
@@ -605,18 +652,43 @@ class ConfigurationList(QWidget):
         self.setWindowTitle('Configuration List')
         self.show()
 
-    def add_configuration(self):
-        dialog = ConfigurationDialog(self)
-        if dialog.exec_() == QDialog.Accepted:
-            new_config = dialog.get_configuration()
-            self.configurations.append(new_config)
-            self.update_config_list()
+        # Enable custom context menu
+        self.config_tree.setContextMenuPolicy(Qt.CustomContextMenu)
+        self.config_tree.customContextMenuRequested.connect(self.show_context_menu)
 
-            # Automatically save the configuration with the name included in the dialog
-            config_name = new_config["name"]
-            file_path = os.path.join("/home/mouse/dev/paclab_sukrith/configs", f"{config_name}.json")
-            with open(file_path, 'w') as file:
-                json.dump(new_config, file, indent=4)
+    def load_default_parameters(self):
+        with open('/home/mouse/dev/paclab_sukrith/pi/configs/defaults.json', 'r') as file:
+            return json.load(file)
+
+    def add_configuration(self):
+        preset_task_dialog = PresetTaskDialog(self)
+        if preset_task_dialog.exec_() == QDialog.Accepted:
+            name, task = preset_task_dialog.get_name_and_task()
+            
+            # Get the default parameters for the selected task
+            if task in self.default_parameters:
+                default_params = self.default_parameters[task]
+            else:
+                default_params = {
+                    "amplitude_min": 0.0,
+                    "amplitude_max": 0.0,
+                    "chunk_min": 0.0,
+                    "chunk_max": 0.0,
+                    "pause_min": 0.0,
+                    "pause_max": 0.0
+                }
+
+            dialog = ConfigurationDialog(self, name, task, default_params)
+            if dialog.exec_() == QDialog.Accepted:
+                new_config = dialog.get_configuration()
+                self.configurations.append(new_config)
+                self.update_config_list()
+
+                # Automatically save the configuration with the name included in the dialog
+                config_name = new_config["name"]
+                file_path = os.path.join("/home/mouse/dev/paclab_sukrith/pi/configs/task", f"{config_name}.json")
+                with open(file_path, 'w') as file:
+                    json.dump(new_config, file, indent=4)
 
     def remove_configuration(self):
         selected_item = self.config_tree.currentItem()
@@ -626,7 +698,7 @@ class ConfigurationList(QWidget):
             self.update_config_list()
 
             # Get the filename from the configuration data
-            config_name = selected_config["name"]  # Make sure filename is the same as name in the json
+            config_name = selected_config["name"] # Make sure filename is the same as name in the json
             
             # Construct the full file path
             file_path = os.path.join("/home/mouse/dev/paclab_sukrith/task/configs/task", f"{config_name}.json")
@@ -642,7 +714,7 @@ class ConfigurationList(QWidget):
             self.update_config_list()
 
     def load_default(self):
-        default_directory = os.path.abspath("/home/mouse/dev/paclab_sukrith/task/configs/task")
+        default_directory = os.path.abspath("/home/mouse/dev/paclab_sukrith/pi/configs/task")
         if os.path.isdir(default_directory):
             self.configurations = self.import_configs_from_folder(default_directory)
             self.update_config_list()
@@ -681,14 +753,47 @@ class ConfigurationList(QWidget):
             selected_config = item.data(0, Qt.UserRole)
             self.current_config = selected_config
             self.selected_config_label.setText(f"Selected Config: {selected_config['name']}")
-            dialog = ConfigurationDetailsDialog(selected_config, self)
-            dialog.exec_()
             
+            # Maybe add an option to confirm selected mouse here later 
+
             # Serialize JSON data and send it over ZMQ to all IPs connected
             json_data = json.dumps(selected_config)
             self.publisher.send_json(json_data)
 
-    
+    def show_context_menu(self, pos):
+        item = self.config_tree.itemAt(pos)
+        if item and item.parent():  # Ensure it's a config item, not a category
+            menu = QMenu(self)
+            view_action = QAction("View Details", self)
+            edit_action = QAction("Edit Configuration", self)
+            view_action.triggered.connect(lambda: self.view_configuration_details(item))
+            edit_action.triggered.connect(lambda: self.edit_configuration(item))
+            menu.addAction(view_action)
+            menu.addAction(edit_action)
+            menu.exec_(self.config_tree.mapToGlobal(pos))
+
+    def edit_configuration(self, item):
+        selected_config = item.data(0, Qt.UserRole)
+        dialog = ConfigurationDialog(self, selected_config["name"], selected_config["task"], selected_config)
+        if dialog.exec_() == QDialog.Accepted:
+            updated_config = dialog.get_configuration()
+            if updated_config:
+                # Update the configuration in the list
+                index = self.configurations.index(selected_config)
+                self.configurations[index] = updated_config
+                self.update_config_list()
+
+                # Automatically save the updated configuration
+                config_name = updated_config["name"]
+                file_path = os.path.join("/home/mouse/dev/paclab_sukrith/pi/configs/task", f"{config_name}.json")
+                with open(file_path, 'w') as file:
+                    json.dump(updated_config, file, indent=4)
+
+    def view_configuration_details(self, item):
+        selected_config = item.data(0, Qt.UserRole)
+        dialog = ConfigurationDetailsDialog(selected_config, self)
+        dialog.exec_()
+
 class MainWindow(QtWidgets.QMainWindow):
     def __init__(self):
         super().__init__()
@@ -754,8 +859,6 @@ if __name__ == '__main__':
     app = QApplication(sys.argv)
     main_window = MainWindow()
     sys.exit(app.exec())
-
-
 
 
 
