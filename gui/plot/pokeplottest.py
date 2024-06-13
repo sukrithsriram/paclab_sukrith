@@ -11,7 +11,7 @@ import csv
 import json
 from datetime import datetime
 from PyQt5 import QtWidgets
-from PyQt5.QtWidgets import QAction, QComboBox, QGroupBox, QLabel, QGraphicsEllipseItem, QListWidget, QListWidgetItem, QGraphicsTextItem, QGraphicsScene, QGraphicsView, QWidget, QVBoxLayout, QPushButton, QApplication, QHBoxLayout, QLineEdit, QListWidget, QFileDialog, QDialog, QLabel, QDialogButtonBox, QTreeWidget, QTreeWidgetItem
+from PyQt5.QtWidgets import QMenu, QAction, QComboBox, QGroupBox, QLabel, QGraphicsEllipseItem, QListWidget, QListWidgetItem, QGraphicsTextItem, QGraphicsScene, QGraphicsView, QWidget, QVBoxLayout, QPushButton, QApplication, QHBoxLayout, QLineEdit, QListWidget, QFileDialog, QDialog, QLabel, QDialogButtonBox, QTreeWidget, QTreeWidgetItem
 from PyQt5.QtCore import QPointF, QTimer, QTime, pyqtSignal, QObject, QThread, pyqtSlot,  QMetaObject, Qt
 from PyQt5.QtGui import QColor
 
@@ -485,8 +485,6 @@ class PlotWindow(QWidget):
         # Update plot with timestamps and signals
         self.line.setData(x=self.timestamps, y=self.signal)
 
-
-
 class ConfigurationDetailsDialog(QDialog):
     def __init__(self, config, parent=None):
         super().__init__(parent)
@@ -494,6 +492,7 @@ class ConfigurationDetailsDialog(QDialog):
 
         # Create labels to display configuration parameters
         self.name_label = QLabel(f"Name: {config['name']}")
+        self.task_label = QLabel(f"Task: {config['task']}")
         self.amplitude_label = QLabel(f"Amplitude: {config['amplitude_min']} - {config['amplitude_max']}")
         self.chunk_label = QLabel(f"Chunk Duration: {config['chunk_min']} - {config['chunk_max']}")
         self.pause_label = QLabel(f"Pause Duration: {config['pause_min']} - {config['pause_max']}")
@@ -505,6 +504,7 @@ class ConfigurationDetailsDialog(QDialog):
         # Arrange widgets in a vertical layout
         layout = QVBoxLayout()
         layout.addWidget(self.name_label)
+        layout.addWidget(self.task_label)
         layout.addWidget(self.amplitude_label)
         layout.addWidget(self.chunk_label)
         layout.addWidget(self.pause_label)
@@ -652,6 +652,10 @@ class ConfigurationList(QWidget):
         self.setWindowTitle('Configuration List')
         self.show()
 
+        # Enable custom context menu
+        self.config_tree.setContextMenuPolicy(Qt.CustomContextMenu)
+        self.config_tree.customContextMenuRequested.connect(self.show_context_menu)
+
     def load_default_parameters(self):
         with open('/home/mouse/dev/paclab_sukrith/pi/configs/defaults.json', 'r') as file:
             return json.load(file)
@@ -697,7 +701,7 @@ class ConfigurationList(QWidget):
             config_name = selected_config["name"] # Make sure filename is the same as name in the json
             
             # Construct the full file path
-            file_path = os.path.join("/home/mouse/dev/paclab_sukrith/pi/configs/task", f"{config_name}.json")
+            file_path = os.path.join("/home/mouse/dev/paclab_sukrith/task/configs/task", f"{config_name}.json")
 
             # Check if the file exists and delete it
             if os.path.exists(file_path):
@@ -749,13 +753,47 @@ class ConfigurationList(QWidget):
             selected_config = item.data(0, Qt.UserRole)
             self.current_config = selected_config
             self.selected_config_label.setText(f"Selected Config: {selected_config['name']}")
-            dialog = ConfigurationDetailsDialog(selected_config, self)
-            dialog.exec_()
             
+            # Maybe add an option to confirm selected mouse here later 
+
             # Serialize JSON data and send it over ZMQ to all IPs connected
             json_data = json.dumps(selected_config)
             self.publisher.send_json(json_data)
-    
+
+    def show_context_menu(self, pos):
+        item = self.config_tree.itemAt(pos)
+        if item and item.parent():  # Ensure it's a config item, not a category
+            menu = QMenu(self)
+            view_action = QAction("View Details", self)
+            edit_action = QAction("Edit Configuration", self)
+            view_action.triggered.connect(lambda: self.view_configuration_details(item))
+            edit_action.triggered.connect(lambda: self.edit_configuration(item))
+            menu.addAction(view_action)
+            menu.addAction(edit_action)
+            menu.exec_(self.config_tree.mapToGlobal(pos))
+
+    def edit_configuration(self, item):
+        selected_config = item.data(0, Qt.UserRole)
+        dialog = ConfigurationDialog(self, selected_config["name"], selected_config["task"], selected_config)
+        if dialog.exec_() == QDialog.Accepted:
+            updated_config = dialog.get_configuration()
+            if updated_config:
+                # Update the configuration in the list
+                index = self.configurations.index(selected_config)
+                self.configurations[index] = updated_config
+                self.update_config_list()
+
+                # Automatically save the updated configuration
+                config_name = updated_config["name"]
+                file_path = os.path.join("/home/mouse/dev/paclab_sukrith/pi/configs/task", f"{config_name}.json")
+                with open(file_path, 'w') as file:
+                    json.dump(updated_config, file, indent=4)
+
+    def view_configuration_details(self, item):
+        selected_config = item.data(0, Qt.UserRole)
+        dialog = ConfigurationDetailsDialog(selected_config, self)
+        dialog.exec_()
+
 class MainWindow(QtWidgets.QMainWindow):
     def __init__(self):
         super().__init__()
