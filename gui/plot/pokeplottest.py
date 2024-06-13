@@ -705,6 +705,9 @@ class ConfigurationList(QWidget):
         self.config_tree = QTreeWidget()
         self.config_tree.setHeaderLabels(["Tasks"])
         
+        self.search_box = QLineEdit()
+        self.search_box.setPlaceholderText("Search for a mouse...")
+        
         self.add_button = QPushButton('Add Mouse')
         self.remove_button = QPushButton('Remove Mouse')
         self.selected_config_label = QLabel()
@@ -715,6 +718,7 @@ class ConfigurationList(QWidget):
 
         main_layout = QVBoxLayout()
         main_layout.addWidget(self.selected_config_label)
+        main_layout.addWidget(self.search_box)
         main_layout.addWidget(self.config_tree)
         main_layout.addLayout(button_layout)
 
@@ -727,6 +731,21 @@ class ConfigurationList(QWidget):
         # Enable custom context menu
         self.config_tree.setContextMenuPolicy(Qt.CustomContextMenu)
         self.config_tree.customContextMenuRequested.connect(self.show_context_menu)
+        
+        # Connect search box text changed signal to filter_configurations method
+        self.search_box.textChanged.connect(self.filter_configurations)
+        
+    def filter_configurations(self, text):
+        if not text:
+            self.update_config_list()
+            return
+        
+        filtered_configs = []
+        for config in self.configurations:
+            if text.lower() in config["name"].lower():
+                filtered_configs.append(config)
+
+        self.update_config_list(filtered_configs)
 
     def on_start_button_clicked(self):
         if self.current_config is None:
@@ -811,11 +830,14 @@ class ConfigurationList(QWidget):
                     configurations.append(config)
         return configurations
 
-    def update_config_list(self):
+    def update_config_list(self, configs=None):
         self.config_tree.clear()
         categories = {}
 
-        for config in self.configurations:
+        if configs is None:
+            configs = self.configurations
+
+        for config in configs:
             category = config.get("task", "Uncategorized")
             if category not in categories:
                 category_item = QTreeWidgetItem([category])
