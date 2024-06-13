@@ -202,6 +202,7 @@ class Worker(QObject):
 
 # PiWidget Class that represents all PiSignals
 class PiWidget(QWidget):
+    startButtonClicked = pyqtSignal()
     updateSignal = pyqtSignal(int, str) # Signal to emit the number and color of the active Pi
 
     def __init__(self, main_window, *args, **kwargs):
@@ -219,6 +220,8 @@ class PiWidget(QWidget):
         self.poked_port_numbers = []
 
         self.start_button = QPushButton("Start Experiment")
+        self.start_button.clicked.connect(self.start_sequence)
+        
         self.stop_button = QPushButton("Stop Experiment")
         self.stop_button.clicked.connect(self.save_results_to_csv)  # Connect save button to save method
 
@@ -311,6 +314,8 @@ class PiWidget(QWidget):
                 self.fraction_correct_label.setText(f"Fraction Correct (FC): {self.fraction_correct:.3f}")
 
     def start_sequence(self):
+        self.startButtonClicked.emit()
+        
         # Start the worker thread when the start button is pressed
         self.thread.start()
         print("Experiment Started!")
@@ -321,7 +326,7 @@ class PiWidget(QWidget):
 
         # Start the timer
         self.start_time.start()
-        self.timer.start(10)  # Update every second        
+        self.timer.start(10)  # Update every second               
 
     def stop_sequence(self):
         # Stop the worker thread when the stop button is pressed
@@ -681,6 +686,8 @@ class ConfigurationDialog(QDialog):
         return updated_config
 
 class ConfigurationList(QWidget):
+    confingselectSignal = pyqtSignal()
+    
     def __init__(self):
         super().__init__()
         self.configurations = []
@@ -721,6 +728,10 @@ class ConfigurationList(QWidget):
         self.config_tree.setContextMenuPolicy(Qt.CustomContextMenu)
         self.config_tree.customContextMenuRequested.connect(self.show_context_menu)
 
+    def on_start_button_clicked(self):
+        if self.current_config is None:
+            QMessageBox.warning(self, "Warning", "Please select a mouse before starting the experiment.")
+    
     def load_default_parameters(self):
         with open('/home/mouse/dev/paclab_sukrith/pi/configs/defaults.json', 'r') as file:
             return json.load(file)
@@ -772,7 +783,7 @@ class ConfigurationList(QWidget):
             config_name = selected_config["name"] # Make sure filename is the same as name in the json
             
             # Construct the full file path
-            file_path = os.path.join("/home/mouse/dev/paclab_sukrith/task/configs/task", f"{config_name}.json")
+            file_path = os.path.join("/home/mouse/dev/paclab_sukrith/pi/configs/task", f"{config_name}.json")
 
             # Check if the file exists and delete it
             if os.path.exists(file_path):
@@ -926,6 +937,7 @@ class MainWindow(QtWidgets.QMainWindow):
         # Connecting signals after the MainWindow is fully initialized
         self.Pi_widget.worker.pokedportsignal.connect(self.plot_window.handle_update_signal)
         self.Pi_widget.updateSignal.connect(self.plot_window.handle_update_signal)
+        self.Pi_widget.startButtonClicked.connect(self.config_list.on_start_button_clicked)
 
     # Function to plot the Pi signals using the PlotWindow class
     def plot_poked_port(self, poked_port_value):
