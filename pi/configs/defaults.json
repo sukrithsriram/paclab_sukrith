@@ -1,11 +1,11 @@
 {
     "Fixed": {
-        "amplitude_min": 0.05,
-        "amplitude_max": 0.05,
+        "amplitude_min": 0.03,
+        "amplitude_max": 0.03,
         "chunk_min": 0.01,
         "chunk_max": 0.01,
-        "pause_min": 0.05,
-        "pause_max": 0.05
+        "pause_min": 0.3,
+        "pause_max": 0.3
     },
     "Sweep": {
         "amplitude_min": 0.005,
