@@ -494,7 +494,7 @@ class ConfigurationDetailsDialog(QDialog):
         self.name_label = QLabel(f"Name: {config['name']}")
         self.task_label = QLabel(f"Task: {config['task']}")
         self.amplitude_label = QLabel(f"Amplitude: {config['amplitude_min']} - {config['amplitude_max']}")
-        self.chunk_label = QLabel(f"Chunk Duration: {config['chunk_min']} - {config['chunk_max']}")
+        self.chunk_label = QLabel(f"Sound Duration: {config['chunk_min']} - {config['chunk_max']}")
         self.pause_label = QLabel(f"Pause Duration: {config['pause_min']} - {config['pause_max']}")
 
         # Create button box with OK button
@@ -572,7 +572,7 @@ class ConfigurationDialog(QDialog):
         amplitude_layout.addWidget(self.amplitude_max_label)
         amplitude_layout.addWidget(self.amplitude_max_edit)
 
-        self.chunk_label = QLabel("Chunk Duration:")
+        self.chunk_label = QLabel("Sound Duration:")
         chunk_layout = QHBoxLayout()
         self.chunk_min_label = QLabel("Min:")
         self.chunk_min_edit = QLineEdit(str(self.config.get("chunk_min", "")))
@@ -699,7 +699,7 @@ class ConfigurationList(QWidget):
         self.config_tree.setHeaderLabels(["Tasks"])
         
         self.add_button = QPushButton('Add Mouse')
-        self.remove_button = QPushButton('Remove Config')
+        self.remove_button = QPushButton('Remove Mouse')
         self.selected_config_label = QLabel()
 
         button_layout = QHBoxLayout()
@@ -743,7 +743,13 @@ class ConfigurationList(QWidget):
                     "pause_max": 0.0
                 }
 
-            dialog = ConfigurationDialog(self, name, task, default_params)
+            # Instantiate ConfigurationDialog properly
+            dialog = ConfigurationDialog(self, {
+                "name": name,
+                "task": task,
+                **default_params
+            })
+            
             if dialog.exec_() == QDialog.Accepted:
                 new_config = dialog.get_configuration()
                 self.configurations.append(new_config)
