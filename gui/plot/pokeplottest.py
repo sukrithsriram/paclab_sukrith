@@ -538,29 +538,61 @@ class PresetTaskDialog(QDialog):
         return self.name_edit.text(), self.task_combo.currentText()
 
 class ConfigurationDialog(QDialog):
-    def __init__(self, parent=None, name="", task="", default_params=None):
+    def __init__(self, parent=None, config=None):
         super().__init__(parent)
-        self.setWindowTitle("Add Configuration Details")
-        self.name = name
-        self.task = task
-        self.default_params = default_params if default_params else {}
+        self.setWindowTitle("Edit Configuration Details")
+        self.config = config if config else {
+            "name": "",
+            "task": "",
+            "amplitude_min": 0.0,
+            "amplitude_max": 0.0,
+            "chunk_min": 0.0,
+            "chunk_max": 0.0,
+            "pause_min": 0.0,
+            "pause_max": 0.0
+        }
         self.init_ui()
 
     def init_ui(self):
         layout = QVBoxLayout(self)
-        
+
         # Create labels and line edits for configuration parameters
-        self.name_label = QLabel(f"Name: {self.name}")
-        self.task_label = QLabel(f"Task: {self.task}")
+        self.name_label = QLabel("Name:")
+        self.name_edit = QLineEdit(self.config.get("name", ""))
+        self.task_label = QLabel(f"Task: {self.config.get('task', '')}")
+
         self.amplitude_label = QLabel("Amplitude:")
-        self.amplitude_min_edit = QLineEdit(str(self.default_params.get("amplitude_min", "")))
-        self.amplitude_max_edit = QLineEdit(str(self.default_params.get("amplitude_max", "")))
-        self.chunksize_label = QLabel("Chunk Duration:")
-        self.chunksize_min_edit = QLineEdit(str(self.default_params.get("chunk_min", "")))
-        self.chunksize_max_edit = QLineEdit(str(self.default_params.get("chunk_max", "")))
-        self.pausesize_label = QLabel("Gap Duration:")
-        self.pausesize_min_edit = QLineEdit(str(self.default_params.get("pause_min", "")))
-        self.pausesize_max_edit = QLineEdit(str(self.default_params.get("pause_max", "")))
+        amplitude_layout = QHBoxLayout()
+        self.amplitude_min_label = QLabel("Min:")
+        self.amplitude_min_edit = QLineEdit(str(self.config.get("amplitude_min", "")))
+        self.amplitude_max_label = QLabel("Max:")
+        self.amplitude_max_edit = QLineEdit(str(self.config.get("amplitude_max", "")))
+        amplitude_layout.addWidget(self.amplitude_min_label)
+        amplitude_layout.addWidget(self.amplitude_min_edit)
+        amplitude_layout.addWidget(self.amplitude_max_label)
+        amplitude_layout.addWidget(self.amplitude_max_edit)
+
+        self.chunk_label = QLabel("Chunk Duration:")
+        chunk_layout = QHBoxLayout()
+        self.chunk_min_label = QLabel("Min:")
+        self.chunk_min_edit = QLineEdit(str(self.config.get("chunk_min", "")))
+        self.chunk_max_label = QLabel("Max:")
+        self.chunk_max_edit = QLineEdit(str(self.config.get("chunk_max", "")))
+        chunk_layout.addWidget(self.chunk_min_label)
+        chunk_layout.addWidget(self.chunk_min_edit)
+        chunk_layout.addWidget(self.chunk_max_label)
+        chunk_layout.addWidget(self.chunk_max_edit)
+
+        self.pause_label = QLabel("Gap Duration:")
+        pause_layout = QHBoxLayout()
+        self.pause_min_label = QLabel("Min:")
+        self.pause_min_edit = QLineEdit(str(self.config.get("pause_min", "")))
+        self.pause_max_label = QLabel("Max:")
+        self.pause_max_edit = QLineEdit(str(self.config.get("pause_max", "")))
+        pause_layout.addWidget(self.pause_min_label)
+        pause_layout.addWidget(self.pause_min_edit)
+        pause_layout.addWidget(self.pause_max_label)
+        pause_layout.addWidget(self.pause_max_edit)
 
         # Create button box with OK and Cancel buttons
         self.button_box = QDialogButtonBox(QDialogButtonBox.Ok | QDialogButtonBox.Cancel)
@@ -568,45 +600,76 @@ class ConfigurationDialog(QDialog):
         self.button_box.rejected.connect(self.reject)
 
         # Arrange widgets in a vertical layout
-        amplitude_layout = QHBoxLayout()
-        amplitude_layout.addWidget(self.amplitude_min_edit)
-        amplitude_layout.addWidget(self.amplitude_max_edit)
-
-        chunk_layout = QHBoxLayout()
-        chunk_layout.addWidget(self.chunksize_min_edit)
-        chunk_layout.addWidget(self.chunksize_max_edit)
-
-        pause_layout = QHBoxLayout()
-        pause_layout.addWidget(self.pausesize_min_edit)
-        pause_layout.addWidget(self.pausesize_max_edit)
-
         layout.addWidget(self.name_label)
+        layout.addWidget(self.name_edit)
         layout.addWidget(self.task_label)
         layout.addWidget(self.amplitude_label)
         layout.addLayout(amplitude_layout)
-        layout.addWidget(self.chunksize_label)
+        layout.addWidget(self.chunk_label)
         layout.addLayout(chunk_layout)
-        layout.addWidget(self.pausesize_label)
+        layout.addWidget(self.pause_label)
         layout.addLayout(pause_layout)
         layout.addWidget(self.button_box)
 
         self.setLayout(layout)
 
+        # Show/hide widgets based on the task type
+        self.update_widgets_based_on_task()
+
+    def update_widgets_based_on_task(self):
+        task = self.config.get("task", "")
+
+        if task.lower() == "fixed":
+            # For "Fixed" task, hide max edit fields and set values to be the same as min
+            self.amplitude_min_label.hide()
+            self.amplitude_max_label.hide()
+            self.amplitude_max_edit.hide()
+            self.chunk_min_label.hide()
+            self.chunk_max_label.hide()
+            self.chunk_max_edit.hide()
+            self.pause_min_label.hide()
+            self.pause_max_label.hide()
+            self.pause_max_edit.hide()
+
+            # Connect min edit fields to update max fields
+            self.amplitude_min_edit.textChanged.connect(self.update_amplitude_max)
+            self.chunk_min_edit.textChanged.connect(self.update_chunk_max)
+            self.pause_min_edit.textChanged.connect(self.update_pause_max)
+
+        else:
+            # For other tasks, show all min and max edit fields
+            pass
+
+    def update_amplitude_max(self):
+        value = self.amplitude_min_edit.text()
+        self.amplitude_max_edit.setText(value)
+
+    def update_chunk_max(self):
+        value = self.chunk_min_edit.text()
+        self.chunk_max_edit.setText(value)
+
+    def update_pause_max(self):
+        value = self.pause_min_edit.text()
+        self.pause_max_edit.setText(value)
+
     def get_configuration(self):
+        updated_name = self.name_edit.text()
+        task = self.config.get("task", "")
+
         try:
             amplitude_min = float(self.amplitude_min_edit.text())
             amplitude_max = float(self.amplitude_max_edit.text())
-            chunk_min = float(self.chunksize_min_edit.text())
-            chunk_max = float(self.chunksize_max_edit.text())
-            pause_min = float(self.pausesize_min_edit.text())
-            pause_max = float(self.pausesize_max_edit.text())
+            chunk_min = float(self.chunk_min_edit.text())
+            chunk_max = float(self.chunk_max_edit.text())
+            pause_min = float(self.pause_min_edit.text())
+            pause_max = float(self.pause_max_edit.text())
         except ValueError:
             # Handle invalid input
             return None
-        
-        return {
-            "name": self.name,
-            "task": self.task,
+
+        updated_config = {
+            "name": updated_name,
+            "task": task,
             "amplitude_min": amplitude_min,
             "amplitude_max": amplitude_max,
             "chunk_min": chunk_min,
@@ -614,6 +677,8 @@ class ConfigurationDialog(QDialog):
             "pause_min": pause_min,
             "pause_max": pause_max
         }
+
+        return updated_config
 
 class ConfigurationList(QWidget):
     def __init__(self):
@@ -631,9 +696,9 @@ class ConfigurationList(QWidget):
 
     def init_ui(self):
         self.config_tree = QTreeWidget()
-        self.config_tree.setHeaderLabels(["Configurations"])
+        self.config_tree.setHeaderLabels(["Tasks"])
         
-        self.add_button = QPushButton('Add Config')
+        self.add_button = QPushButton('Add Mouse')
         self.remove_button = QPushButton('Remove Config')
         self.selected_config_label = QLabel()
 
@@ -774,20 +839,19 @@ class ConfigurationList(QWidget):
 
     def edit_configuration(self, item):
         selected_config = item.data(0, Qt.UserRole)
-        dialog = ConfigurationDialog(self, selected_config["name"], selected_config["task"], selected_config)
+        dialog = ConfigurationDialog(self, selected_config)
         if dialog.exec_() == QDialog.Accepted:
             updated_config = dialog.get_configuration()
             if updated_config:
-                # Update the configuration in the list
-                index = self.configurations.index(selected_config)
-                self.configurations[index] = updated_config
+                self.configurations = [config if config['name'] != selected_config['name'] else updated_config for config in self.configurations]
                 self.update_config_list()
 
-                # Automatically save the updated configuration
+                # Save the updated configuration
                 config_name = updated_config["name"]
                 file_path = os.path.join("/home/mouse/dev/paclab_sukrith/pi/configs/task", f"{config_name}.json")
                 with open(file_path, 'w') as file:
                     json.dump(updated_config, file, indent=4)
+
 
     def view_configuration_details(self, item):
         selected_config = item.data(0, Qt.UserRole)
