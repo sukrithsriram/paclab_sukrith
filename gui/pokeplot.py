@@ -15,6 +15,14 @@ from PyQt5.QtWidgets import QMenu, QAction, QComboBox, QGroupBox, QMessageBox, Q
 from PyQt5.QtCore import QPointF, QTimer, QTime, pyqtSignal, QObject, QThread, pyqtSlot,  QMetaObject, Qt
 from PyQt5.QtGui import QColor
 
+# Importing the parameters from a json files
+param_directory = "configs/defaults.json"
+with open(param_directory, "r") as p:
+    params = json.load(p)  
+
+# Fetching all the ports to use for the trials    
+active_nosepokes = [int(i) for i in params['active_nosepokes']]
+
 # Creating a class for the individual Raspberry Pi signals
 class PiSignal(QGraphicsEllipseItem):
     def __init__(self, index, total_ports):
@@ -56,7 +64,7 @@ class Worker(QObject):
         self.initial_time = None
         self.context = zmq.Context()
         self.socket = self.context.socket(zmq.ROUTER)
-        self.socket.bind("tcp://*:5555")  # Change Port number if you want to run multiple instances
+        self.socket.bind("tcp://*" + params['worker_port'])  # Change Port number if you want to run multiple instances
 
         self.last_pi_received = None
         self.timer = None
@@ -93,7 +101,7 @@ class Worker(QObject):
         #time.sleep(1)
         
         # Randomly choose either 3 or 4 as the initial reward port
-        self.reward_port = random.choice([5, 7])
+        self.reward_port = random.choice(active_nosepokes)
         reward_message = f"Reward Port: {self.reward_port}"
         print(reward_message)
         
@@ -172,7 +180,7 @@ class Worker(QObject):
                     if color == "green" or color == "blue":
                         for identity in self.identities:
                             self.socket.send_multipart([identity, b"Reward Poke Completed"])
-                        self.reward_port = random.choice([5, 7])
+                        self.reward_port = random.choice(active_nosepokes)
                         self.trials = 0
                         print(f"Reward Port: {self.reward_port}")
 
@@ -526,8 +534,7 @@ class PresetTaskDialog(QDialog):
 
         self.task_label = QLabel("Select Task:")
         self.task_combo = QComboBox(self)
-        self.task_combo.addItems(["Fixed", "Sweep", "Distractor", "Poketrain", "Audio"])  # Add your preset tasks here
-
+        self.task_combo.addItems(["Fixed", "Sweep", "Distractor", "Poketrain", "Audio"])  
         self.ok_button = QPushButton("OK")
         self.ok_button.clicked.connect(self.accept)
 
@@ -697,7 +704,7 @@ class ConfigurationList(QWidget):
         # Initialize ZMQ context and socket for publishing
         self.context = zmq.Context()
         self.publisher = self.context.socket(zmq.PUB)
-        self.publisher.bind("tcp://*:5556")  # Binding to port 5556 for publishing
+        self.publisher.bind("tcp://*" + params['config_port'])  # Binding to port 5556 for publishing
 
     def init_ui(self):
         self.config_tree = QTreeWidget()
@@ -750,7 +757,7 @@ class ConfigurationList(QWidget):
             QMessageBox.warning(self, "Warning", "Please select a mouse before starting the experiment.")
     
     def load_default_parameters(self):
-        with open('/home/mouse/dev/paclab_sukrith/pi/configs/defaults.json', 'r') as file:
+        with open(params['pi_defaults'], 'r') as file:
             return json.load(file)
 
     def add_configuration(self):
@@ -785,7 +792,7 @@ class ConfigurationList(QWidget):
 
                 # Automatically save the configuration with the name included in the dialog
                 config_name = new_config["name"]
-                file_path = os.path.join("/home/mouse/dev/paclab_sukrith/pi/configs/task", f"{config_name}.json")
+                file_path = os.path.join(params['task_configs'], f"{config_name}.json")
                 with open(file_path, 'w') as file:
                     json.dump(new_config, file, indent=4)
 
@@ -800,7 +807,7 @@ class ConfigurationList(QWidget):
             config_name = selected_config["name"] # Make sure filename is the same as name in the json
             
             # Construct the full file path
-            file_path = os.path.join("/home/mouse/dev/paclab_sukrith/pi/configs/task", f"{config_name}.json")
+            file_path = os.path.join(params['task_configs'], f"{config_name}.json")
 
             # Check if the file exists and delete it
             if os.path.exists(file_path):
@@ -813,7 +820,7 @@ class ConfigurationList(QWidget):
             self.update_config_list()
 
     def load_default(self):
-        default_directory = os.path.abspath("/home/mouse/dev/paclab_sukrith/pi/configs/task")
+        default_directory = os.path.abspath(params['task_configs'])
         if os.path.isdir(default_directory):
             self.configurations = self.import_configs_from_folder(default_directory)
             self.update_config_list()
@@ -899,7 +906,7 @@ class ConfigurationList(QWidget):
 
                 # Save the updated configuration
                 config_name = updated_config["name"]
-                file_path = os.path.join("/home/mouse/dev/paclab_sukrith/pi/configs/task", f"{config_name}.json")
+                file_path = os.path.join(params['task_configs'], f"{config_name}.json")
                 with open(file_path, 'w') as file:
                     json.dump(updated_config, file, indent=4)
 
