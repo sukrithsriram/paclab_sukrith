@@ -507,6 +507,7 @@ class ConfigurationDetailsDialog(QDialog):
         self.amplitude_label = QLabel(f"Amplitude: {config['amplitude_min']} - {config['amplitude_max']}")
         self.chunk_label = QLabel(f"Sound Duration: {config['chunk_min']} - {config['chunk_max']}")
         self.pause_label = QLabel(f"Pause Duration: {config['pause_min']} - {config['pause_max']}")
+        self.reward_label = QLabel(f"Reward Value: {config['reward_value']}")
 
         # Create button box with OK button
         self.button_box = QDialogButtonBox(QDialogButtonBox.Ok)
@@ -519,6 +520,7 @@ class ConfigurationDetailsDialog(QDialog):
         layout.addWidget(self.amplitude_label)
         layout.addWidget(self.chunk_label)
         layout.addWidget(self.pause_label)
+        layout.addWidget(self.reward_label)
         layout.addWidget(self.button_box)
         self.setLayout(layout)
 
@@ -559,7 +561,8 @@ class ConfigurationDialog(QDialog):
             "chunk_min": 0.0,
             "chunk_max": 0.0,
             "pause_min": 0.0,
-            "pause_max": 0.0
+            "pause_max": 0.0,
+            "reward_value": 0.0
         }
         self.init_ui()
 
@@ -603,6 +606,9 @@ class ConfigurationDialog(QDialog):
         pause_layout.addWidget(self.pause_min_edit)
         pause_layout.addWidget(self.pause_max_label)
         pause_layout.addWidget(self.pause_max_edit)
+        
+        self.reward_label = QLabel("Reward Value:")
+        self.reward_edit = QLineEdit(str(self.config.get("reward_value", "")))
 
         # Create button box with OK and Cancel buttons
         self.button_box = QDialogButtonBox(QDialogButtonBox.Ok | QDialogButtonBox.Cancel)
@@ -619,6 +625,8 @@ class ConfigurationDialog(QDialog):
         layout.addLayout(chunk_layout)
         layout.addWidget(self.pause_label)
         layout.addLayout(pause_layout)
+        layout.addWidget(self.reward_label)
+        layout.addWidget(self.reward_edit)
         layout.addWidget(self.button_box)
 
         self.setLayout(layout)
@@ -673,6 +681,8 @@ class ConfigurationDialog(QDialog):
             chunk_max = float(self.chunk_max_edit.text())
             pause_min = float(self.pause_min_edit.text())
             pause_max = float(self.pause_max_edit.text())
+            reward_value = float(self.reward_edit.text())
+            
         except ValueError:
             # Handle invalid input
             return None
@@ -685,7 +695,8 @@ class ConfigurationDialog(QDialog):
             "chunk_min": chunk_min,
             "chunk_max": chunk_max,
             "pause_min": pause_min,
-            "pause_max": pause_max
+            "pause_max": pause_max,
+            "reward_value": reward_value
         }
 
         return updated_config
@@ -776,7 +787,8 @@ class ConfigurationList(QWidget):
                     "chunk_min": 0.0,
                     "chunk_max": 0.0,
                     "pause_min": 0.0,
-                    "pause_max": 0.0
+                    "pause_max": 0.0,
+                    "reward_value": 0.0
                 }
 
             # Instantiate ConfigurationDialog properly
