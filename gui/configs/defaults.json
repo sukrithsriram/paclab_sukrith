@@ -1,7 +1,7 @@
 {
     "worker_port" : ":5555",
     "config_port" : ":5556",
-    "active_nosepokes" : "5, 7",
+    "active_nosepokes" : ["5", "7"],
     "save_directory" : "/home/mouse/dev/paclab_sukrith/logs",
     "pi_defaults" : "/home/mouse/dev/paclab_sukrith/pi/configs/defaults.json",
     "task_configs" : "/home/mouse/dev/paclab_sukrith/pi/configs/task"
