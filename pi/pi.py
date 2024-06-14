@@ -302,7 +302,7 @@ def flash():
     pi.write(22, 1)
     pi.set_mode(11, pigpio.OUTPUT)
     pi.write(11, 1)
-    time.sleep(0.05)
+    time.sleep(params['reward_value'])
     pi.write(22, 0)
     pi.write(11, 0)  
 
@@ -379,7 +379,7 @@ try:
                 break  # Exit the loop
             
             elif msg == 'start':
-                flash()
+                flash() # Need to figure out where to put this
             
             elif msg.startswith("Reward Port:"):    
                 print(msg)
