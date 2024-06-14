@@ -302,7 +302,7 @@ def flash():
     pi.write(22, 1)
     pi.set_mode(11, pigpio.OUTPUT)
     pi.write(11, 1)
-    time.sleep(params['reward_value'])
+    time.sleep(config_data['reward_value'])
     pi.write(22, 0)
     pi.write(11, 0)  
 
@@ -355,6 +355,7 @@ try:
             pause_max = config_data['pause_max']
             amplitude_min = config_data['amplitude_min']
             amplitude_max = config_data['amplitude_max']
+            reward_value = config_data['reward_value']
             jack_client.update_parameters(chunk_min, chunk_max, pause_min, pause_max, amplitude_min, amplitude_max)
             print("Parameters updated")
             
@@ -403,7 +404,7 @@ try:
                     pi.set_PWM_dutycycle(reward_pin, pwm_duty_cycle)
                     # Playing sound from the left speaker
                     jack_client.set_set_channel('left')
-                    print("Turning Nosepoke 5 Green")
+                    #print("Turning Nosepoke 5 Green")
 
                     prev_port = value
                     current_pin = reward_pin
@@ -415,7 +416,7 @@ try:
                     pi.set_PWM_dutycycle(reward_pin, pwm_duty_cycle)
                     # Playing sound from the right speaker
                     jack_client.set_set_channel('right')
-                    print("Turning Nosepoke 7 Green")
+                    #print("Turning Nosepoke 7 Green")
 
                     prev_port = value
                     current_pin = reward_pin
