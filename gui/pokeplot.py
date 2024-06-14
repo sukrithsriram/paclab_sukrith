@@ -691,12 +691,13 @@ class ConfigurationDialog(QDialog):
         return updated_config
 
 class ConfigurationList(QWidget):
-    confingselectSignal = pyqtSignal()
+    send_config_signal = pyqtSignal(dict)
     
     def __init__(self):
         super().__init__()
         self.configurations = []
         self.current_config = None
+        self.current_task = None
         self.default_parameters = self.load_default_parameters()
         self.init_ui()
         self.load_default()  # Call the method to load configurations from a default directory during initialization
@@ -865,6 +866,9 @@ class ConfigurationList(QWidget):
             self.current_config = selected_config
             self.selected_config_label.setText(f"Selected Config: {selected_config['name']}")
             
+            # Emit signal with selected configuration
+            self.send_config_signal.emit(selected_config)
+            
             # Prompt to confirm selected configuration
             confirm_dialog = QMessageBox()
             confirm_dialog.setIcon(QMessageBox.Question)
@@ -877,6 +881,8 @@ class ConfigurationList(QWidget):
                 # Serialize JSON data and send it over ZMQ to all IPs connected
                 json_data = json.dumps(selected_config)
                 self.publisher.send_json(json_data)
+                self.current_task = selected_config['name'] + "_" + selected_config['task']
+                print("Current Task:", self.current_task)
             else:
                 # Setting selected config to none
                 self.selected_config_label.setText(f"Selected Config: None")
