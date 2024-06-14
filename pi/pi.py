@@ -289,12 +289,12 @@ def open_valve(port):
     if port == int(params['nosepokeL_id']):
         pi.set_mode(6, pigpio.OUTPUT)
         pi.write(6, 1)
-        time.sleep(0.05)
+        time.sleep(reward_value)
         pi.write(6, 0)
     if port == int(params['nosepokeR_id']):
         pi.set_mode(26, pigpio.OUTPUT)
         pi.write(26, 1)
-        time.sleep(0.05)
+        time.sleep(reward_value)
         pi.write(26, 0)
         
 def flash():
@@ -302,7 +302,7 @@ def flash():
     pi.write(22, 1)
     pi.set_mode(11, pigpio.OUTPUT)
     pi.write(11, 1)
-    time.sleep(config_data['reward_value'])
+    time.sleep(0.05)
     pi.write(22, 0)
     pi.write(11, 0)  
 
