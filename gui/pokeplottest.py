@@ -66,6 +66,15 @@ class Worker(QObject):
         self.socket = self.context.socket(zmq.ROUTER)
         self.socket.bind("tcp://*" + params['worker_port'])  # Change Port number if you want to run multiple instances
 
+        # Initializing values for sound parameters
+        self.amplitudes = []
+        self.chunk_durations = []
+        self.pause_durations = []
+        self.current_amplitude = 0.0
+        self.current_chunk_duration = 0.0
+        self.current_pause_duration = 0.0
+        
+        # Initialize reward_port and related variables
         self.last_pi_received = None
         self.timer = None
         self.pi_widget = pi_widget
@@ -74,8 +83,6 @@ class Worker(QObject):
         self.poked_port_numbers = self.pi_widget.poked_port_numbers 
         self.identities = set()
         self.last_poke_timestamp = None  # Attribute to store the timestamp of the last poke event
-
-        # Initialize reward_port and related variables
         self.reward_port = None
         self.previous_port = None
 
@@ -153,7 +160,23 @@ class Worker(QObject):
         try:
             message_str = message.decode('utf-8')
             if "Current Parameters" in message_str:
+                sound_parameters = message_str
                 print("Updated:", message_str)
+                
+                # Remove the "Current Parameters - " part and strip any leading/trailing whitespace
+                param_string = sound_parameters.split("-", 1)[1].strip()
+                
+                # Extract parameters
+                params = {}
+                for param in param_string.split(','):
+                    key, value = param.split(':')
+                    params[key.strip()] = value.strip()
+                
+                # Extract and convert the values
+                self.current_amplitude = float(params.get("Amplitude", 0))
+                self.current_chunk_duration = float(params.get("Chunk Duration", "0").split()[0])
+                self.current_pause_duration = float(params.get("Pause Duration", 0))
+
             else:
                 poked_port = int(message_str)
                 if 1 <= poked_port <= self.total_ports:
@@ -175,6 +198,9 @@ class Worker(QObject):
                     self.pokedportsignal.emit(poked_port, color)
                     self.timestamps.append(elapsed_time)
                     self.reward_ports.append(self.reward_port)
+                    self.amplitudes.append(self.current_amplitude)
+                    self.chunk_durations.append(self.current_chunk_duration)
+                    self.pause_durations.append(self.current_pause_duration)
                     self.update_unique_ports()
 
                     if color == "green" or color == "blue":
@@ -196,17 +222,17 @@ class Worker(QObject):
 
         except ValueError:
             print("Connected to Raspberry Pi:", message_str)
-
-    # Method to save results to a CSV file
+    
+   # Method to save results to a CSV file
     def save_results_to_csv(self):
         # Save results to a CSV file
         filename, _ = QFileDialog.getSaveFileName(None, "Save Results", "", "CSV Files (*.csv)")
         if filename:
             with open(filename, 'w', newline='') as csvfile:
                 writer = csv.writer(csvfile)
-                writer.writerow(["Poke Timestamp (seconds)", "Port Visited", "Current Reward Port"])
-                for timestamp, poked_port, reward_port in zip(self.timestamps, self.poked_port_numbers, self.reward_ports):
-                    writer.writerow([timestamp, poked_port, reward_port])
+                writer.writerow(["Poke Timestamp (seconds)", "Port Visited", "Current Reward Port", "Amplitude", "Chunk Duration", "Pause Duration"])
+                for timestamp, poked_port, reward_port, amplitude, chunk_duration, pause_duration in zip(self.timestamps, self.poked_port_numbers, self.reward_ports, self.amplitudes, self.chunk_durations, self.pause_durations):
+                    writer.writerow([timestamp, poked_port, reward_port, amplitude, chunk_duration, pause_duration])
 
 # PiWidget Class that represents all PiSignals
 class PiWidget(QWidget):
@@ -878,9 +904,6 @@ class ConfigurationList(QWidget):
             self.current_config = selected_config
             self.selected_config_label.setText(f"Selected Config: {selected_config['name']}")
             
-            # Emit signal with selected configuration
-            self.send_config_signal.emit(selected_config)
-            
             # Prompt to confirm selected configuration
             confirm_dialog = QMessageBox()
             confirm_dialog.setIcon(QMessageBox.Question)
@@ -895,6 +918,8 @@ class ConfigurationList(QWidget):
                 self.publisher.send_json(json_data)
                 self.current_task = selected_config['name'] + "_" + selected_config['task']
                 print("Current Task:", self.current_task)
+                # Emit signal with selected configuration
+                self.send_config_signal.emit(current_task)
             else:
                 # Setting selected config to none
                 self.selected_config_label.setText(f"Selected Config: None")
