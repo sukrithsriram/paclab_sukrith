@@ -1,0 +1,10 @@
+{
+    "identity" : "rpi18",
+    "gui_ip" : "192.168.11.198",
+    "poke_port" : ":5561",
+    "config_port": ":5562",
+    "nosepokeL_type": "901",
+    "nosepokeR_type": "901",
+    "nosepokeL_id": "1",
+    "nosepokeR_id": "2"
+}
