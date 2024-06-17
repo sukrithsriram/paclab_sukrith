@@ -19,7 +19,7 @@ time.sleep(1)
 os.system('jackd -P75 -p16 -t2000 -dalsa -dhw:sndrpihifiberry -P -r192000 -n3 -s &')
 time.sleep(1)
 
-param_directory = "configs/pi/rpi26.json"
+param_directory = "configs/pis/rpi26.json"
 with open(param_directory, "r") as p:
     params = json.load(p)    
     
