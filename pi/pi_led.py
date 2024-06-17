@@ -7,6 +7,7 @@ import time
 import threading
 import random
 import json
+import socket as sc
 
 # Killing previous pigpiod and jackd background processes
 os.system('sudo killall pigpiod')
@@ -19,7 +20,9 @@ time.sleep(1)
 os.system('jackd -P75 -p16 -t2000 -dalsa -dhw:sndrpihifiberry -P -r192000 -n3 -s &')
 time.sleep(1)
 
-param_directory = "configs/pis/rpi26.json"
+pi_hostname = sc.gethostname()
+pi_name = str(pi_hostname)
+param_directory = f"configs/pis/{pi_name}.json"
 with open(param_directory, "r") as p:
     params = json.load(p)    
     
@@ -289,12 +292,12 @@ def open_valve(port):
     if port == int(params['nosepokeL_id']):
         pi.set_mode(6, pigpio.OUTPUT)
         pi.write(6, 1)
-        time.sleep(reward_value)
+        time.sleep(0.05)
         pi.write(6, 0)
     if port == int(params['nosepokeR_id']):
         pi.set_mode(26, pigpio.OUTPUT)
         pi.write(26, 1)
-        time.sleep(reward_value)
+        time.sleep(0.05)
         pi.write(26, 0)
         
 def flash():
@@ -355,7 +358,6 @@ try:
             pause_max = config_data['pause_max']
             amplitude_min = config_data['amplitude_min']
             amplitude_max = config_data['amplitude_max']
-            reward_value = config_data['reward_value']
             jack_client.update_parameters(chunk_min, chunk_max, pause_min, pause_max, amplitude_min, amplitude_max)
             print("Parameters updated")
             
@@ -380,7 +382,7 @@ try:
                 break  # Exit the loop
             
             elif msg == 'start':
-                flash() # Need to figure out where to put this
+                flash()
             
             elif msg.startswith("Reward Port:"):    
                 print(msg)
@@ -404,7 +406,7 @@ try:
                     pi.set_PWM_dutycycle(reward_pin, pwm_duty_cycle)
                     # Playing sound from the left speaker
                     jack_client.set_set_channel('left')
-                    #print("Turning Nosepoke 5 Green")
+                    print("Turning Nosepoke 5 Green")
 
                     prev_port = value
                     current_pin = reward_pin
@@ -416,7 +418,7 @@ try:
                     pi.set_PWM_dutycycle(reward_pin, pwm_duty_cycle)
                     # Playing sound from the right speaker
                     jack_client.set_set_channel('right')
-                    #print("Turning Nosepoke 7 Green")
+                    print("Turning Nosepoke 7 Green")
 
                     prev_port = value
                     current_pin = reward_pin
