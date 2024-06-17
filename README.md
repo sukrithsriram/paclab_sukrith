@@ -1,5 +1,3 @@
-# PAC Lab Code - Sukrith
-
 # Requirements for Pi and GUI:
  conda install pyqt pyzmq pyqtgraph
 
