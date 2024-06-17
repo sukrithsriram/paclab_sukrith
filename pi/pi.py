@@ -426,6 +426,7 @@ try:
             elif msg == "Reward Poke Completed":
                 # Opening Solenoid Valve
                 open_valve(prev_port)
+                flash()
                 
                 # Updating Parameters
                 jack_client.update_parameters(chunk_min, chunk_max, pause_min, pause_max, amplitude_min, amplitude_max)
