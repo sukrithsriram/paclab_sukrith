@@ -302,7 +302,7 @@ def flash():
     pi.write(22, 1)
     pi.set_mode(11, pigpio.OUTPUT)
     pi.write(11, 1)
-    time.sleep(0.05)
+    time.sleep(0.5)
     pi.write(22, 0)
     pi.write(11, 0)  
 
