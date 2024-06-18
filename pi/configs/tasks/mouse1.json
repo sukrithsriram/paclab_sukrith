@@ -1,0 +1,11 @@
+{
+    "name": "mouse1",
+    "task": "Fixed",
+    "amplitude_min": 0.03,
+    "amplitude_max": 0.03,
+    "chunk_min": 0.01,
+    "chunk_max": 0.01,
+    "pause_min": 0.3,
+    "pause_max": 0.3,
+    "reward_value": 0.5
+}
