@@ -9,16 +9,26 @@ import pyqtgraph as pg
 import random
 import csv
 import json
+import argparse
 from datetime import datetime
 from PyQt5 import QtWidgets
 from PyQt5.QtWidgets import QMenu, QAction, QComboBox, QGroupBox, QMessageBox, QLabel, QGraphicsEllipseItem, QListWidget, QListWidgetItem, QGraphicsTextItem, QGraphicsScene, QGraphicsView, QWidget, QVBoxLayout, QPushButton, QApplication, QHBoxLayout, QLineEdit, QListWidget, QFileDialog, QDialog, QLabel, QDialogButtonBox, QTreeWidget, QTreeWidgetItem
 from PyQt5.QtCore import QPointF, QTimer, QTime, pyqtSignal, QObject, QThread, pyqtSlot,  QMetaObject, Qt
 from PyQt5.QtGui import QColor
 
-# Importing the parameters from a json files
-param_directory = "configs/defaults.json"
+# Set up argument parsing to select box
+parser = argparse.ArgumentParser(description="Load parameters for a specific box.")
+parser.add_argument('json_filename', type=str, help="The name of the JSON file (without 'configs/' and '.json')")
+
+# Parse arguments
+args = parser.parse_args()
+
+# Constructing the full path to the config file
+param_directory = f"configs/{args.json_filename}.json"
+
+# Load the parameters from the specified JSON file
 with open(param_directory, "r") as p:
-    params = json.load(p)  
+    params = json.load(p)
 
 # Fetching all the ports to use for the trials    
 active_nosepokes = [int(i) for i in params['active_nosepokes']]
@@ -94,6 +104,13 @@ class Worker(QObject):
         self.unique_ports_visited = []  # List to store unique ports visited in each trial
         self.unique_ports_colors = {}  # Dictionary to store color for each unique port
         self.average_unique_ports = 0  # Variable to store the average number of unique ports visited
+
+
+    @pyqtSlot(str)
+    def set_current_task(self, current_task):
+        # Process the current_task string as needed
+        self.current_task = current_task
+        print("Stored current_task:", self.current_task)
     
     # Method to start the sequence
     @pyqtSlot()
@@ -918,6 +935,7 @@ class ConfigurationList(QWidget):
                 json_data = json.dumps(selected_config)
                 self.publisher.send_json(json_data)
                 self.current_task = selected_config['name'] + "_" + selected_config['task']
+                #self.send_config_signal.emit(self.current_task)  # Emit the signal with current_task
             else:
                 self.selected_config_label.setText(f"Selected Config: None")
 
@@ -1000,6 +1018,7 @@ class MainWindow(QtWidgets.QMainWindow):
         self.show()
 
         # Connecting signals after the MainWindow is fully initialized
+        #self.config_list.send_config_signal.connect(self.Pi_widget.worker.set_current_task)
         self.Pi_widget.worker.pokedportsignal.connect(self.plot_window.handle_update_signal)
         self.Pi_widget.updateSignal.connect(self.plot_window.handle_update_signal)
         self.Pi_widget.startButtonClicked.connect(self.config_list.on_start_button_clicked)
@@ -1020,7 +1039,6 @@ if __name__ == '__main__':
     app = QApplication(sys.argv)
     main_window = MainWindow()
     sys.exit(app.exec())
-
 
 
 
