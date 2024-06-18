@@ -399,8 +399,8 @@ try:
                 if value == int(params['nosepokeL_id']):
                     reward_pin = 27  # Example pin for case 1 
                     pi.set_mode(reward_pin, pigpio.OUTPUT)
-                    #pi.set_PWM_frequency(reward_pin, pwm_frequency)
-                    #pi.set_PWM_dutycycle(reward_pin, pwm_duty_cycle)
+                    pi.set_PWM_frequency(reward_pin, pwm_frequency)
+                    pi.set_PWM_dutycycle(reward_pin, pwm_duty_cycle)
                     # Playing sound from the left speaker
                     jack_client.set_set_channel('left')
                     print("Turning Nosepoke 5 Green")
@@ -411,8 +411,8 @@ try:
                 elif value == int(params['nosepokeR_id']):
                     reward_pin = 9  # Example pin for case 2
                     pi.set_mode(reward_pin, pigpio.OUTPUT)
-                    #pi.set_PWM_frequency(reward_pin, pwm_frequency)
-                    #pi.set_PWM_dutycycle(reward_pin, pwm_duty_cycle)
+                    pi.set_PWM_frequency(reward_pin, pwm_frequency)
+                    pi.set_PWM_dutycycle(reward_pin, pwm_duty_cycle)
                     # Playing sound from the right speaker
                     jack_client.set_set_channel('right')
                     print("Turning Nosepoke 7 Green")
