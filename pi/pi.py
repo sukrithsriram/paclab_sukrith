@@ -7,6 +7,7 @@ import time
 import threading
 import random
 import json
+import socket as sc
 
 # Killing previous pigpiod and jackd background processes
 os.system('sudo killall pigpiod')
@@ -19,7 +20,9 @@ time.sleep(1)
 os.system('jackd -P75 -p16 -t2000 -dalsa -dhw:sndrpihifiberry -P -r192000 -n3 -s &')
 time.sleep(1)
 
-param_directory = "configs/pis/rpi26.json"
+pi_hostname = sc.gethostname()
+pi_name = str(pi_hostname)
+param_directory = f"configs/pis/{pi_name}.json"
 with open(param_directory, "r") as p:
     params = json.load(p)    
     
@@ -453,4 +456,3 @@ finally:
     json_context.term()
         
     
-
