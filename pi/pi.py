@@ -1,3 +1,5 @@
+## Main script that runs on each Pi to run behavior
+
 import zmq
 import pigpio
 import numpy as np
@@ -9,43 +11,120 @@ import random
 import json
 import socket as sc
 
-# Killing previous pigpiod and jackd background processes
+
+## Killing previous pigpiod and jackd background processes
 os.system('sudo killall pigpiod')
 os.system('sudo killall jackd')
+
+# Wait long enough to make sure they are killed
 time.sleep(1)
 
-# Starting pigpiod and jackd background processes
+
+## Starting pigpiod and jackd background processes
+# Start pigpiod
+# TODO: document these parameters
 os.system('sudo pigpiod -t 0 -l -x 1111110000111111111111110000')
 time.sleep(1)
-os.system('jackd -P75 -p16 -t2000 -dalsa -dhw:sndrpihifiberry -P -r192000 -n3 -s &')
+
+# Start jackd
+# TODO: document these parameters
+# TODO: Use subprocess to keep track of these background processes
+os.system(
+    'jackd -P75 -p16 -t2000 -dalsa -dhw:sndrpihifiberry -P -r192000 -n3 -s &')
 time.sleep(1)
 
+
+## Load parameters for this pi
+# Get the hostname of this pi and use that as its name
 pi_hostname = sc.gethostname()
 pi_name = str(pi_hostname)
+
+# Load the config parameters for this pi
+# TODO: document everything in params
 param_directory = f"configs/pis/{pi_name}.json"
 with open(param_directory, "r") as p:
     params = json.load(p)    
-    
-class JackClient:
-    def __init__(self, name='jack_client', outchannels=None):
-        self.name = name
-        self.set_channel = 'none'  # 'left', 'right', or 'none'
-        self.lock = threading.Lock()  # Lock for thread-safe set_channel() updates
-        self.chunk_duration = 0.01  # Duration of each chunk in seconds
-        self.pause_duration = random.uniform(0.05, 0.2)  # Pause duration between chunk in seconds
-        self.amplitude = random.uniform(0.005, 0.02)
-        #print(f"Current Parameters - Amplitude:{amplitude}, Chunk Duration: {chunk_duration} s, Pause Duration: {pause_duration}"
-        self.last_chunk_time = time.time()  # Variable to store the time of the last burst
 
+
+## Define a JackClient, which will play sounds in the background
+# TODO: rename this SoundPlayer or similar to avoid confusion with jack.Client
+# TODO: move this to another file and import it
+class JackClient:
+    """Object to play sounds"""
+    def __init__(self, name='jack_client', outchannels=None):
+        """Initialize a new JackClient
+
+        This object contains a jack.Client object that actually plays audio.
+        It provides methods to send sound to its jack.Client, notably a 
+        `process` function which is called every 5 ms or so.
+        
+        name : str
+            Required by jack.Client
+        
+        outchannels : None
+            TODO: remove this functionality, we will always have stereo
+        
+        Presently, this object can have its acoustic properties set by
+        external code, and it will constantly generate sound and send it 
+        to its jack.Client. It will also send messages to poke_socket.
+        
+        TODO
+        * Decouple the sound generation into another object. 
+        * Decouple the networking messages into another object.
+        * Implement more precise logging of exactly when the sound comes out.
+        
+        This object should focus only on playing sound as precisely as
+        possible.
+        """
+        ## Store provided parameters
+        self.name = name
+        
+        
+        ## Acoustic parameters of the sound
+        # TODO: define these elsewhere -- these should not be properties of
+        # this object, because this object should be able to play many sounds
+        
+        # This determines which channel plays sound
+        self.set_channel = 'none'  # 'left', 'right', or 'none'
+        
+        # Lock for thread-safe set_channel() updates
+        self.lock = threading.Lock()  
+        
+        # Duration of each chunk (noise burst) in seconds
+        self.chunk_duration = 0.01  
+        
+        # Pause duration between chunk in seconds
+        self.pause_duration = random.uniform(0.05, 0.2)  
+        
+        # Amplitude of the sound
+        self.amplitude = random.uniform(0.005, 0.02)
+        
+        # Variable to store the time of the last burst
+        self.last_chunk_time = time.time()  
+
+        
+        ## Create the contained jack.Client
         # Creating a jack client
         self.client = jack.Client(self.name)
 
         # Pull these values from the initialized client
         # These come from the jackd daemon
+        # `blocksize` is the number of samples to provide on each `process`
+        # call
         self.blocksize = self.client.blocksize
+        
+        # `fs` is the sampling rate
         self.fs = self.client.samplerate
+        
+        # Debug message
+        # TODO: add control over verbosity of debug messages
         print("Received blocksize {} and fs {}".format(self.blocksize, self.fs))
 
+        
+        ## Set up outchannels
+        # TODO: outchannels should always be [0, 1] and mono_output should
+        # always be False
+        
         # Set the number of output channels
         if outchannels is None:
             self.outchannels = [0, 1]
@@ -67,11 +146,15 @@ class JackClient:
             for n in range(len(self.outchannels)):
                 self.client.outports.register('out_{}'.format(n))
 
-        # Process callback to self.process
+
+        ## Set up the process callback
+        # This will be called on every block and must provide data
         self.client.set_process_callback(self.process)
 
-        # Activate the client
+        
+        ## Activate the client
         self.client.activate()
+
 
         ## Hook up the outports (data sinks) to physical ports
         # Get the actual physical ports that can play sound
@@ -79,6 +162,7 @@ class JackClient:
             is_physical=True, is_input=True, is_audio=True)
 
         # Depends on whether we're in mono mode
+        # TODO: Assume always stereo and simplify this
         if self.mono_output:
             ## Mono mode
             # Hook up one outport to all channels
@@ -106,20 +190,39 @@ class JackClient:
                 # Connect virtual outport to physical channel
                 self.client.outports[n].connect(physical_channel)
 
-    
-    # Method to update sound parameters dynamically
-    def update_parameters(self, chunk_min, chunk_max, pause_min, pause_max, amplitude_min, amplitude_max):
+    def update_parameters(self, chunk_min, chunk_max, pause_min, pause_max, 
+        amplitude_min, amplitude_max):
+        """Method to update sound parameters dynamically"""
         self.chunk_duration = random.uniform(chunk_min, chunk_max)
         self.pause_duration = random.uniform(pause_min, pause_max)
         self.amplitude = random.uniform(amplitude_min, amplitude_max)
 
-        parameter_message = f"Current Parameters - Amplitude: {self.amplitude}, Chunk Duration: {self.chunk_duration} s, Pause Duration: {self.pause_duration}"
+        # Debug message
+        parameter_message = (
+            f"Current Parameters - Amplitude: {self.amplitude}, "
+            f"Chunk Duration: {self.chunk_duration} s, "
+            f"Pause Duration: {self.pause_duration}"
+            )
         print(parameter_message)
-        poke_socket.send_string(parameter_message)  # Send the parameter message
+        
+        # Send the parameter message
+        # TODO: break this out of this object. This object should not have
+        # to know about ZMQ messages
+        # TODO: what does this do? Why is it called poke_socket? Why does
+        # the parameter message need to be sent?
+        poke_socket.send_string(parameter_message)  
     
-    # Process callback function (used to play sound)
     def process(self, frames):
-        with self.lock: # Making process() thread-safe
+        """Process callback function (used to play sound)
+        
+        TODO: reimplement this to use a queue instead
+        The current implementation uses time.time(), but we need to be more
+        precise.
+        """
+        # Making process() thread-safe (so that multiple calls don't try to
+        # write to the outports at the same time)
+        with self.lock: 
+            # Get the current time
             current_time = time.time()
 
             # Initialize data with zeros (silence)
@@ -127,22 +230,41 @@ class JackClient:
 
             # Check if time for chunk or gap
             if current_time - self.last_chunk_time >= self.chunk_duration + self.pause_duration:
-                self.last_chunk_time = current_time  # Updating the last chunk time
+                # It has been long enough that it is time for a new noise burst
+                # Updating the last chunk time to now
+                self.last_chunk_time = current_time  
+            
             elif current_time - self.last_chunk_time >= self.chunk_duration:
-                pass  # Silence is playing
+                # We are in the silent period between sounds
+                # So play silence
+                pass
+            
             else:
                 # Generate random noise for the chunks
-                if self.set_channel == 'left': # Play sound from left channel
-                    data = self.amplitude * np.random.uniform(-1, 1, (self.blocksize, 2)) # Random noise using numpy
-                    data[:, 1] = 0  # Blocking out the right channel 
+                # Play sound from left channel
+                if self.set_channel == 'left': 
+                    # Random noise using numpy
+                    data = (self.amplitude * 
+                        np.random.uniform(-1, 1, (self.blocksize, 2))) 
+                    
+                    # Blocking out the right channel 
+                    data[:, 1] = 0  
+                
                 elif self.set_channel == 'right':
-                    data = self.amplitude * np.random.uniform(-1, 1, (self.blocksize, 2))
-                    data[:, 0] = 0  # Blocking out the left channel
+                    # Random noise using numpy
+                    data = (self.amplitude * 
+                        np.random.uniform(-1, 1, (self.blocksize, 2)))
+                    
+                    # Blocking out the left channel
+                    data[:, 0] = 0  
 
             # Write
             self.write_to_outports(data)
 
     def write_to_outports(self, data):
+        """Write data to outports"""
+        # TODO: rewrite this to be always stereo, and then combine this
+        # into process function above
         if data.ndim == 1:
             ## 1-dimensional sound provided
             # Write the same data to each channel
@@ -167,42 +289,64 @@ class JackClient:
         else:
             raise ValueError("data must be 1D or 2D") 
 
-    # Function to set which channel to play sound from
     def set_set_channel(self, mode):
+        """Set which channel to play sound from"""
+        # Why is it necessary to get the lock here?
         with self.lock:
             self.set_channel = mode
 
-# Define a client to play sounds
+
+## Define a client to play sounds
 jack_client = JackClient(name='jack_client')
 
 # Raspberry Pi's identity (Change this to the identity of the Raspberry Pi you are using)
+# TODO: what is the difference between pi_identity and pi_name?
 pi_identity = params['identity']
 
-# Creating a ZeroMQ context and socket for communication with the central system
+
+## Creating a ZeroMQ context and socket for communication with the central system
+# TODO: what information travels over this socket? Clarify: do messages on
+# this socket go out or in?
 poke_context = zmq.Context()
 poke_socket = poke_context.socket(zmq.DEALER)
-poke_socket.identity = bytes(f"{pi_identity}", "utf-8") # Setting the identity of the socket in bytes
 
-# Creating a ZeroMQ context and socket for receiving JSON files
+# Setting the identity of the socket in bytes
+poke_socket.identity = bytes(f"{pi_identity}", "utf-8") 
+
+
+## Creating a ZeroMQ context and socket for receiving JSON files
+# TODO: what information travels over this socket? Clarify: do messages on
+# this socket go out or in?
 json_context = zmq.Context()
 json_socket = json_context.socket(zmq.SUB)
 
-# Connect to the server
-router_ip = "tcp://" + f"{params['gui_ip']}" + f"{params['poke_port']}" # Connecting to Laptop IP address (192.168.0.99 for laptop, 192.168.0.207 for seaturtle)
-poke_socket.connect(router_ip) 
-poke_socket.send_string(f"{pi_identity}") # Send the identity of the Raspberry Pi to the server
-print(f"Connected to router at {router_ip}")  # Print acknowledgment
 
-#JSON socket
+## Connect to the server
+# Connecting to Laptop IP address (192.168.0.99 for laptop, 192.168.0.207 for seaturtle)
+router_ip = "tcp://" + f"{params['gui_ip']}" + f"{params['poke_port']}" 
+poke_socket.connect(router_ip) 
+
+# Send the identity of the Raspberry Pi to the server
+poke_socket.send_string(f"{pi_identity}") 
+
+# Print acknowledgment
+print(f"Connected to router at {router_ip}")  
+
+
+## Connect to json socket
 router_ip2 = "tcp://" + f"{params['gui_ip']}" + f"{params['config_port']}"
 json_socket.connect(router_ip2) 
 
 # Subscribe to all incoming messages
 json_socket.subscribe(b"")
 
-print(f"Connected to router at {router_ip2}")  # Print acknowledgment
+# Print acknowledgment
+print(f"Connected to router at {router_ip2}")  
 
-# Pigpio configuration
+
+## Pigpio configuration
+# TODO: move these methods into a Nosepoke object. That object should be
+# defined in another script and imported here
 a_state = 0
 count = 0
 nosepoke_pinL = 8
@@ -289,17 +433,24 @@ def poke_detectedR(pin, level, tick):
         print("Error sending nosepoke_id:", e)
 
 def open_valve(port):
+    """Open the valve for port
+    
+    port : TODO document what this is
+    TODO: reward duration needs to be a parameter of the task or mouse
+    """
     if port == int(params['nosepokeL_id']):
         pi.set_mode(6, pigpio.OUTPUT)
         pi.write(6, 1)
         time.sleep(0.05)
         pi.write(6, 0)
+    
     if port == int(params['nosepokeR_id']):
         pi.set_mode(26, pigpio.OUTPUT)
         pi.write(26, 1)
         time.sleep(0.05)
         pi.write(26, 0)
-        
+
+# TODO: document
 def flash():
     pi.set_mode(22, pigpio.OUTPUT)
     pi.write(22, 1)
@@ -309,29 +460,42 @@ def flash():
     pi.write(22, 0)
     pi.write(11, 0)  
 
-# Set up pigpio and callbacks
+
+## Set up pigpio and callbacks
 pi = pigpio.pi()
 pi.callback(nosepoke_pinL, pigpio.FALLING_EDGE, poke_inL)
 pi.callback(nosepoke_pinL, pigpio.RISING_EDGE, poke_detectedL)
 pi.callback(nosepoke_pinR, pigpio.FALLING_EDGE, poke_inR)
 pi.callback(nosepoke_pinR, pigpio.RISING_EDGE, poke_detectedR)
 
-# Create a Poller object
+
+## Create a Poller object
+# TODO: document .. What is this?
 poller = zmq.Poller()
 poller.register(poke_socket, zmq.POLLIN)
 poller.register(json_socket, zmq.POLLIN)
 
-# Initialize variables for sound parameters
+
+## Initialize variables for sound parameters
+# These are not sound parameters .. TODO document
 pwm_frequency = 1
 pwm_duty_cycle = 50
+
+# Duration of sounds
 chunk_min = 0.01
 chunk_max = 0.05
+
+# Duration of pauses
 pause_min = 0.05
 pause_max = 0.2
+
+# Range of amplitudes
+# TODO: these need to be received from task, not specified here
 amplitude_min = 0.005
 amplitude_max = 0.02
 
-# Main loop to keep the program running and exit when it receives an exit command
+
+## Main loop to keep the program running and exit when it receives an exit command
 try:
     # Initialize reward_pin variable
     reward_pin = None
