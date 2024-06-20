@@ -148,7 +148,7 @@ class Worker(QObject):
     def stop_sequence(self):
         if self.timer is not None:
             self.timer.stop()
-            #self.timer.timeout.disconnect(self.update_Pi)
+            self.timer.timeout.disconnect(self.update_Pi)
         
         # Clear the recorded data and reset necessary attributes
         self.initial_time = None
@@ -209,7 +209,7 @@ class Worker(QObject):
                 
                 # Extract and convert the values
                 self.current_amplitude = float(params.get("Amplitude", 0))
-                self.current_chunk_duration = float(params.get("Chunk Duration", "0").split()[0])
+                self.current_chunk_duration = float(params.get("Sound Duration", "0").split()[0])
                 self.current_pause_duration = float(params.get("Pause Duration", 0))
 
             else:
@@ -278,6 +278,12 @@ class Worker(QObject):
         
         print(f"Results saved to logs")
     
+    # Method to send a stop message to the pi
+    def stop_message(self):        
+        for identity in self.identities:
+            self.socket.send_multipart([identity, b"stop"])
+        for index, Pi in enumerate(self.Pi_signals):
+            Pi.set_color("gray")
 
 # PiWidget Class that represents all PiSignals
 class PiWidget(QWidget):
@@ -463,6 +469,7 @@ class PiWidget(QWidget):
         self.poke_time_label.setText(f"Time since last poke: {str(int(minutes)).zfill(2)}:{str(int(seconds)).zfill(2)}")
 
     def save_results_to_csv(self):
+        self.worker.stop_message()
         self.worker.save_results_to_csv()  # Call worker method to save results
 
 # Widget that contains a plot that is continuously depending on the ports that are poked
@@ -1078,7 +1085,6 @@ class MainWindow(QtWidgets.QMainWindow):
         self.show()
 
         # Connecting signals after the MainWindow is fully initialized
-        #self.config_list.send_config_signal.connect(self.Pi_widget.worker.set_current_task)
         self.Pi_widget.worker.pokedportsignal.connect(self.plot_window.handle_update_signal)
         self.Pi_widget.updateSignal.connect(self.plot_window.handle_update_signal)
         self.Pi_widget.startButtonClicked.connect(self.config_list.on_start_button_clicked)
