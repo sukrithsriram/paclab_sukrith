@@ -267,7 +267,7 @@ class Worker(QObject):
         
         # Generating filename based on current_task and current date/time
         current_time = datetime.now().strftime("%Y%m%d_%H%M%S")
-        filename = f"{current_task}_{current_time}.csv"
+        filename = f"{current_task}_{current_time}_saved.csv"
         
         # Save results to a CSV file
         with open(f"{save_directory}/{filename}", 'w', newline='') as csvfile:
