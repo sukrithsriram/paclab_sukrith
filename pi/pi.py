@@ -576,14 +576,19 @@ try:
                 # Exit the loop
                 break  
             
+            # From stop button
             if msg == 'stop':
+                flash()
+                reward_pin = None
+                current_pin = None
+                prev_port = None
                 pi.write(17, 0)
                 pi.write(10, 0)
                 pi.write(27, 0)
                 pi.write(9, 0)
                 jack_client.set_set_channel('none')
                 print("Stop command received. Stopping sequence.")
-            
+
             elif msg.startswith("Reward Port:"):    
                 ## This specifies which port to reward
                 # Debug print
