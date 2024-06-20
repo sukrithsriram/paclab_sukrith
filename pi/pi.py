@@ -450,7 +450,7 @@ def open_valve(port):
         time.sleep(0.05)
         pi.write(26, 0)
 
-# TODO: document
+# TODO: document this function
 def flash():
     pi.set_mode(22, pigpio.OUTPUT)
     pi.write(22, 1)
@@ -462,6 +462,7 @@ def flash():
 
 
 ## Set up pigpio and callbacks
+# TODO: rename this variable to pig or something; "pi" is ambiguous
 pi = pigpio.pi()
 pi.callback(nosepoke_pinL, pigpio.FALLING_EDGE, poke_inL)
 pi.callback(nosepoke_pinL, pigpio.RISING_EDGE, poke_detectedL)
@@ -497,24 +498,38 @@ amplitude_max = 0.02
 
 ## Main loop to keep the program running and exit when it receives an exit command
 try:
+    ## TODO: document these variables and why they are tracked
     # Initialize reward_pin variable
     reward_pin = None
-    current_pin = None  # Track the currently active LED
+    
+    # Track the currently active LED
+    current_pin = None  
+    
+    # Track prev_port
     prev_port = None
     
+    
+    ## Loop forever
     while True:
-        # Wait for events on registered sockets
+        ## Wait for events on registered sockets
+        # TODO: how long does it wait?
         socks = dict(poller.poll())
         
-        # Check for incoming messages on json_socket
+        
+        ## Check for incoming messages on json_socket
+        # If so, use it to update the acoustic parameters
         if json_socket in socks and socks[json_socket] == zmq.POLLIN:
-            json_data = json_socket.recv_json()  # Blocking receive
+            ## Data was received on json_socket
+            # Receive the data (this is blocking)
+            # TODO: what does blocking mean here? How long does it block?
+            json_data = json_socket.recv_json()
+            
             # Deserialize JSON data
             config_data = json.loads(json_data)
+            
+            # Debug print
             print(config_data)
 
-            #if 'chunk_min' in config_data and 'pause_duration' in config_data and 'amplitude_min' in config_data and 'amplitude_max' in config_data:
-            
             # Update parameters from JSON data
             chunk_min = config_data['chunk_min']
             chunk_max = config_data['chunk_max']
@@ -522,15 +537,27 @@ try:
             pause_max = config_data['pause_max']
             amplitude_min = config_data['amplitude_min']
             amplitude_max = config_data['amplitude_max']
-            jack_client.update_parameters(chunk_min, chunk_max, pause_min, pause_max, amplitude_min, amplitude_max)
+            
+            # Update the jack client with the new acoustic parameters
+            jack_client.update_parameters(
+                chunk_min, chunk_max, pause_min, pause_max, 
+                amplitude_min, amplitude_max)
+            
+            # Debug print
             print("Parameters updated")
             
-        # Check for incoming messages on poke_socket
+        
+        ## Check for incoming messages on poke_socket
+        # TODO: document the types of messages that can be sent on poke_socket
         if poke_socket in socks and socks[poke_socket] == zmq.POLLIN:
-            #flash()
-            msg = poke_socket.recv_string()  # Blocking receive #flags=zmq.NOBLOCK)  # Non-blocking receive
+            # Blocking receive: #flags=zmq.NOBLOCK)  
+            # Non-blocking receive
+            msg = poke_socket.recv_string()  
     
-            if msg == 'exit': # Condition to terminate the main loop
+            # Different messages have different effects
+            if msg == 'exit': 
+                # Condition to terminate the main loop
+                # TODO: why are these pi.write here?
                 pi.write(17, 0)
                 pi.write(10, 0)
                 pi.write(27, 0)
@@ -538,66 +565,108 @@ try:
                 print("Received exit command. Terminating program.")
                 
                 # Stop the Jack client
+                # TODO: Probably want to leave this running for the next
+                # session
                 jack_client.client.deactivate()
                 
                 # Wait for the client to finish processing any remaining chunks
+                # TODO: why is this here? It's already deactivated
                 time.sleep(jack_client.chunk_duration + jack_client.pause_duration)
                 
-                break  # Exit the loop
+                # Exit the loop
+                break  
             
             elif msg == 'start':
+                # TODO: document
                 flash()
             
             elif msg.startswith("Reward Port:"):    
+                ## This specifies which port to reward
+                # Debug print
                 print(msg)
+                
                 # Extract the integer part from the message
                 msg_parts = msg.split()
                 if len(msg_parts) != 3 or not msg_parts[2].isdigit():
                     print("Invalid message format.")
                     continue
                 
-                value = int(msg_parts[2])  # Extract the integer part
+                # Extract the integer part
+                value = int(msg_parts[2])  
                 
-                # Reset the previously active LED if any
+                # Turn off the previously active LED if any
                 if current_pin is not None:
                     pi.write(current_pin, 0)
                 
                 # Manipulate pin values based on the integer value
                 if value == int(params['nosepokeL_id']):
-                    reward_pin = 27  # Example pin for case 1 
+                    # Reward pin for left
+                    # TODO: these reward pins need to be stored as a parameter,
+                    # not hardcoded here
+                    reward_pin = 27  
+                    
+                    # TODO: what does this do? Why not just have reward pin
+                    # always be set to output?
                     pi.set_mode(reward_pin, pigpio.OUTPUT)
                     pi.set_PWM_frequency(reward_pin, pwm_frequency)
                     pi.set_PWM_dutycycle(reward_pin, pwm_duty_cycle)
+                    
                     # Playing sound from the left speaker
                     jack_client.set_set_channel('left')
+                    
+                    # Debug message
                     print("Turning Nosepoke 5 Green")
 
+                    # Keep track of which port is rewarded and which pin
+                    # is rewarded
                     prev_port = value
                     current_pin = reward_pin
 
                 elif value == int(params['nosepokeR_id']):
-                    reward_pin = 9  # Example pin for case 2
+                    # Reward pin for right
+                    # TODO: these reward pins need to be stored as a parameter,
+                    # not hardcoded here                    
+                    reward_pin = 9
+                    
+                    # TODO: what does this do? Why not just have reward pin
+                    # always be set to output?
                     pi.set_mode(reward_pin, pigpio.OUTPUT)
                     pi.set_PWM_frequency(reward_pin, pwm_frequency)
                     pi.set_PWM_dutycycle(reward_pin, pwm_duty_cycle)
+                    
                     # Playing sound from the right speaker
                     jack_client.set_set_channel('right')
+                    
+                    # Debug message
                     print("Turning Nosepoke 7 Green")
 
+                    # Keep track of which port is rewarded and which pin
+                    # is rewarded
                     prev_port = value
                     current_pin = reward_pin
 
                 else:
-                    print(f"Current Reward Port: {value}") # Current Reward Port
+                    # TODO: document why this happens
+                    # Current Reward Port
+                    print(f"Current Reward Port: {value}") 
             
             elif msg == "Reward Poke Completed":
+                # This seems to occur when the GUI detects that the poked
+                # port was rewarded. This will be too slow. The reward port
+                # should be opened if it knows it is the rewarded pin.
+                
                 # Opening Solenoid Valve
                 open_valve(prev_port)
                 flash()
                 
                 # Updating Parameters
-                jack_client.update_parameters(chunk_min, chunk_max, pause_min, pause_max, amplitude_min, amplitude_max)
-                #Turn off the currently active LED
+                # TODO: fix this; chunk_min etc are not necessarily defined
+                # yet, or haven't changed recently
+                jack_client.update_parameters(
+                    chunk_min, chunk_max, pause_min, pause_max, 
+                    amplitude_min, amplitude_max)
+                
+                # Turn off the currently active LED
                 if current_pin is not None:
                     pi.write(current_pin, 0)
                     print("Turning off currently active LED.")
@@ -612,8 +681,11 @@ try:
                 print("Unknown message received:", msg)
 
 except KeyboardInterrupt:
+    # Stops the pigpio connection
     pi.stop()
+
 finally:
+    # Close all sockets and contexts
     poke_socket.close()
     poke_context.term()
     json_socket.close()

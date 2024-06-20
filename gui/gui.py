@@ -1,3 +1,10 @@
+## TODO: 
+# Document what each class in this script does.
+# Separate the classes that are for running the GUI from the classes
+# that interact with the Pi and run the task 
+# Put the ones that run the GUI in another script and import them here
+
+
 # Importing necessary libraries
 import sys
 import zmq
