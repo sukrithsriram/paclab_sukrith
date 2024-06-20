@@ -79,7 +79,6 @@ class JackClient:
         ## Store provided parameters
         self.name = name
         
-        
         ## Acoustic parameters of the sound
         # TODO: define these elsewhere -- these should not be properties of
         # this object, because this object should be able to play many sounds
@@ -300,13 +299,14 @@ class JackClient:
 jack_client = JackClient(name='jack_client')
 
 # Raspberry Pi's identity (Change this to the identity of the Raspberry Pi you are using)
-# TODO: what is the difference between pi_identity and pi_name?
+# TODO: what is the difference between pi_identity and pi_name? # They are functionally the same, this line is from before I imported 
 pi_identity = params['identity']
 
 
 ## Creating a ZeroMQ context and socket for communication with the central system
 # TODO: what information travels over this socket? Clarify: do messages on
 # this socket go out or in?
+
 poke_context = zmq.Context()
 poke_socket = poke_context.socket(zmq.DEALER)
 
@@ -317,12 +317,13 @@ poke_socket.identity = bytes(f"{pi_identity}", "utf-8")
 ## Creating a ZeroMQ context and socket for receiving JSON files
 # TODO: what information travels over this socket? Clarify: do messages on
 # this socket go out or in?
+#  - This socket only receives messages sent from the GUI regarding the parameters 
 json_context = zmq.Context()
 json_socket = json_context.socket(zmq.SUB)
 
 
 ## Connect to the server
-# Connecting to Laptop IP address (192.168.0.99 for laptop, 192.168.0.207 for seaturtle)
+# Connecting to IP address (192.168.0.99 for laptop, 192.168.0.207 for seaturtle)
 router_ip = "tcp://" + f"{params['gui_ip']}" + f"{params['poke_port']}" 
 poke_socket.connect(router_ip) 
 
@@ -436,7 +437,7 @@ def open_valve(port):
     """Open the valve for port
     
     port : TODO document what this is
-    TODO: reward duration needs to be a parameter of the task or mouse
+    TODO: reward duration needs to be a parameter of the task or mouse # It is in the test branch
     """
     if port == int(params['nosepokeL_id']):
         pi.set_mode(6, pigpio.OUTPUT)
@@ -469,13 +470,11 @@ pi.callback(nosepoke_pinL, pigpio.RISING_EDGE, poke_detectedL)
 pi.callback(nosepoke_pinR, pigpio.FALLING_EDGE, poke_inR)
 pi.callback(nosepoke_pinR, pigpio.RISING_EDGE, poke_detectedR)
 
-
 ## Create a Poller object
 # TODO: document .. What is this?
 poller = zmq.Poller()
 poller.register(poke_socket, zmq.POLLIN)
 poller.register(json_socket, zmq.POLLIN)
-
 
 ## Initialize variables for sound parameters
 # These are not sound parameters .. TODO document
@@ -491,7 +490,7 @@ pause_min = 0.05
 pause_max = 0.2
 
 # Range of amplitudes
-# TODO: these need to be received from task, not specified here
+# TODO: these need to be received from task, not specified here # These were all initial values set incase a task was not selected
 amplitude_min = 0.005
 amplitude_max = 0.02
 
@@ -512,7 +511,7 @@ try:
     ## Loop forever
     while True:
         ## Wait for events on registered sockets
-        # TODO: how long does it wait?
+        # TODO: how long does it wait? # Can be set, currently not sure
         socks = dict(poller.poll())
         
         
@@ -520,7 +519,7 @@ try:
         # If so, use it to update the acoustic parameters
         if json_socket in socks and socks[json_socket] == zmq.POLLIN:
             ## Data was received on json_socket
-            # Receive the data (this is blocking)
+            # Receive the data (this is blocking) # Forgot to remove comment after implementing poller
             # TODO: what does blocking mean here? How long does it block?
             json_data = json_socket.recv_json()
             
@@ -548,7 +547,7 @@ try:
             
         
         ## Check for incoming messages on poke_socket
-        # TODO: document the types of messages that can be sent on poke_socket
+        # TODO: document the types of messages that can be sent on poke_socket 
         if poke_socket in socks and socks[poke_socket] == zmq.POLLIN:
             # Blocking receive: #flags=zmq.NOBLOCK)  
             # Non-blocking receive
@@ -557,7 +556,7 @@ try:
             # Different messages have different effects
             if msg == 'exit': 
                 # Condition to terminate the main loop
-                # TODO: why are these pi.write here?
+                # TODO: why are these pi.write here? # To turn the LEDs on the Pi off when the GUI is closed
                 pi.write(17, 0)
                 pi.write(10, 0)
                 pi.write(27, 0)
@@ -570,7 +569,7 @@ try:
                 jack_client.client.deactivate()
                 
                 # Wait for the client to finish processing any remaining chunks
-                # TODO: why is this here? It's already deactivated
+                # TODO: why is this here? It's already deactivated 
                 time.sleep(jack_client.chunk_duration + jack_client.pause_duration)
                 
                 # Exit the loop
@@ -606,7 +605,7 @@ try:
                     reward_pin = 27  
                     
                     # TODO: what does this do? Why not just have reward pin
-                    # always be set to output?
+                    # always be set to output? # These are for the LEDs to blink
                     pi.set_mode(reward_pin, pigpio.OUTPUT)
                     pi.set_PWM_frequency(reward_pin, pwm_frequency)
                     pi.set_PWM_dutycycle(reward_pin, pwm_duty_cycle)
@@ -629,7 +628,7 @@ try:
                     reward_pin = 9
                     
                     # TODO: what does this do? Why not just have reward pin
-                    # always be set to output?
+                    # always be set to output? # LED blinking
                     pi.set_mode(reward_pin, pigpio.OUTPUT)
                     pi.set_PWM_frequency(reward_pin, pwm_frequency)
                     pi.set_PWM_dutycycle(reward_pin, pwm_duty_cycle)
@@ -653,7 +652,7 @@ try:
             elif msg == "Reward Poke Completed":
                 # This seems to occur when the GUI detects that the poked
                 # port was rewarded. This will be too slow. The reward port
-                # should be opened if it knows it is the rewarded pin.
+                # should be opened if it knows it is the rewarded pin. 
                 
                 # Opening Solenoid Valve
                 open_valve(prev_port)
