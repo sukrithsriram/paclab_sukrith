@@ -126,7 +126,7 @@ class Worker(QObject):
         self.timestamps = []
         self.reward_ports = []
         
-        # Randomly choose either 3 or 4 as the initial reward port
+        # Randomly choose the initial reward port
         self.reward_port = random.choice(active_nosepokes)
         reward_message = f"Reward Port: {self.reward_port}"
         print(reward_message)
