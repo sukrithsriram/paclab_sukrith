@@ -439,16 +439,17 @@ def open_valve(port):
     port : TODO document what this is
     TODO: reward duration needs to be a parameter of the task or mouse # It is in the test branch
     """
+    reward_value = config_data['reward_value']
     if port == int(params['nosepokeL_id']):
         pi.set_mode(6, pigpio.OUTPUT)
         pi.write(6, 1)
-        time.sleep(0.05)
+        time.sleep(reward_value)
         pi.write(6, 0)
     
     if port == int(params['nosepokeR_id']):
         pi.set_mode(26, pigpio.OUTPUT)
         pi.write(26, 1)
-        time.sleep(0.05)
+        time.sleep(reward_value)
         pi.write(26, 0)
 
 # TODO: document this function
@@ -512,7 +513,7 @@ try:
     while True:
         ## Wait for events on registered sockets
         # TODO: how long does it wait? # Can be set, currently not sure
-        socks = dict(poller.poll())
+        socks = dict(poller.poll(1))
         
         
         ## Check for incoming messages on json_socket
@@ -575,13 +576,13 @@ try:
                 # Exit the loop
                 break  
             
-            elif msg == 'stop':
-                # TODO: document
+            if msg == 'stop':
                 pi.write(17, 0)
                 pi.write(10, 0)
                 pi.write(27, 0)
                 pi.write(9, 0)
                 jack_client.set_set_channel('none')
+                print("Stop command received. Stopping sequence.")
             
             elif msg.startswith("Reward Port:"):    
                 ## This specifies which port to reward
