@@ -588,6 +588,7 @@ try:
                 pi.write(9, 0)
                 jack_client.set_set_channel('none')
                 print("Stop command received. Stopping sequence.")
+                continue
 
             elif msg.startswith("Reward Port:"):    
                 ## This specifies which port to reward
