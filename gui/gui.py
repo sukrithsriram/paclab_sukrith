@@ -129,11 +129,6 @@ class Worker(QObject):
         self.initial_time = time.time()
         self.timestamps = []
         self.reward_ports = []
-
-        # Sending initialization message to Pi
-        for identity in self.identities:
-            self.socket.send_multipart([identity, b"start"])
-        #time.sleep(1)
         
         # Randomly choose either 3 or 4 as the initial reward port
         self.reward_port = random.choice(active_nosepokes)
@@ -155,9 +150,29 @@ class Worker(QObject):
     # Method to stop the sequence
     @pyqtSlot()
     def stop_sequence(self):
-        if self.timer is not None: 
+        # Sending stop message to Pi
+        for identity in self.identities:
+            self.socket.send_multipart([identity, b"stop"])
+        
+        if self.timer is not None:
             self.timer.stop()
             self.timer.timeout.disconnect(self.update_Pi)
+        
+        # Clear the recorded data and reset necessary attributes
+        self.initial_time = None
+        self.timestamps.clear()
+        self.reward_ports.clear()
+        self.poked_port_numbers.clear()
+        self.amplitudes.clear()
+        self.chunk_durations.clear()
+        self.pause_durations.clear()
+        self.unique_ports_visited.clear()
+        self.identities.clear()
+        self.last_poke_timestamp = None
+        self.reward_port = None
+        self.previous_port = None
+        self.trials = 0
+        self.average_unique_ports = 0
     
     # Method to update unique ports visited
     def update_unique_ports(self):
@@ -388,16 +403,31 @@ class PiWidget(QWidget):
         self.timer.start(10)  # Update every second               
 
     def stop_sequence(self):
-        # Stop the worker thread when the stop button is pressed
         QMetaObject.invokeMethod(self.worker, "stop_sequence", Qt.QueuedConnection)
         print("Experiment Stopped!")
-        #self.thread.quit()
-
+        
         # Stop the plot
         self.main_window.plot_window.stop_plot()
+        
+        # Reset all labels
+        self.time_label.setText("Time Elapsed: 00:00")
+        self.poke_time_label.setText("Time since last poke: 00:00")
+        self.red_label.setText("Number of Pokes: 0")
+        self.blue_label.setText("Number of Trials: 0")
+        self.green_label.setText("Number of Correct Trials: 0")
+        self.fraction_correct_label.setText("Fraction Correct (FC): 0.000")
+        self.rcp_label.setText("Rank of Correct Port (RCP): 0")
+
+        # Reset poke and trial counts
+        self.red_count = 0
+        self.blue_count = 0
+        self.green_count = 0
 
         # Stop the timer
         self.timer.stop()
+        
+        # Allow starting a new experiment
+        self.thread.quit()
 
     @pyqtSlot()
     def update_time_elapsed(self):
@@ -479,6 +509,9 @@ class PlotWindow(QWidget):
             symbolBrush="r",
         )
 
+        # List to keep track of all plotted items for easy clearing
+        self.plotted_items = []
+
         # Connecting to signals from PiWidget
         pi_widget.updateSignal.connect(self.handle_update_signal)
         # Connect the signal from Worker to a slot
@@ -508,6 +541,12 @@ class PlotWindow(QWidget):
         self.signal.clear()
         # Update the plot with cleared data
         self.line.setData(x=[], y=[])
+
+        # Clear all plotted items
+        for item in self.plotted_items:
+            self.plot_graph.removeItem(item)
+        self.plotted_items.clear()
+
         self.line_of_current_time.setData(x=[], y=[])
 
     def update_time_bar(self):
@@ -536,7 +575,7 @@ class PlotWindow(QWidget):
         if self.is_active:
             brush_color = "g" if color == "green" else "r" if color == "red" else "b"
             relative_time = (datetime.now() - self.start_time).total_seconds()  # Convert to seconds
-            self.plot_graph.plot(
+            item = self.plot_graph.plot(
                 [relative_time],
                 [poked_port_value],
                 pen=None,
@@ -545,10 +584,12 @@ class PlotWindow(QWidget):
                 symbolBrush=brush_color,
                 symbolPen=None,
             )
+            self.plotted_items.append(item)
 
     def update_plot(self):
         # Update plot with timestamps and signals
         self.line.setData(x=self.timestamps, y=self.signal)
+
 
 # Displays a Dialog box with all the details of the task when you right-click an item on the list
 class ConfigurationDetailsDialog(QDialog):
