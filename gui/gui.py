@@ -40,6 +40,9 @@ with open(param_directory, "r") as p:
 # Fetching all the ports to use for the trials    
 active_nosepokes = [int(i) for i in params['active_nosepokes']]
 
+# Variable to keep track of the current task
+current_task = None
+
 # Creating a class for the individual Raspberry Pi signals
 class PiSignal(QGraphicsEllipseItem):
     def __init__(self, index, total_ports):
@@ -114,13 +117,6 @@ class Worker(QObject):
         self.unique_ports_visited = []  # List to store unique ports visited in each trial
         self.unique_ports_colors = {}  # Dictionary to store color for each unique port
         self.average_unique_ports = 0  # Variable to store the average number of unique ports visited
-
-    
-    # Process the current_task string as needed
-    @pyqtSlot(str)
-    def set_current_task(self, current_task):
-        self.current_task = current_task
-        print("Stored current_task:", self.current_task)
     
     # Method to start the sequence
     @pyqtSlot()
@@ -138,7 +134,7 @@ class Worker(QObject):
         # Send the message to all connected Pis
         for identity in self.identities:
             self.socket.send_multipart([identity, bytes(reward_message, 'utf-8')])
-            
+        
         # Set the color of the initial reward port to green
         self.Pi_signals[self.reward_port - 1].set_color("green")
 
@@ -150,13 +146,9 @@ class Worker(QObject):
     # Method to stop the sequence
     @pyqtSlot()
     def stop_sequence(self):
-        # Sending stop message to Pi
-        for identity in self.identities:
-            self.socket.send_multipart([identity, b"stop"])
-        
         if self.timer is not None:
             self.timer.stop()
-            self.timer.timeout.disconnect(self.update_Pi)
+            #self.timer.timeout.disconnect(self.update_Pi)
         
         # Clear the recorded data and reset necessary attributes
         self.initial_time = None
@@ -268,14 +260,24 @@ class Worker(QObject):
     
    # Method to save results to a CSV file
     def save_results_to_csv(self):
+        global current_task
+        
+        # Specifying the directory where you want to save the CSV files
+        save_directory = params['save_directory']
+        
+        # Generating filename based on current_task and current date/time
+        current_time = datetime.now().strftime("%Y%m%d_%H%M%S")
+        filename = f"{current_task}_{current_time}.csv"
+        
         # Save results to a CSV file
-        filename, _ = QFileDialog.getSaveFileName(None, "Save Results", "", "CSV Files (*.csv)")
-        if filename:
-            with open(filename, 'w', newline='') as csvfile:
-                writer = csv.writer(csvfile)
-                writer.writerow(["Poke Timestamp (seconds)", "Port Visited", "Current Reward Port", "Amplitude", "Chunk Duration", "Pause Duration"])
-                for timestamp, poked_port, reward_port, amplitude, chunk_duration, pause_duration in zip(self.timestamps, self.poked_port_numbers, self.reward_ports, self.amplitudes, self.chunk_durations, self.pause_durations):
-                    writer.writerow([timestamp, poked_port, reward_port, amplitude, chunk_duration, pause_duration])
+        with open(f"{save_directory}/{filename}", 'w', newline='') as csvfile:
+            writer = csv.writer(csvfile)
+            writer.writerow(["Poke Timestamp (seconds)", "Port Visited", "Current Reward Port", "Amplitude", "Chunk Duration", "Pause Duration"])
+            for timestamp, poked_port, reward_port, amplitude, chunk_duration, pause_duration in zip(self.timestamps, self.poked_port_numbers, self.reward_ports, self.amplitudes, self.chunk_durations, self.pause_durations):
+                writer.writerow([timestamp, poked_port, reward_port, amplitude, chunk_duration, pause_duration])
+        
+        print(f"Results saved to logs")
+    
 
 # PiWidget Class that represents all PiSignals
 class PiWidget(QWidget):
@@ -972,6 +974,8 @@ class ConfigurationList(QWidget):
         
     # Define the slot for double-clicked items
     def config_item_clicked(self, item, column):
+        global current_task
+        
         if item.parent():  # Ensure it's a config item, not a category
             selected_config = item.data(0, Qt.UserRole)
             self.current_config = selected_config
@@ -990,7 +994,7 @@ class ConfigurationList(QWidget):
                 json_data = json.dumps(selected_config)
                 self.publisher.send_json(json_data)
                 self.current_task = selected_config['name'] + "_" + selected_config['task']
-                #self.send_config_signal.emit(self.current_task)  # Emit the signal with current_task
+                current_task = self.current_task
             else:
                 self.selected_config_label.setText(f"Selected Config: None")
 
