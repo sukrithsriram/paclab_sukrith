@@ -51,7 +51,7 @@ class PiSignal(QGraphicsEllipseItem):
         self.setPos(self.calculate_position()) # Positioning the individual Pi elements
         self.setBrush(QColor("gray")) # Setting the initial color of the Pi signals to red
 
-    # Function to calculate the position of the Pi signals
+    # Function to calculate the position of the ports
     def calculate_position(self):  
         angle = 2 * math.pi * self.index / self.total_ports # Arranging the Pi signals in a circle
         radius = 150
@@ -59,6 +59,7 @@ class PiSignal(QGraphicsEllipseItem):
         y = radius * math.sin(angle)
         return QPointF(200 + x, 200 + y)
 
+    # Function to set the color for each individual port
     def set_color(self, color):
         if color == "green":
             self.setBrush(QColor("green"))
@@ -79,6 +80,8 @@ class Worker(QObject):
     def __init__(self, pi_widget):
         super().__init__()
         self.initial_time = None
+        
+        # Setting up ZMQ context to send and receive information about poked ports
         self.context = zmq.Context()
         self.socket = self.context.socket(zmq.ROUTER)
         self.socket.bind("tcp://*" + params['worker_port'])  # Change Port number if you want to run multiple instances
@@ -91,7 +94,7 @@ class Worker(QObject):
         self.current_chunk_duration = 0.0
         self.current_pause_duration = 0.0
         
-        # Initialize reward_port and related variables
+        # Initialize reward_port and related variables that need to be continually updated
         self.last_pi_received = None
         self.timer = None
         self.current_task = None
@@ -112,10 +115,10 @@ class Worker(QObject):
         self.unique_ports_colors = {}  # Dictionary to store color for each unique port
         self.average_unique_ports = 0  # Variable to store the average number of unique ports visited
 
-
+    
+    # Process the current_task string as needed
     @pyqtSlot(str)
     def set_current_task(self, current_task):
-        # Process the current_task string as needed
         self.current_task = current_task
         print("Stored current_task:", self.current_task)
     
@@ -277,7 +280,6 @@ class PiWidget(QWidget):
         
         # Creating buttons to start and stop the sequence of communication with the Raspberry Pi
         self.poked_port_numbers = []
-
         self.start_button = QPushButton("Start Experiment")        
         self.stop_button = QPushButton("Stop Experiment")
         self.stop_button.clicked.connect(self.save_results_to_csv)  # Connect save button to save method
@@ -431,6 +433,7 @@ class PiWidget(QWidget):
     def save_results_to_csv(self):
         self.worker.save_results_to_csv()  # Call worker method to save results
 
+# Widget that contains a plot that is continuously depending on the ports that are poked
 class PlotWindow(QWidget):
     def __init__(self, pi_widget, *args, **kwargs):
         super().__init__(*args, **kwargs)
@@ -547,6 +550,7 @@ class PlotWindow(QWidget):
         # Update plot with timestamps and signals
         self.line.setData(x=self.timestamps, y=self.signal)
 
+# Displays a Dialog box with all the details of the task when you right-click an item on the list
 class ConfigurationDetailsDialog(QDialog):
     def __init__(self, config, parent=None):
         super().__init__(parent)
@@ -575,6 +579,7 @@ class ConfigurationDetailsDialog(QDialog):
         layout.addWidget(self.button_box)
         self.setLayout(layout)
 
+# Displays the prompt to make a new task based on default parameters (with editable values if needed)
 class PresetTaskDialog(QDialog):
     def __init__(self, parent=None):
         super().__init__(parent)
@@ -600,6 +605,7 @@ class PresetTaskDialog(QDialog):
     def get_name_and_task(self):
         return self.name_edit.text(), self.task_combo.currentText()
 
+# Editable dialog box with details to edit the parameters for the tasks
 class ConfigurationDialog(QDialog):
     def __init__(self, parent=None, config=None):
         super().__init__(parent)
@@ -752,6 +758,7 @@ class ConfigurationDialog(QDialog):
 
         return updated_config
 
+# List of tasks that have been saved in the directory which also tells pis what parameters to use for each task
 class ConfigurationList(QWidget):
     send_config_signal = pyqtSignal(dict)
     
@@ -979,6 +986,7 @@ class ConfigurationList(QWidget):
         dialog = ConfigurationDetailsDialog(selected_config, self)
         dialog.exec_()
 
+# Main window of the GUI that launches when the program is run and arranges all the widgets 
 class MainWindow(QtWidgets.QMainWindow):
     def __init__(self):
         super().__init__()
