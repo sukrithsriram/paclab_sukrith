@@ -521,7 +521,7 @@ class PlotWindow(QWidget):
         self.plot_graph.setLabel("bottom", "Time", **styles)
         self.plot_graph.addLegend()
         self.plot_graph.showGrid(x=True, y=True)
-        self.plot_graph.setYRange(1, 8)
+        self.plot_graph.setYRange(1, 9)
         self.timestamps = []  # List to store timestamps
         self.signal = []  # List to store active Pi signals
         
@@ -608,7 +608,6 @@ class PlotWindow(QWidget):
             item = self.plot_graph.plot(
                 [relative_time],
                 [poked_port_value],
-                name="Poke",
                 pen=None,
                 symbol="arrow_down",  # "o" for dots
                 symbolSize=20,  # use 8 or lower if using dots
