@@ -319,10 +319,18 @@ class PiWidget(QWidget):
         self.Pi_signals = [PiSignal(i, self.total_ports) for i in range(self.total_ports)]
         [self.scene.addItem(Pi) for Pi in self.Pi_signals]
         
+        # Setting for Bold font
+        font = QFont()
+        font.setBold(True)
+        
         # Creating buttons to start and stop the sequence of communication with the Raspberry Pi
         self.poked_port_numbers = []
-        self.start_button = QPushButton("Start Session")        
+        self.start_button = QPushButton("Start Session")
+        self.start_button.setStyleSheet("background-color : green; color: white;") 
+        #self.start_button.setFont(font)   
         self.stop_button = QPushButton("Stop Session")
+        self.stop_button.setStyleSheet("background-color : red; color: white;") 
+        #self.stop_button.setFont(font)   
         self.stop_button.clicked.connect(self.save_results_to_csv)  # Connect save button to save method
 
         self.timer = QTimer(self)
@@ -340,8 +348,6 @@ class PiWidget(QWidget):
         
         # Details Title
         self.title_label = QLabel("Session Details:", self)
-        font = QFont()
-        font.setBold(True)
         self.title_label.setFont(font)
         
         # Session Details
