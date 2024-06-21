@@ -49,7 +49,13 @@ class PiSignal(QGraphicsEllipseItem):
         super(PiSignal, self).__init__(0, 0, 38, 38)
         self.index = index
         self.total_ports = total_ports # Creating a variable for the total number of Pis
-        self.label = QGraphicsTextItem(f"Port-{index + 1}", self) # Label for each Pi
+        
+        # Ensure index is within range of ports
+        if 0 <= self.index < len(params['ports']):
+            port_data = params['ports'][self.index]
+            label_text = port_data['label']
+        
+        self.label = QGraphicsTextItem(f"Port-{port_data['label']}", self) # Label for each Pi
         font = QFont()
         font.setPointSize(8)  # Set the font size here (10 in this example)
         self.label.setFont(font)
