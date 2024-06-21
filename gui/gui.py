@@ -22,6 +22,7 @@ from PyQt5 import QtWidgets
 from PyQt5.QtWidgets import QMenu, QAction, QComboBox, QGroupBox, QMessageBox, QLabel, QGraphicsEllipseItem, QListWidget, QListWidgetItem, QGraphicsTextItem, QGraphicsScene, QGraphicsView, QWidget, QVBoxLayout, QPushButton, QApplication, QHBoxLayout, QLineEdit, QListWidget, QFileDialog, QDialog, QLabel, QDialogButtonBox, QTreeWidget, QTreeWidgetItem
 from PyQt5.QtCore import QPointF, QTimer, QTime, pyqtSignal, QObject, QThread, pyqtSlot,  QMetaObject, Qt
 from PyQt5.QtGui import QFont, QColor
+from pyqttoast import Toast, ToastPreset
 
 # Set up argument parsing to select box
 parser = argparse.ArgumentParser(description="Load parameters for a specific box.")
@@ -319,7 +320,7 @@ class PiWidget(QWidget):
         self.Pi_signals = [PiSignal(i, self.total_ports) for i in range(self.total_ports)]
         [self.scene.addItem(Pi) for Pi in self.Pi_signals]
         
-        # Setting for Bold font
+        # Setting for bold font
         font = QFont()
         font.setBold(True)
         
@@ -508,6 +509,12 @@ class PiWidget(QWidget):
     def save_results_to_csv(self):
         self.worker.stop_message()
         self.worker.save_results_to_csv()  # Call worker method to save results
+        toast = Toast(self)
+        toast.setDuration(5000)  # Hide after 5 seconds
+        toast.setTitle('Results Saved')
+        toast.setText('Log saved to /home/mouse/dev/paclab_sukrith/logs')
+        toast.applyPreset(ToastPreset.SUCCESS)  # Apply style preset
+        toast.show()
 
 # Widget that contains a plot that is continuously depending on the ports that are poked
 class PlotWindow(QWidget):
@@ -1038,6 +1045,12 @@ class ConfigurationList(QWidget):
                 self.publisher.send_json(json_data)
                 self.current_task = selected_config['name'] + "_" + selected_config['task']
                 current_task = self.current_task
+                toast = Toast(self)
+                toast.setDuration(5000)  # Hide after 5 seconds
+                toast.setTitle('Task Parameters Sent')
+                toast.setText(f'Parameters for task {current_task} have been sent to {args.json_filename}')
+                toast.applyPreset(ToastPreset.SUCCESS)  # Apply style preset
+                toast.show()
             else:
                 self.selected_config_label.setText(f"Selected Config: None")
 
