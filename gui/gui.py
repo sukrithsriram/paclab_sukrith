@@ -21,7 +21,7 @@ from datetime import datetime
 from PyQt5 import QtWidgets
 from PyQt5.QtWidgets import QMenu, QAction, QComboBox, QGroupBox, QMessageBox, QLabel, QGraphicsEllipseItem, QListWidget, QListWidgetItem, QGraphicsTextItem, QGraphicsScene, QGraphicsView, QWidget, QVBoxLayout, QPushButton, QApplication, QHBoxLayout, QLineEdit, QListWidget, QFileDialog, QDialog, QLabel, QDialogButtonBox, QTreeWidget, QTreeWidgetItem
 from PyQt5.QtCore import QPointF, QTimer, QTime, pyqtSignal, QObject, QThread, pyqtSlot,  QMetaObject, Qt
-from PyQt5.QtGui import QColor
+from PyQt5.QtGui import QFont, QColor
 
 # Set up argument parsing to select box
 parser = argparse.ArgumentParser(description="Load parameters for a specific box.")
@@ -46,18 +46,21 @@ current_task = None
 # Creating a class for the individual Raspberry Pi signals
 class PiSignal(QGraphicsEllipseItem):
     def __init__(self, index, total_ports):
-        super(PiSignal, self).__init__(0, 0, 50, 50)
+        super(PiSignal, self).__init__(0, 0, 38, 38)
         self.index = index
         self.total_ports = total_ports # Creating a variable for the total number of Pis
         self.label = QGraphicsTextItem(f"Port-{index + 1}", self) # Label for each Pi
-        self.label.setPos(25 - self.label.boundingRect().width() / 2, 25 - self.label.boundingRect().height() / 2) # Positioning the labels
+        font = QFont()
+        font.setPointSize(8)  # Set the font size here (10 in this example)
+        self.label.setFont(font)
+        self.label.setPos(19 - self.label.boundingRect().width() / 2, 19 - self.label.boundingRect().height() / 2) # Positioning the labels
         self.setPos(self.calculate_position()) # Positioning the individual Pi elements
         self.setBrush(QColor("gray")) # Setting the initial color of the Pi signals to red
 
     # Function to calculate the position of the ports
     def calculate_position(self):  
         angle = 2 * math.pi * self.index / self.total_ports # Arranging the Pi signals in a circle
-        radius = 150
+        radius = 62
         x = radius * math.cos(angle)
         y = radius * math.sin(angle)
         return QPointF(200 + x, 200 + y)
@@ -303,8 +306,8 @@ class PiWidget(QWidget):
         
         # Creating buttons to start and stop the sequence of communication with the Raspberry Pi
         self.poked_port_numbers = []
-        self.start_button = QPushButton("Start Experiment")        
-        self.stop_button = QPushButton("Stop Experiment")
+        self.start_button = QPushButton("Start Session")        
+        self.stop_button = QPushButton("Stop Session")
         self.stop_button.clicked.connect(self.save_results_to_csv)  # Connect save button to save method
 
         self.timer = QTimer(self)
@@ -317,17 +320,26 @@ class PiWidget(QWidget):
         self.blue_count = 0
         self.green_count = 0
 
-        #self.details_box = QGroupBox("Details")
+        # Create QVBoxLayout for details
         self.details_layout = QVBoxLayout()
-        self.time_label = QLabel("Time Elapsed: 00:00",self)
+        
+        # Details Title
+        self.title_label = QLabel("Session Details:", self)
+        font = QFont()
+        font.setBold(True)
+        self.title_label.setFont(font)
+        
+        # Session Details
+        self.time_label = QLabel("Time Elapsed: 00:00", self)
         self.poke_time_label = QLabel("Time since last poke: 00:00", self)
         self.red_label = QLabel("Number of Pokes: 0", self)
         self.blue_label = QLabel("Number of Trials: 0", self)
         self.green_label = QLabel("Number of Correct Trials: 0", self)
         self.fraction_correct_label = QLabel("Fraction Correct (FC): 0.000", self)
-        self.rcp_label = QLabel("Rank of Correct Port (RCP): 0", self) # Check if correct 
-
-        # Making Widgets for the labels
+        self.rcp_label = QLabel("Rank of Correct Port (RCP): 0", self)
+        
+        # Adding labels to details_layout
+        self.details_layout.addWidget(self.title_label)
         self.details_layout.addWidget(self.time_label)
         self.details_layout.addWidget(self.poke_time_label)
         self.details_layout.addWidget(self.red_label)
@@ -335,24 +347,28 @@ class PiWidget(QWidget):
         self.details_layout.addWidget(self.green_label)
         self.details_layout.addWidget(self.fraction_correct_label)
         self.details_layout.addWidget(self.rcp_label)
-        
+
         # Initialize QTimer for resetting last poke time
         self.last_poke_timer = QTimer()
         self.last_poke_timer.timeout.connect(self.update_last_poke_time)
 
-        # Create an HBoxLayout for start and stop buttons
+        # Create HBoxLayout for start and stop buttons
         start_stop_layout = QHBoxLayout()
         start_stop_layout.addWidget(self.start_button)
         start_stop_layout.addWidget(self.stop_button)
 
-        # Create a QVBoxLayout
-        layout = QVBoxLayout(self)
-        layout.addWidget(self.view)  # Assuming self.view exists
-        layout.addLayout(start_stop_layout)  # Add the QHBoxLayout to the QVBoxLayout
-        layout.addLayout(self.details_layout)
+        # Create QHBoxLayout for self.view and start_stop_layout
+        view_buttons_layout = QVBoxLayout()
+        view_buttons_layout.addWidget(self.view)  # Add self.view to the layout
+        view_buttons_layout.addLayout(start_stop_layout)  # Add start_stop_layout to the layout
 
-        # Set the layout for the widget
-        self.setLayout(layout)
+        # Create QVBoxLayout for the main layout
+        main_layout = QHBoxLayout(self)
+        main_layout.addLayout(view_buttons_layout)  # Add view_buttons_layout to the main layout
+        main_layout.addLayout(self.details_layout)  # Add details_layout below view_buttons_layout
+
+        # Set main_layout as the layout for this widget
+        self.setLayout(main_layout)
 
         # Creating an instance of the Worker Class and a Thread to handle the communication with the Raspberry Pi
         self.worker = Worker(self)
@@ -493,9 +509,9 @@ class PlotWindow(QWidget):
         self.layout = QVBoxLayout(self)
         self.layout.addWidget(self.plot_graph)
         self.plot_graph.setBackground("k")
-        self.plot_graph.setTitle("Active Nosepoke vs Time", color="white", size="12pt")
-        styles = {"color": "white", "font-size": "15px"}
-        self.plot_graph.setLabel("left", "Nosepoke ID", **styles)
+        self.plot_graph.setTitle("Pokes vs Time", color="white", size="12px")
+        styles = {"color": "white", "font-size": "11px"}
+        self.plot_graph.setLabel("left", "Port", **styles)
         self.plot_graph.setLabel("bottom", "Time", **styles)
         self.plot_graph.addLegend()
         self.plot_graph.showGrid(x=True, y=True)
@@ -511,7 +527,6 @@ class PlotWindow(QWidget):
         self.line = self.plot_graph.plot(
             self.timestamps,
             self.signal,
-            name="Active Pi",
             pen=None,
             symbol="o",
             symbolSize=1,
@@ -533,7 +548,7 @@ class PlotWindow(QWidget):
         self.timer.start(10)  # Start the timer to update every second
 
         # Start the timer for updating the time bar when the plot starts
-        self.time_bar_timer.start(100)  # Update every 100 milliseconds
+        self.time_bar_timer.start(50)  # Update every 100 milliseconds
 
     def stop_plot(self):
         # Deactivating the plot window and stop the timer
@@ -587,9 +602,10 @@ class PlotWindow(QWidget):
             item = self.plot_graph.plot(
                 [relative_time],
                 [poked_port_value],
+                name="Poke",
                 pen=None,
                 symbol="arrow_down",  # "o" for dots
-                symbolSize=22,  # use 8 or lower if using dots
+                symbolSize=20,  # use 8 or lower if using dots
                 symbolBrush=brush_color,
                 symbolPen=None,
             )
@@ -1043,7 +1059,7 @@ class MainWindow(QtWidgets.QMainWindow):
     def __init__(self):
         super().__init__()
         # Main Window Title
-        self.setWindowTitle("GUI")
+        self.setWindowTitle(f"GUI - {args.json_filename}")
 
         # Creating instances of PiWidget and ConfigurationList
         self.Pi_widget = PiWidget(self)
@@ -1063,12 +1079,12 @@ class MainWindow(QtWidgets.QMainWindow):
 
         # Creating container widgets for each component
         config_list_container = QWidget()
-        config_list_container.setFixedWidth(350)  # Limiting the width of the configuration list container
+        config_list_container.setFixedWidth(250)  # Limiting the width of the configuration list container
         config_list_container.setLayout(QVBoxLayout())
         config_list_container.layout().addWidget(self.config_list)
 
         pi_widget_container = QWidget()
-        pi_widget_container.setFixedWidth(450)  # Limiting the width of the PiWidget container
+        pi_widget_container.setFixedWidth(500)  # Limiting the width of the PiWidget container
         pi_widget_container.setLayout(QVBoxLayout())
         pi_widget_container.layout().addWidget(self.Pi_widget)
 
@@ -1081,7 +1097,7 @@ class MainWindow(QtWidgets.QMainWindow):
         self.setCentralWidget(container_widget)
 
         # Setting the dimensions of the main window
-        self.resize(2000, 800)
+        self.resize(2000, 270)
         self.show()
 
         # Connecting signals after the MainWindow is fully initialized
@@ -1105,7 +1121,6 @@ if __name__ == '__main__':
     app = QApplication(sys.argv)
     main_window = MainWindow()
     sys.exit(app.exec())
-
 
 
 
