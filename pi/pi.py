@@ -439,16 +439,17 @@ def open_valve(port):
     port : TODO document what this is
     TODO: reward duration needs to be a parameter of the task or mouse # It is in the test branch
     """
+    reward_value = config_data['reward_value']
     if port == int(params['nosepokeL_id']):
         pi.set_mode(6, pigpio.OUTPUT)
         pi.write(6, 1)
-        time.sleep(0.05)
+        time.sleep(reward_value)
         pi.write(6, 0)
     
     if port == int(params['nosepokeR_id']):
         pi.set_mode(26, pigpio.OUTPUT)
         pi.write(26, 1)
-        time.sleep(0.05)
+        time.sleep(reward_value)
         pi.write(26, 0)
 
 # TODO: document this function
@@ -482,17 +483,17 @@ pwm_frequency = 1
 pwm_duty_cycle = 50
 
 # Duration of sounds
-chunk_min = 0.01
-chunk_max = 0.05
+chunk_min = 0.0
+chunk_max = 0.0
 
 # Duration of pauses
-pause_min = 0.05
-pause_max = 0.2
+pause_min = 0.0
+pause_max = 0.0
 
 # Range of amplitudes
 # TODO: these need to be received from task, not specified here # These were all initial values set incase a task was not selected
-amplitude_min = 0.005
-amplitude_max = 0.02
+amplitude_min = 0.0
+amplitude_max = 0.0
 
 
 ## Main loop to keep the program running and exit when it receives an exit command
@@ -512,7 +513,7 @@ try:
     while True:
         ## Wait for events on registered sockets
         # TODO: how long does it wait? # Can be set, currently not sure
-        socks = dict(poller.poll())
+        socks = dict(poller.poll(1))
         
         
         ## Check for incoming messages on json_socket
@@ -563,22 +564,32 @@ try:
                 pi.write(9, 0)
                 print("Received exit command. Terminating program.")
                 
+                # Wait for the client to finish processing any remaining chunks
+                # TODO: why is this here? It's already deactivated 
+                time.sleep(jack_client.chunk_duration + jack_client.pause_duration)
+                
                 # Stop the Jack client
                 # TODO: Probably want to leave this running for the next
                 # session
                 jack_client.client.deactivate()
                 
-                # Wait for the client to finish processing any remaining chunks
-                # TODO: why is this here? It's already deactivated 
-                time.sleep(jack_client.chunk_duration + jack_client.pause_duration)
-                
                 # Exit the loop
                 break  
             
-            elif msg == 'start':
-                # TODO: document
+            # From stop button
+            if msg == 'stop':
                 flash()
-            
+                reward_pin = None
+                current_pin = None
+                prev_port = None
+                pi.write(17, 0)
+                pi.write(10, 0)
+                pi.write(27, 0)
+                pi.write(9, 0)
+                jack_client.set_set_channel('none')
+                print("Stop command received. Stopping sequence.")
+                continue
+
             elif msg.startswith("Reward Port:"):    
                 ## This specifies which port to reward
                 # Debug print

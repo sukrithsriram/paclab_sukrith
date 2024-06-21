@@ -21,7 +21,7 @@ from datetime import datetime
 from PyQt5 import QtWidgets
 from PyQt5.QtWidgets import QMenu, QAction, QComboBox, QGroupBox, QMessageBox, QLabel, QGraphicsEllipseItem, QListWidget, QListWidgetItem, QGraphicsTextItem, QGraphicsScene, QGraphicsView, QWidget, QVBoxLayout, QPushButton, QApplication, QHBoxLayout, QLineEdit, QListWidget, QFileDialog, QDialog, QLabel, QDialogButtonBox, QTreeWidget, QTreeWidgetItem
 from PyQt5.QtCore import QPointF, QTimer, QTime, pyqtSignal, QObject, QThread, pyqtSlot,  QMetaObject, Qt
-from PyQt5.QtGui import QColor
+from PyQt5.QtGui import QFont, QColor
 
 # Set up argument parsing to select box
 parser = argparse.ArgumentParser(description="Load parameters for a specific box.")
@@ -40,21 +40,27 @@ with open(param_directory, "r") as p:
 # Fetching all the ports to use for the trials    
 active_nosepokes = [int(i) for i in params['active_nosepokes']]
 
+# Variable to keep track of the current task
+current_task = None
+
 # Creating a class for the individual Raspberry Pi signals
 class PiSignal(QGraphicsEllipseItem):
     def __init__(self, index, total_ports):
-        super(PiSignal, self).__init__(0, 0, 50, 50)
+        super(PiSignal, self).__init__(0, 0, 38, 38)
         self.index = index
         self.total_ports = total_ports # Creating a variable for the total number of Pis
         self.label = QGraphicsTextItem(f"Port-{index + 1}", self) # Label for each Pi
-        self.label.setPos(25 - self.label.boundingRect().width() / 2, 25 - self.label.boundingRect().height() / 2) # Positioning the labels
+        font = QFont()
+        font.setPointSize(8)  # Set the font size here (10 in this example)
+        self.label.setFont(font)
+        self.label.setPos(19 - self.label.boundingRect().width() / 2, 19 - self.label.boundingRect().height() / 2) # Positioning the labels
         self.setPos(self.calculate_position()) # Positioning the individual Pi elements
         self.setBrush(QColor("gray")) # Setting the initial color of the Pi signals to red
 
     # Function to calculate the position of the ports
     def calculate_position(self):  
         angle = 2 * math.pi * self.index / self.total_ports # Arranging the Pi signals in a circle
-        radius = 150
+        radius = 62
         x = radius * math.cos(angle)
         y = radius * math.sin(angle)
         return QPointF(200 + x, 200 + y)
@@ -114,13 +120,6 @@ class Worker(QObject):
         self.unique_ports_visited = []  # List to store unique ports visited in each trial
         self.unique_ports_colors = {}  # Dictionary to store color for each unique port
         self.average_unique_ports = 0  # Variable to store the average number of unique ports visited
-
-    
-    # Process the current_task string as needed
-    @pyqtSlot(str)
-    def set_current_task(self, current_task):
-        self.current_task = current_task
-        print("Stored current_task:", self.current_task)
     
     # Method to start the sequence
     @pyqtSlot()
@@ -129,13 +128,8 @@ class Worker(QObject):
         self.initial_time = time.time()
         self.timestamps = []
         self.reward_ports = []
-
-        # Sending initialization message to Pi
-        for identity in self.identities:
-            self.socket.send_multipart([identity, b"start"])
-        #time.sleep(1)
         
-        # Randomly choose either 3 or 4 as the initial reward port
+        # Randomly choose the initial reward port
         self.reward_port = random.choice(active_nosepokes)
         reward_message = f"Reward Port: {self.reward_port}"
         print(reward_message)
@@ -143,7 +137,7 @@ class Worker(QObject):
         # Send the message to all connected Pis
         for identity in self.identities:
             self.socket.send_multipart([identity, bytes(reward_message, 'utf-8')])
-            
+        
         # Set the color of the initial reward port to green
         self.Pi_signals[self.reward_port - 1].set_color("green")
 
@@ -155,9 +149,25 @@ class Worker(QObject):
     # Method to stop the sequence
     @pyqtSlot()
     def stop_sequence(self):
-        if self.timer is not None: 
+        if self.timer is not None:
             self.timer.stop()
             self.timer.timeout.disconnect(self.update_Pi)
+        
+        # Clear the recorded data and reset necessary attributes
+        self.initial_time = None
+        self.timestamps.clear()
+        self.reward_ports.clear()
+        self.poked_port_numbers.clear()
+        self.amplitudes.clear()
+        self.chunk_durations.clear()
+        self.pause_durations.clear()
+        self.unique_ports_visited.clear()
+        self.identities.clear()
+        self.last_poke_timestamp = None
+        self.reward_port = None
+        self.previous_port = None
+        self.trials = 0
+        self.average_unique_ports = 0
     
     # Method to update unique ports visited
     def update_unique_ports(self):
@@ -202,7 +212,7 @@ class Worker(QObject):
                 
                 # Extract and convert the values
                 self.current_amplitude = float(params.get("Amplitude", 0))
-                self.current_chunk_duration = float(params.get("Chunk Duration", "0").split()[0])
+                self.current_chunk_duration = float(params.get("Sound Duration", "0").split()[0])
                 self.current_pause_duration = float(params.get("Pause Duration", 0))
 
             else:
@@ -253,14 +263,30 @@ class Worker(QObject):
     
    # Method to save results to a CSV file
     def save_results_to_csv(self):
+        global current_task
+        
+        # Specifying the directory where you want to save the CSV files
+        save_directory = params['save_directory']
+        
+        # Generating filename based on current_task and current date/time
+        current_time = datetime.now().strftime("%Y%m%d_%H%M%S")
+        filename = f"{current_task}_{current_time}_saved.csv"
+        
         # Save results to a CSV file
-        filename, _ = QFileDialog.getSaveFileName(None, "Save Results", "", "CSV Files (*.csv)")
-        if filename:
-            with open(filename, 'w', newline='') as csvfile:
-                writer = csv.writer(csvfile)
-                writer.writerow(["Poke Timestamp (seconds)", "Port Visited", "Current Reward Port", "Amplitude", "Chunk Duration", "Pause Duration"])
-                for timestamp, poked_port, reward_port, amplitude, chunk_duration, pause_duration in zip(self.timestamps, self.poked_port_numbers, self.reward_ports, self.amplitudes, self.chunk_durations, self.pause_durations):
-                    writer.writerow([timestamp, poked_port, reward_port, amplitude, chunk_duration, pause_duration])
+        with open(f"{save_directory}/{filename}", 'w', newline='') as csvfile:
+            writer = csv.writer(csvfile)
+            writer.writerow(["Poke Timestamp (seconds)", "Port Visited", "Current Reward Port", "Amplitude", "Chunk Duration", "Pause Duration"])
+            for timestamp, poked_port, reward_port, amplitude, chunk_duration, pause_duration in zip(self.timestamps, self.poked_port_numbers, self.reward_ports, self.amplitudes, self.chunk_durations, self.pause_durations):
+                writer.writerow([timestamp, poked_port, reward_port, amplitude, chunk_duration, pause_duration])
+        
+        print(f"Results saved to logs")
+    
+    # Method to send a stop message to the pi
+    def stop_message(self):        
+        for identity in self.identities:
+            self.socket.send_multipart([identity, b"stop"])
+        for index, Pi in enumerate(self.Pi_signals):
+            Pi.set_color("gray")
 
 # PiWidget Class that represents all PiSignals
 class PiWidget(QWidget):
@@ -280,8 +306,8 @@ class PiWidget(QWidget):
         
         # Creating buttons to start and stop the sequence of communication with the Raspberry Pi
         self.poked_port_numbers = []
-        self.start_button = QPushButton("Start Experiment")        
-        self.stop_button = QPushButton("Stop Experiment")
+        self.start_button = QPushButton("Start Session")        
+        self.stop_button = QPushButton("Stop Session")
         self.stop_button.clicked.connect(self.save_results_to_csv)  # Connect save button to save method
 
         self.timer = QTimer(self)
@@ -294,17 +320,26 @@ class PiWidget(QWidget):
         self.blue_count = 0
         self.green_count = 0
 
-        #self.details_box = QGroupBox("Details")
+        # Create QVBoxLayout for details
         self.details_layout = QVBoxLayout()
-        self.time_label = QLabel("Time Elapsed: 00:00",self)
+        
+        # Details Title
+        self.title_label = QLabel("Session Details:", self)
+        font = QFont()
+        font.setBold(True)
+        self.title_label.setFont(font)
+        
+        # Session Details
+        self.time_label = QLabel("Time Elapsed: 00:00", self)
         self.poke_time_label = QLabel("Time since last poke: 00:00", self)
         self.red_label = QLabel("Number of Pokes: 0", self)
         self.blue_label = QLabel("Number of Trials: 0", self)
         self.green_label = QLabel("Number of Correct Trials: 0", self)
         self.fraction_correct_label = QLabel("Fraction Correct (FC): 0.000", self)
-        self.rcp_label = QLabel("Rank of Correct Port (RCP): 0", self) # Check if correct 
-
-        # Making Widgets for the labels
+        self.rcp_label = QLabel("Rank of Correct Port (RCP): 0", self)
+        
+        # Adding labels to details_layout
+        self.details_layout.addWidget(self.title_label)
         self.details_layout.addWidget(self.time_label)
         self.details_layout.addWidget(self.poke_time_label)
         self.details_layout.addWidget(self.red_label)
@@ -312,24 +347,28 @@ class PiWidget(QWidget):
         self.details_layout.addWidget(self.green_label)
         self.details_layout.addWidget(self.fraction_correct_label)
         self.details_layout.addWidget(self.rcp_label)
-        
+
         # Initialize QTimer for resetting last poke time
         self.last_poke_timer = QTimer()
         self.last_poke_timer.timeout.connect(self.update_last_poke_time)
 
-        # Create an HBoxLayout for start and stop buttons
+        # Create HBoxLayout for start and stop buttons
         start_stop_layout = QHBoxLayout()
         start_stop_layout.addWidget(self.start_button)
         start_stop_layout.addWidget(self.stop_button)
 
-        # Create a QVBoxLayout
-        layout = QVBoxLayout(self)
-        layout.addWidget(self.view)  # Assuming self.view exists
-        layout.addLayout(start_stop_layout)  # Add the QHBoxLayout to the QVBoxLayout
-        layout.addLayout(self.details_layout)
+        # Create QHBoxLayout for self.view and start_stop_layout
+        view_buttons_layout = QVBoxLayout()
+        view_buttons_layout.addWidget(self.view)  # Add self.view to the layout
+        view_buttons_layout.addLayout(start_stop_layout)  # Add start_stop_layout to the layout
 
-        # Set the layout for the widget
-        self.setLayout(layout)
+        # Create QVBoxLayout for the main layout
+        main_layout = QHBoxLayout(self)
+        main_layout.addLayout(view_buttons_layout)  # Add view_buttons_layout to the main layout
+        main_layout.addLayout(self.details_layout)  # Add details_layout below view_buttons_layout
+
+        # Set main_layout as the layout for this widget
+        self.setLayout(main_layout)
 
         # Creating an instance of the Worker Class and a Thread to handle the communication with the Raspberry Pi
         self.worker = Worker(self)
@@ -388,16 +427,31 @@ class PiWidget(QWidget):
         self.timer.start(10)  # Update every second               
 
     def stop_sequence(self):
-        # Stop the worker thread when the stop button is pressed
         QMetaObject.invokeMethod(self.worker, "stop_sequence", Qt.QueuedConnection)
         print("Experiment Stopped!")
-        #self.thread.quit()
-
+        
         # Stop the plot
         self.main_window.plot_window.stop_plot()
+        
+        # Reset all labels
+        self.time_label.setText("Time Elapsed: 00:00")
+        self.poke_time_label.setText("Time since last poke: 00:00")
+        self.red_label.setText("Number of Pokes: 0")
+        self.blue_label.setText("Number of Trials: 0")
+        self.green_label.setText("Number of Correct Trials: 0")
+        self.fraction_correct_label.setText("Fraction Correct (FC): 0.000")
+        self.rcp_label.setText("Rank of Correct Port (RCP): 0")
+
+        # Reset poke and trial counts
+        self.red_count = 0
+        self.blue_count = 0
+        self.green_count = 0
 
         # Stop the timer
         self.timer.stop()
+        
+        # Allow starting a new experiment
+        self.thread.quit()
 
     @pyqtSlot()
     def update_time_elapsed(self):
@@ -431,6 +485,7 @@ class PiWidget(QWidget):
         self.poke_time_label.setText(f"Time since last poke: {str(int(minutes)).zfill(2)}:{str(int(seconds)).zfill(2)}")
 
     def save_results_to_csv(self):
+        self.worker.stop_message()
         self.worker.save_results_to_csv()  # Call worker method to save results
 
 # Widget that contains a plot that is continuously depending on the ports that are poked
@@ -454,9 +509,9 @@ class PlotWindow(QWidget):
         self.layout = QVBoxLayout(self)
         self.layout.addWidget(self.plot_graph)
         self.plot_graph.setBackground("k")
-        self.plot_graph.setTitle("Active Nosepoke vs Time", color="white", size="12pt")
-        styles = {"color": "white", "font-size": "15px"}
-        self.plot_graph.setLabel("left", "Nosepoke ID", **styles)
+        self.plot_graph.setTitle("Pokes vs Time", color="white", size="12px")
+        styles = {"color": "white", "font-size": "11px"}
+        self.plot_graph.setLabel("left", "Port", **styles)
         self.plot_graph.setLabel("bottom", "Time", **styles)
         self.plot_graph.addLegend()
         self.plot_graph.showGrid(x=True, y=True)
@@ -472,12 +527,14 @@ class PlotWindow(QWidget):
         self.line = self.plot_graph.plot(
             self.timestamps,
             self.signal,
-            name="Active Pi",
             pen=None,
             symbol="o",
             symbolSize=1,
             symbolBrush="r",
         )
+
+        # List to keep track of all plotted items for easy clearing
+        self.plotted_items = []
 
         # Connecting to signals from PiWidget
         pi_widget.updateSignal.connect(self.handle_update_signal)
@@ -491,7 +548,7 @@ class PlotWindow(QWidget):
         self.timer.start(10)  # Start the timer to update every second
 
         # Start the timer for updating the time bar when the plot starts
-        self.time_bar_timer.start(100)  # Update every 100 milliseconds
+        self.time_bar_timer.start(50)  # Update every 100 milliseconds
 
     def stop_plot(self):
         # Deactivating the plot window and stop the timer
@@ -508,6 +565,12 @@ class PlotWindow(QWidget):
         self.signal.clear()
         # Update the plot with cleared data
         self.line.setData(x=[], y=[])
+
+        # Clear all plotted items
+        for item in self.plotted_items:
+            self.plot_graph.removeItem(item)
+        self.plotted_items.clear()
+
         self.line_of_current_time.setData(x=[], y=[])
 
     def update_time_bar(self):
@@ -536,19 +599,22 @@ class PlotWindow(QWidget):
         if self.is_active:
             brush_color = "g" if color == "green" else "r" if color == "red" else "b"
             relative_time = (datetime.now() - self.start_time).total_seconds()  # Convert to seconds
-            self.plot_graph.plot(
+            item = self.plot_graph.plot(
                 [relative_time],
                 [poked_port_value],
+                name="Poke",
                 pen=None,
                 symbol="arrow_down",  # "o" for dots
-                symbolSize=22,  # use 8 or lower if using dots
+                symbolSize=20,  # use 8 or lower if using dots
                 symbolBrush=brush_color,
                 symbolPen=None,
             )
+            self.plotted_items.append(item)
 
     def update_plot(self):
         # Update plot with timestamps and signals
         self.line.setData(x=self.timestamps, y=self.signal)
+
 
 # Displays a Dialog box with all the details of the task when you right-click an item on the list
 class ConfigurationDetailsDialog(QDialog):
@@ -931,6 +997,8 @@ class ConfigurationList(QWidget):
         
     # Define the slot for double-clicked items
     def config_item_clicked(self, item, column):
+        global current_task
+        
         if item.parent():  # Ensure it's a config item, not a category
             selected_config = item.data(0, Qt.UserRole)
             self.current_config = selected_config
@@ -949,7 +1017,7 @@ class ConfigurationList(QWidget):
                 json_data = json.dumps(selected_config)
                 self.publisher.send_json(json_data)
                 self.current_task = selected_config['name'] + "_" + selected_config['task']
-                #self.send_config_signal.emit(self.current_task)  # Emit the signal with current_task
+                current_task = self.current_task
             else:
                 self.selected_config_label.setText(f"Selected Config: None")
 
@@ -991,7 +1059,7 @@ class MainWindow(QtWidgets.QMainWindow):
     def __init__(self):
         super().__init__()
         # Main Window Title
-        self.setWindowTitle("GUI")
+        self.setWindowTitle(f"GUI - {args.json_filename}")
 
         # Creating instances of PiWidget and ConfigurationList
         self.Pi_widget = PiWidget(self)
@@ -1011,12 +1079,12 @@ class MainWindow(QtWidgets.QMainWindow):
 
         # Creating container widgets for each component
         config_list_container = QWidget()
-        config_list_container.setFixedWidth(350)  # Limiting the width of the configuration list container
+        config_list_container.setFixedWidth(250)  # Limiting the width of the configuration list container
         config_list_container.setLayout(QVBoxLayout())
         config_list_container.layout().addWidget(self.config_list)
 
         pi_widget_container = QWidget()
-        pi_widget_container.setFixedWidth(450)  # Limiting the width of the PiWidget container
+        pi_widget_container.setFixedWidth(500)  # Limiting the width of the PiWidget container
         pi_widget_container.setLayout(QVBoxLayout())
         pi_widget_container.layout().addWidget(self.Pi_widget)
 
@@ -1029,11 +1097,10 @@ class MainWindow(QtWidgets.QMainWindow):
         self.setCentralWidget(container_widget)
 
         # Setting the dimensions of the main window
-        self.resize(2000, 800)
+        self.resize(2000, 270)
         self.show()
 
         # Connecting signals after the MainWindow is fully initialized
-        #self.config_list.send_config_signal.connect(self.Pi_widget.worker.set_current_task)
         self.Pi_widget.worker.pokedportsignal.connect(self.plot_window.handle_update_signal)
         self.Pi_widget.updateSignal.connect(self.plot_window.handle_update_signal)
         self.Pi_widget.startButtonClicked.connect(self.config_list.on_start_button_clicked)
@@ -1054,7 +1121,6 @@ if __name__ == '__main__':
     app = QApplication(sys.argv)
     main_window = MainWindow()
     sys.exit(app.exec())
-
 
 
 
