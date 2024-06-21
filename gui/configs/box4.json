@@ -4,5 +4,15 @@
     "active_nosepokes" : ["1", "2", "3", "4", "5", "6", "7", "8"],
     "save_directory" : "/home/mouse/dev/paclab_sukrith/logs",
     "pi_defaults" : "/home/mouse/dev/paclab_sukrith/pi/configs/defaults.json",
-    "task_configs" : "/home/mouse/dev/paclab_sukrith/pi/configs/tasks"
+    "task_configs" : "/home/mouse/dev/paclab_sukrith/pi/configs/tasks",
+    "ports": [
+        {"index": 0, "label": "6"},
+        {"index": 1, "label": "7"},
+        {"index": 2, "label": ""},
+        {"index": 3, "label": "1"},
+        {"index": 4, "label": "2"},
+        {"index": 5, "label": "3"},
+        {"index": 6, "label": "4"},
+        {"index": 7, "label": "5"}
+    ]
 }
