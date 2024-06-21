@@ -108,6 +108,7 @@ class Worker(QObject):
         
         # Initialize reward_port and related variables that need to be continually updated
         self.last_pi_received = None
+        self.prev_choice = None
         self.timer = None
         self.current_task = None
         self.pi_widget = pi_widget
@@ -136,7 +137,7 @@ class Worker(QObject):
         self.reward_ports = []
         
         # Randomly choose the initial reward port
-        self.reward_port = random.choice(active_nosepokes)
+        self.reward_port = self.choose()
         reward_message = f"Reward Port: {self.reward_port}"
         print(reward_message)
         
@@ -187,6 +188,14 @@ class Worker(QObject):
         if self.unique_ports_visited:
             self.average_unique_ports = sum(self.unique_ports_visited) / len(self.unique_ports_visited)
             
+    # Method to randomly choose next port to reward
+    def choose(self):
+        ports = active_nosepokes
+        poss_choices = [choice for choice in ports if choice != self.prev_choice]
+        new_choice =  random.choice(poss_choices)
+        self.prev_choice = new_choice
+        return new_choice
+    
     # Method to handle the update of Pis
     @pyqtSlot()
     def update_Pi(self):
@@ -250,7 +259,7 @@ class Worker(QObject):
                     if color == "green" or color == "blue":
                         for identity in self.identities:
                             self.socket.send_multipart([identity, b"Reward Poke Completed"])
-                        self.reward_port = random.choice(active_nosepokes)
+                        self.reward_port = self.choose()
                         self.trials = 0
                         print(f"Reward Port: {self.reward_port}")
 
