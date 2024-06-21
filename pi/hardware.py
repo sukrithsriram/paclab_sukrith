@@ -51,7 +51,7 @@ class WheelListener(object):
     but we probably don't need that.
     """
     def __init__(self, pigpio_conn=None, dio_A=17, dio_B=27, dio_O=None):
-        """Initalize a WheelListener using pigpio connection pi
+        """Initalize a WheelListener using pigpio connection pigpio_conn
         
         Arguments
         ---------
@@ -82,6 +82,7 @@ class WheelListener(object):
         self.position = 0
         
         # Log the events and states for debugging
+        # TODO: document these, and limit their growth
         self.event_log = []
         self.state_log = []
 
@@ -93,84 +94,188 @@ class WheelListener(object):
         
         
         ## Set up callbacks
-        self.pigpio_conn.callback(self._dio_A, pigpio.RISING_EDGE, self.pulseA_detected)
-        self.pigpio_conn.callback(27, pigpio.RISING_EDGE, self.pulseB_detected)
-        self.pigpio_conn.callback(17, pigpio.FALLING_EDGE, self.pulseA_down)
-        self.pigpio_conn.callback(27, pigpio.FALLING_EDGE, self.pulseB_down)
+        # One call back for rising and one for falling on A and B
+        self._pigpio_conn.callback(
+            self._dio_A, pigpio.RISING_EDGE, self._pulseA_up)
+        self._pigpio_conn.callback(
+            self._dio_B, pigpio.RISING_EDGE, self._pulseB_up)
+        self._pigpio_conn.callback(
+            self._dio_A, pigpio.FALLING_EDGE, self._pulseA_down)
+        self._pigpio_conn.callback(
+            self._dioB, pigpio.FALLING_EDGE, self._pulseB_down)
         
-    def pulseA_detected(self, pin, level, tick):
+    def _pulseA_up(self, pin, level, tick):
+        """Called whenever A rises"""
+        # Set A's state
+        self._a_state = 1
+        
+        # Effect on position depends on B's state
+        if self._b_state == 0:
+            self.position += 1
+        else:
+            self.position -= 1
+        
+        # Log
         self.event_log.append('A')
-        self.a_state = 1
-        if self.b_state == 0:
-            self.position += 1
-        else:
-            self.position -= 1
         self.state_log.append(
-            '{}{}_{}'.format(self.a_state, self.b_state, self.position))
+            '{}{}_{}'.format(self._a_state, self._b_state, self.position))
 
-    def pulseB_detected(self, pin, level, tick):
+    def _pulseB_up(self, pin, level, tick):
+        """Called whenever B rises"""
+        # Set B's state
+        self._b_state = 1
+        
+        # Effect on position depends on A's state
+        if self._a_state == 0:
+            self.position -= 1
+        else:
+            self.position += 1
+        
+        # Log
         self.event_log.append('B')
-        self.b_state = 1
-        if self.a_state == 0:
+        self.state_log.append(
+            '{}{}_{}'.format(self._a_state, self._b_state, self.position))
+
+    def _pulseA_down(self, pin, level, tick):
+        """Called whenever A falls"""
+        # Set A's state
+        self._a_state = 0
+        
+        # Effect on position depends on B's state
+        if self._b_state == 0:
             self.position -= 1
         else:
             self.position += 1
-        self.state_log.append(
-            '{}{}_{}'.format(self.a_state, self.b_state, self.position))
 
-    def pulseA_down(self, pin, level, tick):
+        # Log
         self.event_log.append('a')
-        self.a_state = 0
-        if self.b_state == 0:
-            self.position -= 1
-        else:
-            self.position += 1
         self.state_log.append(
-            '{}{}_{}'.format(self.a_state, self.b_state, self.position))
+            '{}{}_{}'.format(self._a_state, self._b_state, self.position))
 
-    def pulseB_down(self, pin, level, tick):
-        self.event_log.append('b')
-        self.b_state = 0
-        if self.a_state == 0:
+    def _pulseB_down(self, pin, level, tick):
+        """Called whenever B rises"""
+        # Set B's state        
+        self._b_state = 0
+
+        # Effect on position depends on A's state
+        if self._a_state == 0:
             self.position += 1
         else:
             self.position -= 1
+        
+        # Log
+        self.event_log.append('b')
         self.state_log.append(
-            '{}{}_{}'.format(self.a_state, self.b_state, self.position))
+            '{}{}_{}'.format(self._a_state, self._b_state, self.position))
 
     def print_position(self):
+        """Prints debug messages about current position and state history"""
         print("current position: {}".format(self.position))
         print(''.join(self.event_log[-60:]))
         print('\t'.join(self.state_log[-4:]))
 
 class TouchListener(object):
-    def __init__(self, pi):
-        # Global variables
-        self.pigpio_conn = pi
+    """Receives signals about touches and stores touch state.
+    
+    This object receives signals on two DIO lines and uses them to store
+    the touch status (touched or not touched) of two sensors.
+    
+    The status of the sensor is in `self.touched`
+    
+    Methods
+    -------
+        __init__: Create a new instance
+        report: Prints position and debug info to stdout
+    
+    Attributes
+    ----------
+        last_touch: datetime of last touch
+        touch_state: bool
+    """    
+    def __init__(self, pigpio_conn, dio_touch0=16, dio_touch1=None):
+        """Initalize a TouchListener using pigpio connection pigpio_conn
+        
+        Arguments
+        ---------
+            pigpio_conn: `pigpio.pi` object or None
+                Connection to pigpio returned by pigpio.pi()
+                If None, we will instantiate one here
+            dio_touch0: int (default 16)
+                GPIO pin number that first sensor is connected to
+                All pin numbers are BCM number, not a BOARD (plug) number
+            dio_touch0: currently not implemented, ignore
+        """        
+        ## Save provided variables
+        # Pigpio connection
+        if pigpio_conn is None:
+            self._pigpio_conn = pigpio.pi()
+        else:
+            self._pigpio_conn = pigpio_conn
+        
+        # Pins
+        self._dio_touch0 = dio_touch0
+        self._dio_touch1 = dio_touch1
+        
+        
+        ## Public attributes
         self.last_touch = datetime.datetime.now()
         self.touch_state = False
 
-        self.pigpio_conn.set_mode(16, pigpio.INPUT)
-        self.pigpio_conn.callback(16, pigpio.RISING_EDGE, self.touch_happened)
-        self.pigpio_conn.callback(16, pigpio.FALLING_EDGE, self.touch_stopped)
+
+        ## Set pin as input
+        self._pigpio_conn.set_mode(dio_touch0, pigpio.INPUT)
+
+    
+        ## Set callbacks
+        # Rising
+        self._pigpio_conn.callback(
+            _dio_touch0, pigpio.RISING_EDGE, self.touch_happened)
+        
+        # Falling
+        self._pigpio_conn.callback(
+            _dio_touch0, pigpio.FALLING_EDGE, self.touch_stopped)
 
     def touch_happened(self, pin, level, tick):
+        """Called whenever a touch happens and pin goes high"""
+        # Get time of touch
         touch_time = datetime.datetime.now()
+        
+        # Depends on how long it's been
         if touch_time - self.last_touch > datetime.timedelta(seconds=1):
-            print('touch start received tick={} dt={}'.format(tick, touch_time))
+            # It's been a while: set touch_state to True and store touch_time
+            print('touch start received tick={} dt={}'.format(
+                tick, touch_time))
+            
             self.last_touch = touch_time
             self.touch_state = True
+        
         else:
-            print('touch start ignored tick={} dt={}'.format(tick, touch_time))
+            # It hasn't been long enough: ignore this event
+            print('touch start ignored tick={} dt={}'.format(
+                tick, touch_time))
     
     def touch_stopped(self, pin, level, tick):
+        """Called whenever a touch stops and pin goes low"""
+        # Get time of touch
         touch_time = datetime.datetime.now()
+        
+        # Depends on how long it's been
         if touch_time - self.last_touch > datetime.timedelta(seconds=1):
-            print('touch stop  received tick={} dt={}'.format(tick, touch_time))
+            # It's been a while: set touch_state to False and store touch_time
+            print('touch stop  received tick={} dt={}'.format(
+                tick, touch_time))
+            
             self.last_touch = touch_time
             self.touch_state = False
+        
         else:
-            print('touch stop  ignored tick={} dt={}'.format(tick, touch_time))    
+            # It hasn't been long enough: ignore this event
+            # TODO: fix this, for a single brief touch the offset will never
+            # be detected
+            print('touch stop  ignored tick={} dt={}'.format(
+                tick, touch_time))    
 
     def report(self):
-        print("touch state={}; last_touch={}".format(self.touch_state, self.last_touch))
+        """Print debug message about status of touch"""
+        print("touch state={}; last_touch={}".format(
+            self.touch_state, self.last_touch))
