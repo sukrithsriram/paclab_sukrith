@@ -333,7 +333,6 @@ poke_socket.send_string(f"{pi_identity}")
 # Print acknowledgment
 print(f"Connected to router at {router_ip}")  
 
-
 ## Connect to json socket
 router_ip2 = "tcp://" + f"{params['gui_ip']}" + f"{params['config_port']}"
 json_socket.connect(router_ip2) 
@@ -462,6 +461,17 @@ def flash():
     pi.write(22, 0)
     pi.write(11, 0)  
 
+# Function with logic to stop session
+def stop_session():
+    global reward_pin, current_pin, prev_port
+    flash()
+    current_pin = None
+    prev_port = None
+    pi.write(17, 0)
+    pi.write(10, 0)
+    pi.write(27, 0)
+    pi.write(9, 0)
+    jack_client.set_set_channel('none')
 
 ## Set up pigpio and callbacks
 # TODO: rename this variable to pig or something; "pi" is ambiguous
@@ -508,7 +518,6 @@ try:
     # Track prev_port
     prev_port = None
     
-    
     ## Loop forever
     while True:
         ## Wait for events on registered sockets
@@ -546,7 +555,6 @@ try:
             # Debug print
             print("Parameters updated")
             
-        
         ## Check for incoming messages on poke_socket
         # TODO: document the types of messages that can be sent on poke_socket 
         if poke_socket in socks and socks[poke_socket] == zmq.POLLIN:
@@ -576,20 +584,26 @@ try:
                 # Exit the loop
                 break  
             
-            # From stop button
+            # Receiving message from stop button 
             if msg == 'stop':
-                flash()
-                reward_pin = None
-                current_pin = None
-                prev_port = None
-                pi.write(17, 0)
-                pi.write(10, 0)
-                pi.write(27, 0)
-                pi.write(9, 0)
-                jack_client.set_set_channel('none')
+                stop_session()
+                
+                # Sending stop signal wirelessly to stop update function
+                try:
+                    poke_socket.send_string("stop")
+                except Exception as e:
+                    print("Error stopping session", e)
+
                 print("Stop command received. Stopping sequence.")
                 continue
 
+            # Communicating with start button to restart session
+            if msg == 'start':
+                try:
+                    poke_socket.send_string("start")
+                except Exception as e:
+                    print("Error stopping session", e)
+            
             elif msg.startswith("Reward Port:"):    
                 ## This specifies which port to reward
                 # Debug print
@@ -649,7 +663,7 @@ try:
                     
                     # Debug message
                     print("Turning Nosepoke 7 Green")
-
+                    
                     # Keep track of which port is rewarded and which pin
                     # is rewarded
                     prev_port = value
@@ -659,7 +673,7 @@ try:
                     # TODO: document why this happens
                     # Current Reward Port
                     print(f"Current Reward Port: {value}") 
-            
+                
             elif msg == "Reward Poke Completed":
                 # This seems to occur when the GUI detects that the poked
                 # port was rewarded. This will be too slow. The reward port
