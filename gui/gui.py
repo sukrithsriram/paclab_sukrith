@@ -22,6 +22,7 @@ from PyQt5 import QtWidgets
 from PyQt5.QtWidgets import QMenu, QAction, QComboBox, QGroupBox, QMessageBox, QLabel, QGraphicsEllipseItem, QListWidget, QListWidgetItem, QGraphicsTextItem, QGraphicsScene, QGraphicsView, QWidget, QVBoxLayout, QPushButton, QApplication, QHBoxLayout, QLineEdit, QListWidget, QFileDialog, QDialog, QLabel, QDialogButtonBox, QTreeWidget, QTreeWidgetItem
 from PyQt5.QtCore import QPointF, QTimer, QTime, pyqtSignal, QObject, QThread, pyqtSlot,  QMetaObject, Qt
 from PyQt5.QtGui import QFont, QColor
+from pyqttoast import Toast, ToastPreset
 
 # Set up argument parsing to select box
 parser = argparse.ArgumentParser(description="Load parameters for a specific box.")
@@ -49,7 +50,13 @@ class PiSignal(QGraphicsEllipseItem):
         super(PiSignal, self).__init__(0, 0, 38, 38)
         self.index = index
         self.total_ports = total_ports # Creating a variable for the total number of Pis
-        self.label = QGraphicsTextItem(f"Port-{index + 1}", self) # Label for each Pi
+        
+        # Ensure index is within range of ports
+        if 0 <= self.index < len(params['ports']):
+            port_data = params['ports'][self.index]
+            label_text = port_data['label']
+        
+        self.label = QGraphicsTextItem(f"Port-{port_data['label']}", self) # Label for each Pi
         font = QFont()
         font.setPointSize(8)  # Set the font size here (10 in this example)
         self.label.setFont(font)
@@ -102,6 +109,7 @@ class Worker(QObject):
         
         # Initialize reward_port and related variables that need to be continually updated
         self.last_pi_received = None
+        self.prev_choice = None
         self.timer = None
         self.current_task = None
         self.pi_widget = pi_widget
@@ -130,7 +138,7 @@ class Worker(QObject):
         self.reward_ports = []
         
         # Randomly choose the initial reward port
-        self.reward_port = random.choice(active_nosepokes)
+        self.reward_port = self.choose()
         reward_message = f"Reward Port: {self.reward_port}"
         print(reward_message)
         
@@ -181,6 +189,14 @@ class Worker(QObject):
         if self.unique_ports_visited:
             self.average_unique_ports = sum(self.unique_ports_visited) / len(self.unique_ports_visited)
             
+    # Method to randomly choose next port to reward
+    def choose(self):
+        ports = active_nosepokes
+        poss_choices = [choice for choice in ports if choice != self.prev_choice]
+        new_choice =  random.choice(poss_choices)
+        self.prev_choice = new_choice
+        return new_choice
+    
     # Method to handle the update of Pis
     @pyqtSlot()
     def update_Pi(self):
@@ -190,13 +206,29 @@ class Worker(QObject):
         # Update the last poke timestamp whenever a poke event occurs
         self.last_poke_timestamp = current_time
 
-        # Receive message from the socket
-        identity, message = self.socket.recv_multipart()
-        self.identities.add(identity)
-        self.socket.send_multipart([identity, bytes(f"Reward Port: {self.reward_port}", 'utf-8')])
-
         try:
+            # Receive message from the socket
+            identity, message = self.socket.recv_multipart()
+            self.identities.add(identity)
             message_str = message.decode('utf-8')
+            
+            # Message to signal if pis are connected
+            if "rpi" in message_str:
+                print("Connected to Raspberry Pi:", message_str)
+            
+            # Message to stop updates if the session is stopped
+            if message_str.strip().lower() == "stop":
+                print("Received 'stop' message, aborting update.")
+                return
+            
+            # Sending the initial message to start the loop
+            self.socket.send_multipart([identity, bytes(f"Reward Port: {self.reward_port}", 'utf-8')])
+
+            # Starting next session
+            if message_str.strip().lower() == "start":
+                self.socket.send_multipart([identity, bytes(f"Reward Port: {self.reward_port}", 'utf-8')])
+    
+            # Statement to keep track of the current parameters 
             if "Current Parameters" in message_str:
                 sound_parameters = message_str
                 print("Updated:", message_str)
@@ -212,7 +244,7 @@ class Worker(QObject):
                 
                 # Extract and convert the values
                 self.current_amplitude = float(params.get("Amplitude", 0))
-                self.current_chunk_duration = float(params.get("Sound Duration", "0").split()[0])
+                self.current_chunk_duration = float(params.get("Chunk Duration", "0").split()[0])
                 self.current_pause_duration = float(params.get("Pause Duration", 0))
 
             else:
@@ -244,7 +276,7 @@ class Worker(QObject):
                     if color == "green" or color == "blue":
                         for identity in self.identities:
                             self.socket.send_multipart([identity, b"Reward Poke Completed"])
-                        self.reward_port = random.choice(active_nosepokes)
+                        self.reward_port = self.choose()
                         self.trials = 0
                         print(f"Reward Port: {self.reward_port}")
 
@@ -259,7 +291,8 @@ class Worker(QObject):
                             self.socket.send_multipart([identity, bytes(f"Reward Port: {self.reward_port}", 'utf-8')])
 
         except ValueError:
-            print("Connected to Raspberry Pi:", message_str)
+            print("Unknown message:", message_str)
+            
     
    # Method to save results to a CSV file
     def save_results_to_csv(self):
@@ -275,11 +308,16 @@ class Worker(QObject):
         # Save results to a CSV file
         with open(f"{save_directory}/{filename}", 'w', newline='') as csvfile:
             writer = csv.writer(csvfile)
-            writer.writerow(["Poke Timestamp (seconds)", "Port Visited", "Current Reward Port", "Amplitude", "Chunk Duration", "Pause Duration"])
+            writer.writerow(["Poke Timestamp (seconds)", "Port Visited", "Current Reward Port", "Amplitude", "Sound Duration", "Pause Duration"])
             for timestamp, poked_port, reward_port, amplitude, chunk_duration, pause_duration in zip(self.timestamps, self.poked_port_numbers, self.reward_ports, self.amplitudes, self.chunk_durations, self.pause_durations):
                 writer.writerow([timestamp, poked_port, reward_port, amplitude, chunk_duration, pause_duration])
         
         print(f"Results saved to logs")
+    
+    # Method to send start message to the pi
+    def start_message(self):
+        for identity in self.identities:
+            self.socket.send_multipart([identity, b"start"])
     
     # Method to send a stop message to the pi
     def stop_message(self):        
@@ -304,10 +342,18 @@ class PiWidget(QWidget):
         self.Pi_signals = [PiSignal(i, self.total_ports) for i in range(self.total_ports)]
         [self.scene.addItem(Pi) for Pi in self.Pi_signals]
         
+        # Setting for bold font
+        font = QFont()
+        font.setBold(True)
+        
         # Creating buttons to start and stop the sequence of communication with the Raspberry Pi
         self.poked_port_numbers = []
-        self.start_button = QPushButton("Start Session")        
+        self.start_button = QPushButton("Start Session")
+        self.start_button.setStyleSheet("background-color : green; color: white;") 
+        #self.start_button.setFont(font)   
         self.stop_button = QPushButton("Stop Session")
+        self.stop_button.setStyleSheet("background-color : red; color: white;") 
+        #self.stop_button.setFont(font)   
         self.stop_button.clicked.connect(self.save_results_to_csv)  # Connect save button to save method
 
         self.timer = QTimer(self)
@@ -325,8 +371,6 @@ class PiWidget(QWidget):
         
         # Details Title
         self.title_label = QLabel("Session Details:", self)
-        font = QFont()
-        font.setBold(True)
         self.title_label.setFont(font)
         
         # Session Details
@@ -413,6 +457,7 @@ class PiWidget(QWidget):
 
     def start_sequence(self):
         self.startButtonClicked.emit()
+        self.worker.start_message()
         
         # Start the worker thread when the start button is pressed
         self.thread.start()
@@ -487,6 +532,12 @@ class PiWidget(QWidget):
     def save_results_to_csv(self):
         self.worker.stop_message()
         self.worker.save_results_to_csv()  # Call worker method to save results
+        toast = Toast(self)
+        toast.setDuration(5000)  # Hide after 5 seconds
+        toast.setTitle('Results Saved')
+        toast.setText('Log saved to /home/mouse/dev/paclab_sukrith/logs')
+        toast.applyPreset(ToastPreset.SUCCESS)  # Apply style preset
+        toast.show()
 
 # Widget that contains a plot that is continuously depending on the ports that are poked
 class PlotWindow(QWidget):
@@ -515,7 +566,7 @@ class PlotWindow(QWidget):
         self.plot_graph.setLabel("bottom", "Time", **styles)
         self.plot_graph.addLegend()
         self.plot_graph.showGrid(x=True, y=True)
-        self.plot_graph.setYRange(1, 8)
+        self.plot_graph.setYRange(1, 9)
         self.timestamps = []  # List to store timestamps
         self.signal = []  # List to store active Pi signals
         
@@ -602,7 +653,6 @@ class PlotWindow(QWidget):
             item = self.plot_graph.plot(
                 [relative_time],
                 [poked_port_value],
-                name="Poke",
                 pen=None,
                 symbol="arrow_down",  # "o" for dots
                 symbolSize=20,  # use 8 or lower if using dots
@@ -1018,6 +1068,12 @@ class ConfigurationList(QWidget):
                 self.publisher.send_json(json_data)
                 self.current_task = selected_config['name'] + "_" + selected_config['task']
                 current_task = self.current_task
+                toast = Toast(self)
+                toast.setDuration(5000)  # Hide after 5 seconds
+                toast.setTitle('Task Parameters Sent')
+                toast.setText(f'Parameters for task {current_task} have been sent to {args.json_filename}')
+                toast.applyPreset(ToastPreset.SUCCESS)  # Apply style preset
+                toast.show()
             else:
                 self.selected_config_label.setText(f"Selected Config: None")
 
