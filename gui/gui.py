@@ -206,13 +206,29 @@ class Worker(QObject):
         # Update the last poke timestamp whenever a poke event occurs
         self.last_poke_timestamp = current_time
 
-        # Receive message from the socket
-        identity, message = self.socket.recv_multipart()
-        self.identities.add(identity)
-        self.socket.send_multipart([identity, bytes(f"Reward Port: {self.reward_port}", 'utf-8')])
-
         try:
+            # Receive message from the socket
+            identity, message = self.socket.recv_multipart()
+            self.identities.add(identity)
             message_str = message.decode('utf-8')
+            
+            # Message to signal if pis are connected
+            if "rpi" in message_str:
+                print("Connected to Raspberry Pi:", message_str)
+            
+            # Message to stop updates if the session is stopped
+            if message_str.strip().lower() == "stop":
+                print("Received 'stop' message, aborting update.")
+                return
+            
+            # Sending the initial message to start the loop
+            self.socket.send_multipart([identity, bytes(f"Reward Port: {self.reward_port}", 'utf-8')])
+
+            # Starting next session
+            if message_str.strip().lower() == "start":
+                self.socket.send_multipart([identity, bytes(f"Reward Port: {self.reward_port}", 'utf-8')])
+    
+            # Statement to keep track of the current parameters 
             if "Current Parameters" in message_str:
                 sound_parameters = message_str
                 print("Updated:", message_str)
@@ -228,7 +244,7 @@ class Worker(QObject):
                 
                 # Extract and convert the values
                 self.current_amplitude = float(params.get("Amplitude", 0))
-                self.current_chunk_duration = float(params.get("Sound Duration", "0").split()[0])
+                self.current_chunk_duration = float(params.get("Chunk Duration", "0").split()[0])
                 self.current_pause_duration = float(params.get("Pause Duration", 0))
 
             else:
@@ -275,7 +291,8 @@ class Worker(QObject):
                             self.socket.send_multipart([identity, bytes(f"Reward Port: {self.reward_port}", 'utf-8')])
 
         except ValueError:
-            print("Connected to Raspberry Pi:", message_str)
+            print("Unknown message:", message_str)
+            
     
    # Method to save results to a CSV file
     def save_results_to_csv(self):
@@ -291,11 +308,16 @@ class Worker(QObject):
         # Save results to a CSV file
         with open(f"{save_directory}/{filename}", 'w', newline='') as csvfile:
             writer = csv.writer(csvfile)
-            writer.writerow(["Poke Timestamp (seconds)", "Port Visited", "Current Reward Port", "Amplitude", "Chunk Duration", "Pause Duration"])
+            writer.writerow(["Poke Timestamp (seconds)", "Port Visited", "Current Reward Port", "Amplitude", "Sound Duration", "Pause Duration"])
             for timestamp, poked_port, reward_port, amplitude, chunk_duration, pause_duration in zip(self.timestamps, self.poked_port_numbers, self.reward_ports, self.amplitudes, self.chunk_durations, self.pause_durations):
                 writer.writerow([timestamp, poked_port, reward_port, amplitude, chunk_duration, pause_duration])
         
         print(f"Results saved to logs")
+    
+    # Method to send start message to the pi
+    def start_message(self):
+        for identity in self.identities:
+            self.socket.send_multipart([identity, b"start"])
     
     # Method to send a stop message to the pi
     def stop_message(self):        
@@ -435,6 +457,7 @@ class PiWidget(QWidget):
 
     def start_sequence(self):
         self.startButtonClicked.emit()
+        self.worker.start_message()
         
         # Start the worker thread when the start button is pressed
         self.thread.start()
