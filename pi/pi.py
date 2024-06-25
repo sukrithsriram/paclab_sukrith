@@ -10,7 +10,7 @@ import threading
 import random
 import json
 import socket as sc
-
+import scipy.signal
 
 ## Killing previous pigpiod and jackd background processes
 os.system('sudo killall pigpiod')
@@ -99,9 +99,17 @@ class JackClient:
         self.amplitude = random.uniform(0.005, 0.02)
         
         # Variable to store the time of the last burst
-        self.last_chunk_time = time.time()  
+        self.last_chunk_time = time.time()
 
+        # Bandwidth of the filter 
+        self.bandwidth = 3000
         
+        # Centre frequency of the filter
+        self.center_freq = random.uniform(5000, 15000)
+        
+        # Highpass and Lowpass default
+        self.highpass, self.lowpass = self.calculate_bandpass(self.center_freq, self.bandwidth)
+
         ## Create the contained jack.Client
         # Creating a jack client
         self.client = jack.Client(self.name)
@@ -190,18 +198,23 @@ class JackClient:
                 self.client.outports[n].connect(physical_channel)
 
     def update_parameters(self, chunk_min, chunk_max, pause_min, pause_max, 
-        amplitude_min, amplitude_max):
+        amplitude_min, amplitude_max, center_freq_min, center_freq_max, bandwidth):
         """Method to update sound parameters dynamically"""
         self.chunk_duration = random.uniform(chunk_min, chunk_max)
         self.pause_duration = random.uniform(pause_min, pause_max)
         self.amplitude = random.uniform(amplitude_min, amplitude_max)
+        self.center_freq = random.uniform(center_freq_min, center_freq_max)
+        self.bandwidth = bandwidth
+        self.highpass, self.lowpass = self.calculate_bandpass(self.center_freq, self.bandwidth)
 
         # Debug message
         parameter_message = (
             f"Current Parameters - Amplitude: {self.amplitude}, "
             f"Chunk Duration: {self.chunk_duration} s, "
-            f"Pause Duration: {self.pause_duration}"
-            )
+            f"Pause Duration: {self.pause_duration} s,"
+            f"Center Frequency: {self.center_freq} Hz"
+            f"Bandidth: {self.bandwidth}, "
+            f"Highpass: {self.highpass}, Lowpass: {self.lowpass}")
         print(parameter_message)
         
         # Send the parameter message
@@ -211,6 +224,12 @@ class JackClient:
         # the parameter message need to be sent?
         poke_socket.send_string(parameter_message)  
     
+    def calculate_bandpass(self, center_freq, bandwidth):
+        """Calculate highpass and lowpass frequencies based on center frequency and bandwidth"""
+        highpass = center_freq - (bandwidth / 2)
+        lowpass = center_freq + (bandwidth / 2)
+        return highpass, lowpass
+
     def process(self, frames):
         """Process callback function (used to play sound)
         
@@ -239,27 +258,29 @@ class JackClient:
                 pass
             
             else:
-                # Generate random noise for the chunks
-                # Play sound from left channel
-                if self.set_channel == 'left': 
-                    # Random noise using numpy
-                    data = (self.amplitude * 
-                        np.random.uniform(-1, 1, (self.blocksize, 2))) 
-                    
-                    # Blocking out the right channel 
-                    data[:, 1] = 0  
-                
-                elif self.set_channel == 'right':
-                    # Random noise using numpy
-                    data = (self.amplitude * 
-                        np.random.uniform(-1, 1, (self.blocksize, 2)))
-                    
-                    # Blocking out the left channel
-                    data[:, 0] = 0  
-
-            # Write
+            # Generating bandpass fitlered noise
+                data = self.generate_filtered_noise()
+            
+            
             self.write_to_outports(data)
 
+    def generate_filtered_noise(self):
+        """Generate filtered noise"""
+        noise = self.amplitude * np.random.uniform(-1, 1, (self.blocksize, 2))
+        if self.highpass is not None:
+            bhi, ahi = scipy.signal.butter(2, self.highpass / (self.fs / 2), 'high')
+            noise[:, 0] = scipy.signal.filtfilt(bhi, ahi, noise[:, 0])
+            noise[:, 1] = scipy.signal.filtfilt(bhi, ahi, noise[:, 1])
+        if self.lowpass is not None:
+            blo, alo = scipy.signal.butter(2, self.lowpass / (self.fs / 2), 'low')
+            noise[:, 0] = scipy.signal.filtfilt(blo, alo, noise[:, 0])
+            noise[:, 1] = scipy.signal.filtfilt(blo, alo, noise[:, 1])
+        if self.set_channel == 'left':
+            noise[:, 1] = 0
+        elif self.set_channel == 'right':
+            noise[:, 0] = 0
+        return noise
+    
     def write_to_outports(self, data):
         """Write data to outports"""
         # TODO: rewrite this to be always stereo, and then combine this
@@ -546,11 +567,14 @@ try:
             pause_max = config_data['pause_max']
             amplitude_min = config_data['amplitude_min']
             amplitude_max = config_data['amplitude_max']
+            center_freq_min = config_data['center_freq_min']
+            center_freq_max = config_data['center_freq_max']
+            bandwidth = config_data['bandwidth']
             
             # Update the jack client with the new acoustic parameters
             jack_client.update_parameters(
                 chunk_min, chunk_max, pause_min, pause_max, 
-                amplitude_min, amplitude_max)
+                amplitude_min, amplitude_max, center_freq_min, center_freq_max, bandwidth)
             
             # Debug print
             print("Parameters updated")
