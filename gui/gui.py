@@ -679,8 +679,6 @@ class ConfigurationDetailsDialog(QDialog):
         self.chunk_label = QLabel(f"Sound Duration: {config['chunk_min']} - {config['chunk_max']}")
         self.pause_label = QLabel(f"Pause Duration: {config['pause_min']} - {config['pause_max']}")
         self.reward_label = QLabel(f"Reward Value: {config['reward_value']}")
-        self.freq_label = QLabel(f"Center Frequency: {config['center_freq_min']} - {config['center_freq_max']}")
-        self.band_label = QLabel(f"Bandwidth: {config['bandwidth']}")
 
         # Create button box with OK button
         self.button_box = QDialogButtonBox(QDialogButtonBox.Ok)
@@ -694,8 +692,6 @@ class ConfigurationDetailsDialog(QDialog):
         layout.addWidget(self.chunk_label)
         layout.addWidget(self.pause_label)
         layout.addWidget(self.reward_label)
-        layout.addWidget(self.freq_label)
-        layout.addWidget(self.band_label)
         layout.addWidget(self.button_box)
         self.setLayout(layout)
 
@@ -739,10 +735,7 @@ class ConfigurationDialog(QDialog):
             "chunk_max": 0.0,
             "pause_min": 0.0,
             "pause_max": 0.0,
-            "reward_value": 0.0,
-            "center_freq_min": 0.0,
-            "center_freq_max": 0.0,
-            "bandwidth": 0.0
+            "reward_value": 0.0
         }
         self.init_ui()
 
@@ -789,20 +782,6 @@ class ConfigurationDialog(QDialog):
         
         self.reward_label = QLabel("Reward Value:")
         self.reward_edit = QLineEdit(str(self.config.get("reward_value", "")))
-        
-        self.freq_label = QLabel("Center Frequency:")
-        freq_layout = QHBoxLayout()
-        self.freq_min_label = QLabel("Min:")
-        self.freq_min_edit = QLineEdit(str(self.config.get("center_freq_min", "")))
-        self.freq_max_label = QLabel("Max:")
-        self.freq_max_edit = QLineEdit(str(self.config.get("center_freq_max", "")))
-        freq_layout.addWidget(self.freq_min_label)
-        freq_layout.addWidget(self.freq_min_edit)
-        freq_layout.addWidget(self.freq_max_label)
-        freq_layout.addWidget(self.freq_max_edit)
-        
-        self.band_label = QLabel("Bandwidth:")
-        self.band_edit = QLineEdit(str(self.config.get("bandwidth", "")))
 
         # Create button box with OK and Cancel buttons
         self.button_box = QDialogButtonBox(QDialogButtonBox.Ok | QDialogButtonBox.Cancel)
@@ -819,12 +798,8 @@ class ConfigurationDialog(QDialog):
         layout.addLayout(chunk_layout)
         layout.addWidget(self.pause_label)
         layout.addLayout(pause_layout)
-        layout.addWidget(self.freq_label)
-        layout.addLayout(freq_layout)
         layout.addWidget(self.reward_label)
         layout.addWidget(self.reward_edit)
-        layout.addWidget(self.band_label)
-        layout.addWidget(self.band_edit)
         layout.addWidget(self.button_box)
 
         self.setLayout(layout)
@@ -846,15 +821,11 @@ class ConfigurationDialog(QDialog):
             self.pause_min_label.hide()
             self.pause_max_label.hide()
             self.pause_max_edit.hide()
-            self.freq_min_label.hide()
-            self.freq_max_label.hide()
-            self.freq_max_edit.hide()
 
             # Connect min edit fields to update max fields
             self.amplitude_min_edit.textChanged.connect(self.update_amplitude_max)
             self.chunk_min_edit.textChanged.connect(self.update_chunk_max)
             self.pause_min_edit.textChanged.connect(self.update_pause_max)
-            self.freq_min_edit.textChanged.connect(self.update_freq_max)
 
         else:
             # For other tasks, show all min and max edit fields
@@ -871,10 +842,6 @@ class ConfigurationDialog(QDialog):
     def update_pause_max(self):
         value = self.pause_min_edit.text()
         self.pause_max_edit.setText(value)
-    
-    def update_freq_max(self):
-        value = self.freq_min_edit.text()
-        self.freq_max_edit.setText(value)
 
     def get_configuration(self):
         updated_name = self.name_edit.text()
@@ -888,10 +855,7 @@ class ConfigurationDialog(QDialog):
             pause_min = float(self.pause_min_edit.text())
             pause_max = float(self.pause_max_edit.text())
             reward_value = float(self.reward_edit.text())
-            center_freq_min = float(self.freq_min_edit.text())
-            center_freq_max = float(self.freq_max_edit.text())
-            bandwidth = float(self.band_edit.text())
-
+            
         except ValueError:
             # Handle invalid input
             return None
@@ -905,10 +869,7 @@ class ConfigurationDialog(QDialog):
             "chunk_max": chunk_max,
             "pause_min": pause_min,
             "pause_max": pause_max,
-            "reward_value": reward_value,
-            "center_freq_min": center_freq_min,
-            "center_freq_max": center_freq_max,
-            "bandwidth": bandwidth
+            "reward_value": reward_value
         }
 
         return updated_config
@@ -1001,10 +962,7 @@ class ConfigurationList(QWidget):
                     "chunk_max": 0.0,
                     "pause_min": 0.0,
                     "pause_max": 0.0,
-                    "reward_value": 0.0,
-                    "center_freq_min": 0.0,
-                    "center_freq_max": 0.0,
-                    "bandwidth": 0.0
+                    "reward_value": 0.0
                 }
 
             # Instantiate ConfigurationDialog properly
