@@ -136,7 +136,9 @@ class Worker(QObject):
         self.identities = set()
         self.last_poke_timestamp = None  # Attribute to store the timestamp of the last poke event
         self.reward_port = None
+        self.last_rewarded_port = None
         self.previous_port = None
+
 
         # Initializing lists for timestamps and ports visited
         self.trials = 0
@@ -193,7 +195,6 @@ class Worker(QObject):
         self.identities.clear()
         self.last_poke_timestamp = None
         self.reward_port = None
-        self.last_rewarded_port = None
         self.previous_port = None
         self.trials = 0
         self.average_unique_ports = 0
@@ -223,10 +224,6 @@ class Worker(QObject):
     def update_Pi(self):
         current_time = time.time()
         elapsed_time = current_time - self.initial_time
-
-        # Check if the poked port is the same as the last rewarded port
-        if poked_port == self.last_rewarded_port:
-            return
 
         # Update the last poke timestamp whenever a poke event occurs
         self.last_poke_timestamp = current_time
@@ -306,6 +303,7 @@ class Worker(QObject):
                     if color == "green" or color == "blue":
                         for identity in self.identities:
                             self.socket.send_multipart([identity, b"Reward Poke Completed"])
+                        self.last_rewarded_port = self.reward_port   
                         self.reward_port = self.choose()
                         self.trials = 0
                         print_out(f"Reward Port: {self.reward_port}")
@@ -320,7 +318,6 @@ class Worker(QObject):
                         for identity in self.identities:
                             self.socket.send_multipart([identity, bytes(f"Reward Port: {self.reward_port}", 'utf-8')])
 
-                    self.last_rewarded_port = self.reward_port   
  
         except ValueError:
             print_out("Unknown message:", message_str)
