@@ -1,5 +1,5 @@
 {
-    "identity" : "rpi99",
+    "identity" : "rpi28",
     "gui_ip" : "192.168.0.207",
     "poke_port" : ":5555",
     "config_port": ":5556",
