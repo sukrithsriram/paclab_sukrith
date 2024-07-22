@@ -86,6 +86,8 @@ class JackClient:
         # This determines which channel plays sound
         self.set_channel = 'none'  # 'left', 'right', or 'none'
         
+        self.sample_counter = 0
+        
         # Lock for thread-safe set_channel() updates
         self.lock = threading.Lock()  
         
@@ -207,12 +209,17 @@ class JackClient:
         self.bandwidth = bandwidth
         self.highpass, self.lowpass = self.calculate_bandpass(self.center_freq, self.bandwidth)
 
+        # Pre-calculate filter coefficients
+        self.bhi, self.ahi = scipy.signal.butter(1, self.highpass / (self.fs / 2), 'high')
+        self.blo, self.alo = scipy.signal.butter(1, self.lowpass / (self.fs / 2), 'low')
+
+
         # Debug message
         parameter_message = (
             f"Current Parameters - Amplitude: {self.amplitude}, "
             f"Chunk Duration: {self.chunk_duration} s, "
             f"Pause Duration: {self.pause_duration} s,"
-            f"Center Frequency: {self.center_freq} Hz"
+            f"Center Frequency: {self.center_freq} Hz,"
             f"Bandwidth: {self.bandwidth}, "
             f"Highpass: {self.highpass}, Lowpass: {self.lowpass}")
         print(parameter_message)
@@ -231,53 +238,44 @@ class JackClient:
         return highpass, lowpass
 
     def process(self, frames):
-        """Process callback function (used to play sound)
-        
-        TODO: reimplement this to use a queue instead
-        The current implementation uses time.time(), but we need to be more
-        precise.
-        """
-        # Making process() thread-safe (so that multiple calls don't try to
-        # write to the outports at the same time)
-        with self.lock: 
-            # Get the current time
-            current_time = time.time()
-
+        """Process callback function (used to play sound)"""
+        with self.lock:
             # Initialize data with zeros (silence)
             data = np.zeros((self.blocksize, 2), dtype='float32')
 
+            # Calculate elapsed samples instead of using time
+            elapsed_samples = self.sample_counter / self.fs
+            chunk_duration_samples = int(self.chunk_duration * self.fs)
+            pause_duration_samples = int(self.pause_duration * self.fs)
+
             # Check if time for chunk or gap
-            if current_time - self.last_chunk_time >= self.chunk_duration + self.pause_duration:
-                # It has been long enough that it is time for a new noise burst
-                # Updating the last chunk time to now
-                self.last_chunk_time = current_time  
-            
-            elif current_time - self.last_chunk_time >= self.chunk_duration:
+            if elapsed_samples >= chunk_duration_samples + pause_duration_samples:
+                # Time for a new noise burst
+                self.sample_counter = 0
+            elif elapsed_samples >= chunk_duration_samples:
                 # We are in the silent period between sounds
-                # So play silence
                 pass
-            
             else:
-                # Generating bandpass fitlered noise
+                # Generating bandpass filtered noise
                 if self.set_channel == 'left':
                     data = self.noise()
                     data[:, 1] = 0
                 elif self.set_channel == 'right':
                     data = self.noise()
                     data[:, 0] = 0
-                
+
             self.write_to_outports(data)
+            self.sample_counter += self.blocksize
 
     
     def noise(self):
-                    data = self.amplitude * np.random.uniform(-1, 1, (self.blocksize, 2))
-                    if self.highpass is not None:
-                        bhi, ahi = scipy.signal.butter(1, self.highpass / (self.fs / 2), 'high')
-                        data = scipy.signal.lfilter(bhi, ahi, data)
-                    if self.lowpass is not None:
-                        blo, alo = scipy.signal.butter(1, self.lowpass / (self.fs / 2), 'low')
-                        data = scipy.signal.lfilter(blo, alo, data)
-                    return data
+        """Generate bandpass filtered noise"""
+        data = self.amplitude * np.random.uniform(-1, 1, (self.blocksize, 2))
+        if self.highpass is not None:
+            data = scipy.signal.lfilter(self.bhi, self.ahi, data)
+        if self.lowpass is not None:
+            data = scipy.signal.lfilter(self.blo, self.alo, data)
+        return data
     
 
     def write_to_outports(self, data):

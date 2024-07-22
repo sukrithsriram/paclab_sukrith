@@ -1,14 +1,14 @@
 {
     "name": "mouse1",
     "task": "Fixed",
-    "amplitude_min": 0.01,
-    "amplitude_max": 0.01,
+    "amplitude_min": 0.03,
+    "amplitude_max": 0.03,
     "chunk_min": 0.01,
     "chunk_max": 0.01,
     "pause_min": 0.3,
     "pause_max": 0.3,
     "reward_value": 0.5,
-    "center_freq_min": 10000,
-    "center_freq_max": 10000,
-    "bandwidth": 3000
+    "center_freq_min": 10000.0,
+    "center_freq_max": 10000.0,
+    "bandwidth": 3000.0
 }
