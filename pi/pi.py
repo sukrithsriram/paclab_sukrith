@@ -41,6 +41,14 @@ pi_name = str(pi_hostname)
 
 # Load the config parameters for this pi
 # TODO: document everything in params
+"""Configurable parameters for each pi in the behavior box
+
+   identity: The name of the pi
+   gui_ip: The IP address of the computer the GUI is being used on
+   poke_port: The network port dedicated to receiving information about pokes
+   config_port: The network port used to send all the configuration details for a task
+   nosepoke_type: Nosepoke sensors are of two types OPB901L55 and OPB901L55
+   nosepoke_id: """
 param_directory = f"configs/pis/{pi_name}.json"
 with open(param_directory, "r") as p:
     params = json.load(p)    
@@ -333,7 +341,6 @@ poke_socket.send_string(f"{pi_identity}")
 # Print acknowledgment
 print(f"Connected to router at {router_ip}")  
 
-
 ## Connect to json socket
 router_ip2 = "tcp://" + f"{params['gui_ip']}" + f"{params['config_port']}"
 json_socket.connect(router_ip2) 
@@ -439,16 +446,17 @@ def open_valve(port):
     port : TODO document what this is
     TODO: reward duration needs to be a parameter of the task or mouse # It is in the test branch
     """
+    reward_value = config_data['reward_value']
     if port == int(params['nosepokeL_id']):
         pi.set_mode(6, pigpio.OUTPUT)
         pi.write(6, 1)
-        time.sleep(0.05)
+        time.sleep(reward_value)
         pi.write(6, 0)
     
     if port == int(params['nosepokeR_id']):
         pi.set_mode(26, pigpio.OUTPUT)
         pi.write(26, 1)
-        time.sleep(0.05)
+        time.sleep(reward_value)
         pi.write(26, 0)
 
 # TODO: document this function
@@ -461,6 +469,17 @@ def flash():
     pi.write(22, 0)
     pi.write(11, 0)  
 
+# Function with logic to stop session
+def stop_session():
+    global reward_pin, current_pin, prev_port
+    flash()
+    current_pin = None
+    prev_port = None
+    pi.write(17, 0)
+    pi.write(10, 0)
+    pi.write(27, 0)
+    pi.write(9, 0)
+    jack_client.set_set_channel('none')
 
 ## Set up pigpio and callbacks
 # TODO: rename this variable to pig or something; "pi" is ambiguous
@@ -482,17 +501,17 @@ pwm_frequency = 1
 pwm_duty_cycle = 50
 
 # Duration of sounds
-chunk_min = 0.01
-chunk_max = 0.05
+chunk_min = 0.0
+chunk_max = 0.0
 
 # Duration of pauses
-pause_min = 0.05
-pause_max = 0.2
+pause_min = 0.0
+pause_max = 0.0
 
 # Range of amplitudes
 # TODO: these need to be received from task, not specified here # These were all initial values set incase a task was not selected
-amplitude_min = 0.005
-amplitude_max = 0.02
+amplitude_min = 0.0
+amplitude_max = 0.0
 
 
 ## Main loop to keep the program running and exit when it receives an exit command
@@ -507,12 +526,11 @@ try:
     # Track prev_port
     prev_port = None
     
-    
     ## Loop forever
     while True:
         ## Wait for events on registered sockets
         # TODO: how long does it wait? # Can be set, currently not sure
-        socks = dict(poller.poll())
+        socks = dict(poller.poll(1))
         
         
         ## Check for incoming messages on json_socket
@@ -545,7 +563,6 @@ try:
             # Debug print
             print("Parameters updated")
             
-        
         ## Check for incoming messages on poke_socket
         # TODO: document the types of messages that can be sent on poke_socket 
         if poke_socket in socks and socks[poke_socket] == zmq.POLLIN:
@@ -563,21 +580,37 @@ try:
                 pi.write(9, 0)
                 print("Received exit command. Terminating program.")
                 
+                # Wait for the client to finish processing any remaining chunks
+                # TODO: why is this here? It's already deactivated 
+                time.sleep(jack_client.chunk_duration + jack_client.pause_duration)
+                
                 # Stop the Jack client
                 # TODO: Probably want to leave this running for the next
                 # session
                 jack_client.client.deactivate()
                 
-                # Wait for the client to finish processing any remaining chunks
-                # TODO: why is this here? It's already deactivated 
-                time.sleep(jack_client.chunk_duration + jack_client.pause_duration)
-                
                 # Exit the loop
                 break  
             
-            elif msg == 'start':
-                # TODO: document
-                flash()
+            # Receiving message from stop button 
+            if msg == 'stop':
+                stop_session()
+                
+                # Sending stop signal wirelessly to stop update function
+                try:
+                    poke_socket.send_string("stop")
+                except Exception as e:
+                    print("Error stopping session", e)
+
+                print("Stop command received. Stopping sequence.")
+                continue
+
+            # Communicating with start button to restart session
+            if msg == 'start':
+                try:
+                    poke_socket.send_string("start")
+                except Exception as e:
+                    print("Error stopping session", e)
             
             elif msg.startswith("Reward Port:"):    
                 ## This specifies which port to reward
@@ -638,7 +671,7 @@ try:
                     
                     # Debug message
                     print("Turning Nosepoke 7 Green")
-
+                    
                     # Keep track of which port is rewarded and which pin
                     # is rewarded
                     prev_port = value
@@ -648,7 +681,7 @@ try:
                     # TODO: document why this happens
                     # Current Reward Port
                     print(f"Current Reward Port: {value}") 
-            
+                
             elif msg == "Reward Poke Completed":
                 # This seems to occur when the GUI detects that the poked
                 # port was rewarded. This will be too slow. The reward port
