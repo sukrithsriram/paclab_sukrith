@@ -43,6 +43,23 @@ active_nosepokes = [int(i) for i in params['active_nosepokes']]
 
 # Variable to keep track of the current task
 current_task = None
+current_time = None
+
+# Function to print to terminal and store log files as txt
+def print_out(*args, **kwargs):
+    global current_task, current_time
+    
+    output_filename = params['save_directory'] + f"/terminal_logs/{current_task}_{current_time}.txt"
+    
+    # Join the arguments into a single string
+    statement = " ".join(map(str, args))
+    
+    # Print the statement to the console
+    print(statement, **kwargs)
+    
+    # Write the statement to the file
+    with open(output_filename, 'a') as outputFile:
+            outputFile.write(statement + "\n")
 
 # Creating a class for the individual Raspberry Pi signals
 class PiSignal(QGraphicsEllipseItem):
@@ -83,7 +100,7 @@ class PiSignal(QGraphicsEllipseItem):
         elif color == "gray":
             self.setBrush(QColor("gray"))
         else:
-            print("Invalid color:", color)
+            print_out("Invalid color:", color)
 
 # Worker class to lower the load on the GUI
 class Worker(QObject):
@@ -140,11 +157,14 @@ class Worker(QObject):
         # Randomly choose the initial reward port
         self.reward_port = self.choose()
         reward_message = f"Reward Port: {self.reward_port}"
-        print(reward_message)
+        print_out(reward_message)
         
         # Send the message to all connected Pis
         for identity in self.identities:
             self.socket.send_multipart([identity, bytes(reward_message, 'utf-8')])
+        
+        port_data = params['ports'][int(self.reward_port)]
+        label_text = port_data['label']
         
         # Set the color of the initial reward port to green
         self.Pi_signals[self.reward_port - 1].set_color("green")
@@ -214,11 +234,11 @@ class Worker(QObject):
             
             # Message to signal if pis are connected
             if "rpi" in message_str:
-                print("Connected to Raspberry Pi:", message_str)
+                print_out("Connected to Raspberry Pi:", message_str)
             
             # Message to stop updates if the session is stopped
             if message_str.strip().lower() == "stop":
-                print("Received 'stop' message, aborting update.")
+                print_out("Received 'stop' message, aborting update.")
                 return
             
             # Sending the initial message to start the loop
@@ -231,7 +251,7 @@ class Worker(QObject):
             # Statement to keep track of the current parameters 
             if "Current Parameters" in message_str:
                 sound_parameters = message_str
-                print("Updated:", message_str)
+                print_out("Updated:", message_str)
                 
                 # Remove the "Current Parameters - " part and strip any leading/trailing whitespace
                 param_string = sound_parameters.split("-", 1)[1].strip()
@@ -262,7 +282,7 @@ class Worker(QObject):
 
                     poked_port_signal.set_color(color)
                     self.poked_port_numbers.append(poked_port)
-                    print("Sequence:", self.poked_port_numbers)
+                    print_out("Sequence:", self.poked_port_numbers)
                     self.last_pi_received = identity
 
                     self.pokedportsignal.emit(poked_port, color)
@@ -278,7 +298,7 @@ class Worker(QObject):
                             self.socket.send_multipart([identity, b"Reward Poke Completed"])
                         self.reward_port = self.choose()
                         self.trials = 0
-                        print(f"Reward Port: {self.reward_port}")
+                        print_out(f"Reward Port: {self.reward_port}")
 
                         # Reset color of all non-reward ports to gray and reward port to green
                         for index, Pi in enumerate(self.Pi_signals):
@@ -291,18 +311,17 @@ class Worker(QObject):
                             self.socket.send_multipart([identity, bytes(f"Reward Port: {self.reward_port}", 'utf-8')])
 
         except ValueError:
-            print("Unknown message:", message_str)
+            print_out("Unknown message:", message_str)
             
     
    # Method to save results to a CSV file
     def save_results_to_csv(self):
-        global current_task
+        global current_task, current_time
         
         # Specifying the directory where you want to save the CSV files
         save_directory = params['save_directory']
         
         # Generating filename based on current_task and current date/time
-        current_time = datetime.now().strftime("%Y%m%d_%H%M%S")
         filename = f"{current_task}_{current_time}_saved.csv"
         
         # Save results to a CSV file
@@ -312,7 +331,7 @@ class Worker(QObject):
             for timestamp, poked_port, reward_port, amplitude, chunk_duration, pause_duration in zip(self.timestamps, self.poked_port_numbers, self.reward_ports, self.amplitudes, self.chunk_durations, self.pause_durations):
                 writer.writerow([timestamp, poked_port, reward_port, amplitude, chunk_duration, pause_duration])
         
-        print(f"Results saved to logs")
+        print_out(f"Results saved to logs")
     
     # Method to send start message to the pi
     def start_message(self):
@@ -461,7 +480,7 @@ class PiWidget(QWidget):
         
         # Start the worker thread when the start button is pressed
         self.thread.start()
-        print("Experiment Started!")
+        print_out("Experiment Started!")
         QMetaObject.invokeMethod(self.worker, "start_sequence", Qt.QueuedConnection)
 
         # Start the plot
@@ -473,7 +492,7 @@ class PiWidget(QWidget):
 
     def stop_sequence(self):
         QMetaObject.invokeMethod(self.worker, "stop_sequence", Qt.QueuedConnection)
-        print("Experiment Stopped!")
+        print_out("Experiment Stopped!")
         
         # Stop the plot
         self.main_window.plot_window.stop_plot()
@@ -1089,7 +1108,7 @@ class ConfigurationList(QWidget):
         
     # Define the slot for double-clicked items
     def config_item_clicked(self, item, column):
-        global current_task
+        global current_task, current_time 
         
         if item.parent():  # Ensure it's a config item, not a category
             selected_config = item.data(0, Qt.UserRole)
@@ -1109,6 +1128,8 @@ class ConfigurationList(QWidget):
                 json_data = json.dumps(selected_config)
                 self.publisher.send_json(json_data)
                 self.current_task = selected_config['name'] + "_" + selected_config['task']
+                self.current_time = datetime.now().strftime("%Y%m%d_%H%M%S")
+                current_time = self.current_time
                 current_task = self.current_task
                 toast = Toast(self)
                 toast.setDuration(5000)  # Hide after 5 seconds
