@@ -239,7 +239,7 @@ class JackClient:
 
     def process(self, frames):
         """Process callback function (used to play sound)"""
-        with self.lock:
+        #with self.lock:
             # Initialize data with zeros (silence)
             data = np.zeros((self.blocksize, 2), dtype='float32')
 
