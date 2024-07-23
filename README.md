@@ -1,5 +1,5 @@
 # Requirements for Pi and GUI
- conda install pyqt pyzmq pyqtgraph pyqt-toast-notification
+ conda install pyqt pyzmq pyqtgraph pyqt-toast-notification numpy
 
 # Requirements for Pi Only
 PiGPIO: pip install pigpio\
