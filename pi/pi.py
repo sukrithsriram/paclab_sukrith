@@ -241,31 +241,31 @@ class JackClient:
         """Process callback function (used to play sound)"""
         #with self.lock:
             # Initialize data with zeros (silence)
-            data = np.zeros((self.blocksize, 2), dtype='float32')
+        data = np.zeros((self.blocksize, 2), dtype='float32')
 
-            # Calculate elapsed samples instead of using time
-            elapsed_samples = self.sample_counter / self.fs
-            chunk_duration_samples = int(self.chunk_duration * self.fs)
-            pause_duration_samples = int(self.pause_duration * self.fs)
+        # Calculate elapsed samples instead of using time
+        elapsed_samples = self.sample_counter / self.fs
+        chunk_duration_samples = int(self.chunk_duration * self.fs)
+        pause_duration_samples = int(self.pause_duration * self.fs)
 
-            # Check if time for chunk or gap
-            if elapsed_samples >= chunk_duration_samples + pause_duration_samples:
-                # Time for a new noise burst
-                self.sample_counter = 0
-            elif elapsed_samples >= chunk_duration_samples:
+        # Check if time for chunk or gap
+        if elapsed_samples >= chunk_duration_samples + pause_duration_samples:
+            # Time for a new noise burst
+            self.sample_counter = 0
+        elif elapsed_samples >= chunk_duration_samples:
                 # We are in the silent period between sounds
-                pass
-            else:
-                # Generating bandpass filtered noise
-                if self.set_channel == 'left':
-                    data = self.noise()
-                    data[:, 1] = 0
-                elif self.set_channel == 'right':
-                    data = self.noise()
-                    data[:, 0] = 0
+            pass
+        else:
+        # Generating bandpass filtered noise
+            if self.set_channel == 'left':
+                data = self.noise()
+                data[:, 1] = 0
+            elif self.set_channel == 'right':
+                data = self.noise()
+                data[:, 0] = 0
 
-            self.write_to_outports(data)
-            self.sample_counter += self.blocksize
+        self.write_to_outports(data)
+        self.sample_counter += self.blocksize
 
     
     def noise(self):
