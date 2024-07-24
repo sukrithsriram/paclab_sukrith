@@ -268,7 +268,6 @@ class JackClient:
             
         self.write_to_outports(data)
 
-    
     def noise(self):
                     data = self.amplitude * np.random.uniform(-1, 1, (self.blocksize, 2))
                     if self.highpass is not None:
