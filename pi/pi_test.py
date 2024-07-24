@@ -114,9 +114,6 @@ class Noise:
         
         # Convert to float32
         self.table = self.table.astype(np.float32)
-        
-        # Chunking the sound
-        self.chunk()
     
     def calculate_bandpass(self, center_freq, bandwidth):
         """Calculate highpass and lowpass frequencies based on center frequency and bandwidth"""
@@ -238,6 +235,10 @@ class SoundPlayer(object):
         
         # Get data from cycle
         data = next(self.audio_cycle)
+        if data = 'sound':
+            data = noise
+        if data = 'gap': 
+            data = np.zeros((self.blocksize, 2), dtype='float32')
         data_std = np.std(data)
 
         # Write one column to each channel
@@ -247,7 +248,8 @@ class SoundPlayer(object):
 
 ## Define a client to play sounds
 noise = Noise()
-sound_player = SoundPlayer(name='sound_player')
+audio_cycle = itertools.cycle(['sound', 'gap'])
+sound_player = SoundPlayer(name='sound_player', audiocycle = audio_cycle)
 
 # Raspberry Pi's identity (Change this to the identity of the Raspberry Pi you are using)
 # TODO: what is the difference between pi_identity and pi_name? # They are functionally the same, this line is from before I imported 
