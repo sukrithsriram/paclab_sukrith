@@ -124,7 +124,7 @@ class JackClient:
         self.fs = self.client.samplerate
         
         # Writing the noise calculation
-        slef.noise = self.amplitude * self.noise()
+        self.noise = self.amplitude * self.noise()
 
         
         # Debug message
