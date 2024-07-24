@@ -48,7 +48,7 @@ with open(param_directory, "r") as p:
 
 # Class that generates white noise bursts to be played by the sound player
 class Noise: 
-    def _init_(self, name = 'noise', chunk_min, chunk_max, pause_min, pause_max, amplitude_min, amplitude_max, center_freq_min, center_freq_max, bandwidth):
+    def _init_(self, name = 'noise'):
         ## Store provided parameters
         self.name = name
         
