@@ -245,6 +245,7 @@ class JackClient:
 
         # Initialize data with zeros (silence)
         data = np.zeros((self.blocksize, 2), dtype='float32')
+        data = self.amplitude * self.noise()
 
         # Check if time for chunk or gap
         if current_time - self.last_chunk_time >= self.chunk_duration + self.pause_duration:
@@ -260,10 +261,8 @@ class JackClient:
         else:
             # Generating bandpass fitlered noise
             if self.set_channel == 'left':
-                data = self.noise()
                 data[:, 1] = 0
             elif self.set_channel == 'right':
-                data = self.noise()
                 data[:, 0] = 0
             
         self.write_to_outports(data)
