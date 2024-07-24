@@ -314,14 +314,12 @@ class JackClient:
         #with self.lock:
         self.set_channel = mode
 
-
 ## Define a client to play sounds
 jack_client = JackClient(name='jack_client')
 
 # Raspberry Pi's identity (Change this to the identity of the Raspberry Pi you are using)
 # TODO: what is the difference between pi_identity and pi_name? # They are functionally the same, this line is from before I imported 
 pi_identity = params['identity']
-
 
 ## Creating a ZeroMQ context and socket for communication with the central system
 # TODO: what information travels over this socket? Clarify: do messages on
