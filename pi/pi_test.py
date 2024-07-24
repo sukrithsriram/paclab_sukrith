@@ -46,17 +46,16 @@ param_directory = f"configs/pis/{pi_name}.json"
 with open(param_directory, "r") as p:
     params = json.load(p)    
 
-# Class that generates white noise bursts to be played by the sound player
 class Noise:
     def __init__(self, name='noise'):
         # Store provided parameters
         self.name = name
 
         # Getting sound parameters from server (dummy initialization for this example)
-        self.nsamples = 48000  # Example value, this should be fetched or calculated
+        self.nsamples = 48000  # Ensure this is large enough for the filtering process
 
         # This determines which channel plays sound
-        self.channel = 'none'  # 'left', 'right', or 'none'
+        self.channel = 'left'  # 'left', 'right', or 'none'
 
         # Lock for thread-safe channel() updates
         self.lock = threading.Lock()
@@ -89,15 +88,21 @@ class Noise:
 
     def init_sound(self):
         # Generating a band-pass filtered stereo sound
-        data = np.random.uniform(-1, 1, (3,2))
+        data = np.random.uniform(-1, 1, self.nsamples)
 
-        if self.highpass is not None:
-            bhi, ahi = scipy.signal.butter(2, self.highpass / (self.fs / 2), 'high')
-            data = scipy.signal.filtfilt(bhi, ahi, data)
+        try:
+            if self.highpass is not None:
+                bhi, ahi = scipy.signal.butter(2, self.highpass / (self.fs / 2), 'high')
+                data = scipy.signal.filtfilt(bhi, ahi, data)
 
-        if self.lowpass is not None:
-            blo, alo = scipy.signal.butter(2, self.lowpass / (self.fs / 2), 'low')
-            data = scipy.signal.filtfilt(blo, alo, data)
+            if self.lowpass is not None:
+                blo, alo = scipy.signal.butter(2, self.lowpass / (self.fs / 2), 'low')
+                data = scipy.signal.filtfilt(blo, alo, data)
+        except ValueError as e:
+            print(f"Error in filtering process: {e}")
+            self.nsamples = max(self.nsamples, 100)  # Increase nsamples if necessary
+            self.init_sound()
+            return
 
         # Generating a 2-dimensional table for stereo sound
         self.table = np.zeros((self.nsamples, 2))
@@ -106,6 +111,9 @@ class Noise:
         if self.channel == 'left':
             self.table[:, 0] = data
         elif self.channel == 'right':
+            self.table[:, 1] = data
+        elif self.channel == 'both':
+            self.table[:, 0] = data
             self.table[:, 1] = data
 
         # Scale by the amplitude
@@ -145,6 +153,7 @@ class Noise:
     def set_channel(self, mode):
         """Set which channel to play sound from"""
         self.channel = mode
+        self.init_sound()  # Regenerate sound with new channel setting
 
 # Define a JackClient, which will play sounds in the background
 # Rename to SoundPlayer to avoid confusion with jack.Client
@@ -211,19 +220,23 @@ class SoundPlayer:
         data_type = next(self.audio_cycle)
         
         if data_type == 'sound':
-            data = data = np.random.uniform(-1, 1, (3,2))  # Use the noise table
+            data = noise.table  # Use the noise table
         elif data_type == 'gap':
             data = np.zeros((self.blocksize, 2), dtype='float32')
+
+        # Ensure data size matches the blocksize
+        if data.shape[0] < self.blocksize:
+            data = np.pad(data, ((0, self.blocksize - data.shape[0]), (0, 0)), mode='constant')
 
         # Write one column to each channel
         for n_outport, outport in enumerate(self.client.outports):
             buff = outport.get_array()
             buff[:] = data[:len(buff), n_outport]
 
-## Define a client to play sounds
+# Define a client to play sounds
 noise = Noise()
 audio_cycle = itertools.cycle(['sound', 'gap'])
-sound_player = SoundPlayer(name='sound_player', audio_cycle = audio_cycle)
+sound_player = SoundPlayer(name='sound_player', audio_cycle=audio_cycle)
 
 # Raspberry Pi's identity (Change this to the identity of the Raspberry Pi you are using)
 # TODO: what is the difference between pi_identity and pi_name? # They are functionally the same, this line is from before I imported 
