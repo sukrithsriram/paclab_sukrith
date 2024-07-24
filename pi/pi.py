@@ -258,9 +258,7 @@ class JackClient:
             pass
         
         else:
-            data = np.random.uniform(-1, 1, (self.blocksize, 2))
             data = self.amplitude * self.noise()
-
             # Generating bandpass fitlered noise
             if self.set_channel == 'left':
                 data[:, 1] = 0
@@ -270,6 +268,7 @@ class JackClient:
         self.write_to_outports(data)
 
     def noise(self):
+        data = np.random.uniform(-1, 1, (self.blocksize, 2))
         if self.highpass is not None:
             bhi, ahi = scipy.signal.butter(1, self.highpass / (self.fs / 2), 'high')
             data = scipy.signal.lfilter(bhi, ahi, data)
