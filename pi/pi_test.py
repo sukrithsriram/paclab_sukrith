@@ -90,6 +90,8 @@ class Noise:
     def init_sound(self):
         # Generating a band-pass filtered stereo sound
         data = np.random.uniform(-1, 1, (3, 2))
+        self.highpass, self.lowpass = self.calculate_bandpass(self.center_freq, self.bandwidth)
+
                         
         if self.highpass is not None:
             bhi, ahi = scipy.signal.butter(
