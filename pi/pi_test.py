@@ -239,7 +239,7 @@ class SoundPlayer(object):
             data = noise
         if data == 'gap': 
             data = np.zeros((self.blocksize, 2), dtype='float32')
-        data_std = np.std(data)
+        #data_std = np.std(data)
 
         # Write one column to each channel
         for n_outport, outport in enumerate(self.client.outports):
