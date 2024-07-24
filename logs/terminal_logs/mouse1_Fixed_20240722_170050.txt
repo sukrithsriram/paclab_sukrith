@@ -1,0 +1,7 @@
+Experiment Started!
+Reward Port: 5
+Updated: Current Parameters - Amplitude: 0.03, Chunk Duration: 0.01 s, Pause Duration: 0.3 s,Center Frequency: 20000.0 Hz,Bandwidth: 3000.0, Highpass: 18500.0, Lowpass: 21500.0
+Unknown message: Current Parameters - Amplitude: 0.03, Chunk Duration: 0.01 s, Pause Duration: 0.3 s,Center Frequency: 20000.0 Hz,Bandwidth: 3000.0, Highpass: 18500.0, Lowpass: 21500.0
+Updated: Current Parameters - Amplitude: 0.03, Chunk Duration: 0.01 s, Pause Duration: 0.3 s,Center Frequency: 20000.0 Hz,Bandwidth: 3000.0, Highpass: 18500.0, Lowpass: 21500.0
+Unknown message: Current Parameters - Amplitude: 0.03, Chunk Duration: 0.01 s, Pause Duration: 0.3 s,Center Frequency: 20000.0 Hz,Bandwidth: 3000.0, Highpass: 18500.0, Lowpass: 21500.0
+Unknown message: start

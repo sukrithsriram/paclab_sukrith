@@ -1,0 +1,47 @@
+Experiment Started!
+Reward Port: 7
+Connected to Raspberry Pi: rpi26
+Unknown message: rpi26
+Updated: Current Parameters - Amplitude: 0.012069768202425328, Chunk Duration: 0.01 s, Pause Duration: 0.0830890506890739 s,Center Frequency: 13516.267783471452 Hz,Bandwidth: 3000.0, Highpass: 12016.267783471452, Lowpass: 15016.267783471452
+Unknown message: Current Parameters - Amplitude: 0.012069768202425328, Chunk Duration: 0.01 s, Pause Duration: 0.0830890506890739 s,Center Frequency: 13516.267783471452 Hz,Bandwidth: 3000.0, Highpass: 12016.267783471452, Lowpass: 15016.267783471452
+Sequence: [7]
+Reward Port: 5
+Updated: Current Parameters - Amplitude: 0.010818135720986066, Chunk Duration: 0.01 s, Pause Duration: 0.10727636688218826 s,Center Frequency: 13830.717335738378 Hz,Bandwidth: 3000.0, Highpass: 12330.717335738378, Lowpass: 15330.717335738378
+Unknown message: Current Parameters - Amplitude: 0.010818135720986066, Chunk Duration: 0.01 s, Pause Duration: 0.10727636688218826 s,Center Frequency: 13830.717335738378 Hz,Bandwidth: 3000.0, Highpass: 12330.717335738378, Lowpass: 15330.717335738378
+Sequence: [7, 5]
+Reward Port: 7
+Updated: Current Parameters - Amplitude: 0.0073693924104975515, Chunk Duration: 0.01 s, Pause Duration: 0.1666160304287836 s,Center Frequency: 8514.838231960997 Hz,Bandwidth: 3000.0, Highpass: 7014.838231960997, Lowpass: 10014.838231960997
+Unknown message: Current Parameters - Amplitude: 0.0073693924104975515, Chunk Duration: 0.01 s, Pause Duration: 0.1666160304287836 s,Center Frequency: 8514.838231960997 Hz,Bandwidth: 3000.0, Highpass: 7014.838231960997, Lowpass: 10014.838231960997
+Sequence: [7, 5, 7]
+Reward Port: 5
+Updated: Current Parameters - Amplitude: 0.013837472635769201, Chunk Duration: 0.01 s, Pause Duration: 0.13198288987117224 s,Center Frequency: 8697.855183123029 Hz,Bandwidth: 3000.0, Highpass: 7197.855183123029, Lowpass: 10197.855183123029
+Unknown message: Current Parameters - Amplitude: 0.013837472635769201, Chunk Duration: 0.01 s, Pause Duration: 0.13198288987117224 s,Center Frequency: 8697.855183123029 Hz,Bandwidth: 3000.0, Highpass: 7197.855183123029, Lowpass: 10197.855183123029
+Sequence: [7, 5, 7, 5]
+Reward Port: 7
+Updated: Current Parameters - Amplitude: 0.007842395047804294, Chunk Duration: 0.01 s, Pause Duration: 0.17277711701755866 s,Center Frequency: 6231.470704078955 Hz,Bandwidth: 3000.0, Highpass: 4731.470704078955, Lowpass: 7731.470704078955
+Unknown message: Current Parameters - Amplitude: 0.007842395047804294, Chunk Duration: 0.01 s, Pause Duration: 0.17277711701755866 s,Center Frequency: 6231.470704078955 Hz,Bandwidth: 3000.0, Highpass: 4731.470704078955, Lowpass: 7731.470704078955
+Sequence: [7, 5, 7, 5, 7]
+Reward Port: 5
+Sequence: [7, 5, 7, 5, 7, 7]
+Updated: Current Parameters - Amplitude: 0.007240369279729891, Chunk Duration: 0.01 s, Pause Duration: 0.12584136272293925 s,Center Frequency: 13656.465923187077 Hz,Bandwidth: 3000.0, Highpass: 12156.465923187077, Lowpass: 15156.465923187077
+Unknown message: Current Parameters - Amplitude: 0.007240369279729891, Chunk Duration: 0.01 s, Pause Duration: 0.12584136272293925 s,Center Frequency: 13656.465923187077 Hz,Bandwidth: 3000.0, Highpass: 12156.465923187077, Lowpass: 15156.465923187077
+Sequence: [7, 5, 7, 5, 7, 7, 7]
+Sequence: [7, 5, 7, 5, 7, 7, 7, 5]
+Reward Port: 7
+Updated: Current Parameters - Amplitude: 0.007533870223504141, Chunk Duration: 0.01 s, Pause Duration: 0.16356949018359945 s,Center Frequency: 6896.1366644293375 Hz,Bandwidth: 3000.0, Highpass: 5396.1366644293375, Lowpass: 8396.136664429338
+Unknown message: Current Parameters - Amplitude: 0.007533870223504141, Chunk Duration: 0.01 s, Pause Duration: 0.16356949018359945 s,Center Frequency: 6896.1366644293375 Hz,Bandwidth: 3000.0, Highpass: 5396.1366644293375, Lowpass: 8396.136664429338
+Sequence: [7, 5, 7, 5, 7, 7, 7, 5, 5]
+Sequence: [7, 5, 7, 5, 7, 7, 7, 5, 5, 5]
+Sequence: [7, 5, 7, 5, 7, 7, 7, 5, 5, 5, 5]
+Sequence: [7, 5, 7, 5, 7, 7, 7, 5, 5, 5, 5, 7]
+Reward Port: 5
+Updated: Current Parameters - Amplitude: 0.007055513081036118, Chunk Duration: 0.01 s, Pause Duration: 0.13001724268996484 s,Center Frequency: 5933.434423066334 Hz,Bandwidth: 3000.0, Highpass: 4433.434423066334, Lowpass: 7433.434423066334
+Unknown message: Current Parameters - Amplitude: 0.007055513081036118, Chunk Duration: 0.01 s, Pause Duration: 0.13001724268996484 s,Center Frequency: 5933.434423066334 Hz,Bandwidth: 3000.0, Highpass: 4433.434423066334, Lowpass: 7433.434423066334
+Sequence: [7, 5, 7, 5, 7, 7, 7, 5, 5, 5, 5, 7, 5]
+Reward Port: 7
+Updated: Current Parameters - Amplitude: 0.015872464070964754, Chunk Duration: 0.01 s, Pause Duration: 0.0875256859186739 s,Center Frequency: 14006.794298733534 Hz,Bandwidth: 3000.0, Highpass: 12506.794298733534, Lowpass: 15506.794298733534
+Unknown message: Current Parameters - Amplitude: 0.015872464070964754, Chunk Duration: 0.01 s, Pause Duration: 0.0875256859186739 s,Center Frequency: 14006.794298733534 Hz,Bandwidth: 3000.0, Highpass: 12506.794298733534, Lowpass: 15506.794298733534
+Sequence: [7, 5, 7, 5, 7, 7, 7, 5, 5, 5, 5, 7, 5, 7]
+Reward Port: 5
+Updated: Current Parameters - Amplitude: 0.01953176721851072, Chunk Duration: 0.01 s, Pause Duration: 0.12635288515162757 s,Center Frequency: 10006.217736887524 Hz,Bandwidth: 3000.0, Highpass: 8506.217736887524, Lowpass: 11506.217736887524
+Unknown message: Current Parameters - Amplitude: 0.01953176721851072, Chunk Duration: 0.01 s, Pause Duration: 0.12635288515162757 s,Center Frequency: 10006.217736887524 Hz,Bandwidth: 3000.0, Highpass: 8506.217736887524, Lowpass: 11506.217736887524

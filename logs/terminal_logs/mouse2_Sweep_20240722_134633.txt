@@ -1,0 +1,10 @@
+Experiment Started!
+Reward Port: 7
+Connected to Raspberry Pi: rpi26
+Unknown message: rpi26
+Updated: Current Parameters - Amplitude: 0.2, Chunk Duration: 0.01 s, Pause Duration: 0.1303845359747605 s,Center Frequency: 14318.222690155168 Hz,Bandwidth: 3000.0, Highpass: 12818.222690155168, Lowpass: 15818.222690155168
+Unknown message: Current Parameters - Amplitude: 0.2, Chunk Duration: 0.01 s, Pause Duration: 0.1303845359747605 s,Center Frequency: 14318.222690155168 Hz,Bandwidth: 3000.0, Highpass: 12818.222690155168, Lowpass: 15818.222690155168
+Sequence: [7]
+Reward Port: 5
+Updated: Current Parameters - Amplitude: 0.2, Chunk Duration: 0.01 s, Pause Duration: 0.1491172334934967 s,Center Frequency: 9500.112608099842 Hz,Bandwidth: 3000.0, Highpass: 8000.112608099842, Lowpass: 11000.112608099842
+Unknown message: Current Parameters - Amplitude: 0.2, Chunk Duration: 0.01 s, Pause Duration: 0.1491172334934967 s,Center Frequency: 9500.112608099842 Hz,Bandwidth: 3000.0, Highpass: 8000.112608099842, Lowpass: 11000.112608099842

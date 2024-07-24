@@ -1,0 +1,3 @@
+Experiment Started!
+Reward Port: 7
+Updated: Current Parameters - Amplitude: 0.01, Chunk Duration: 0.01 s, Pause Duration: 0.3

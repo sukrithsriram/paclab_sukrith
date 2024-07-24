@@ -1,0 +1,7 @@
+Experiment Started!
+Reward Port: 7
+Updated: Current Parameters - Amplitude: 0.008235128845250085, Chunk Duration: 0.033395111153896186 s, Pause Duration: 0.17425052406303976
+Unknown message: start
+Results saved to logs
+Experiment Stopped!
+Received 'stop' message, aborting update.
