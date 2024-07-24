@@ -246,7 +246,7 @@ class SoundPlayer(object):
             buff[:] = data[:, n_outport]
 
 ## Define a client to play sounds
-noise = Noise(name = 'noise')
+noise = Noise()
 sound_player = SoundPlayer(name='sound_player')
 
 # Raspberry Pi's identity (Change this to the identity of the Raspberry Pi you are using)
