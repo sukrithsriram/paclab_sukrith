@@ -268,7 +268,7 @@ class JackClient:
         self.write_to_outports(data)
 
     def noise(self):
-        data = np.random.uniform(-1, 1, (self.blocksize, 2))
+        data = np.random.uniform(-1, 1, (self.blocksize, 1))
         if self.highpass is not None:
             bhi, ahi = scipy.signal.butter(1, self.highpass / (self.fs / 2), 'high')
             data = scipy.signal.filtfilt(bhi, ahi, data)
