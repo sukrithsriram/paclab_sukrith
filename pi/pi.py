@@ -213,7 +213,7 @@ class JackClient:
             f"Chunk Duration: {self.chunk_duration} s, "
             f"Pause Duration: {self.pause_duration} s,"
             f"Center Frequency: {self.center_freq} Hz"
-            f"Bandidth: {self.bandwidth}, "
+            f"Bandwidth: {self.bandwidth}, "
             f"Highpass: {self.highpass}, Lowpass: {self.lowpass}")
         print(parameter_message)
         
@@ -258,35 +258,35 @@ class JackClient:
             pass
         
         else:
-        # Generating bandpass fitlered noise
-            data = self.generate_filtered_noise()
-        
+            # Generating bandpass fitlered noise
+            if self.set_channel == 'left':
+                data = self.noise()
+                data[:, 1] = 0
+            elif self.set_channel == 'right':
+                data = self.noise()
+                data[:, 0] = 0
+            
         self.write_to_outports(data)
 
-    def generate_filtered_noise(self):
-        """Generate filtered noise"""
-        noise = self.amplitude * np.random.uniform(-1, 1, (self.blocksize, 2))
-        if self.highpass is not None:
-            bhi, ahi = scipy.signal.butter(2, self.highpass / (self.fs / 2), 'high')
-            noise[:, 0] = scipy.signal.filtfilt(bhi, ahi, noise[:, 0])
-            noise[:, 1] = scipy.signal.filtfilt(bhi, ahi, noise[:, 1])
-        if self.lowpass is not None:
-            blo, alo = scipy.signal.butter(2, self.lowpass / (self.fs / 2), 'low')
-            noise[:, 0] = scipy.signal.filtfilt(blo, alo, noise[:, 0])
-            noise[:, 1] = scipy.signal.filtfilt(blo, alo, noise[:, 1])
-        if self.set_channel == 'left':
-            noise[:, 1] = 0
-        elif self.set_channel == 'right':
-            noise[:, 0] = 0
-        return noise
     
+    def noise(self):
+                    data = self.amplitude * np.random.uniform(-1, 1, (self.blocksize, 2))
+                    if self.highpass is not None:
+                        bhi, ahi = scipy.signal.butter(1, self.highpass / (self.fs / 2), 'high')
+                        data = scipy.signal.filtfilt(bhi, ahi, data)
+                    if self.lowpass is not None:
+                        blo, alo = scipy.signal.butter(1, self.lowpass / (self.fs / 2), 'low')
+                        data = scipy.signal.filtfilt(blo, alo, data)
+                    return data
+    
+
     def write_to_outports(self, data):
         """Write data to outports"""
         # TODO: rewrite this to be always stereo, and then combine this
         # into process function above
         if data.ndim == 1:
             ## 1-dimensional sound provided
-            # Write the same data to each channel
+            # Write the same data to each cahannel
             for outport in self.client.outports:
                 buff = outport.get_array()
                 buff[:] = data
@@ -311,8 +311,8 @@ class JackClient:
     def set_set_channel(self, mode):
         """Set which channel to play sound from"""
         # Why is it necessary to get the lock here?
-        with self.lock:
-            self.set_channel = mode
+        #with self.lock:
+        self.set_channel = mode
 
 
 ## Define a client to play sounds
@@ -711,7 +711,7 @@ try:
                 # yet, or haven't changed recently
                 jack_client.update_parameters(
                     chunk_min, chunk_max, pause_min, pause_max, 
-                    amplitude_min, amplitude_max)
+                    amplitude_min, amplitude_max, center_freq_min, center_freq_max, bandwidth)
                 
                 # Turn off the currently active LED
                 if current_pin is not None:
