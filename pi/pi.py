@@ -244,8 +244,7 @@ class JackClient:
         current_time = time.time()
 
         # Initialize data with zeros (silence)
-        data = np.zeros((20, 2), dtype='float32')
-        data = self.amplitude * self.noise()
+        data = np.zeros((self.blocksize, 2), dtype='float32')
 
         # Check if time for chunk or gap
         if current_time - self.last_chunk_time >= self.chunk_duration + self.pause_duration:
@@ -259,6 +258,9 @@ class JackClient:
             pass
         
         else:
+            data = np.random.uniform(-1, 1, (self.blocksize, 2))
+            data = self.amplitude * self.noise()
+
             # Generating bandpass fitlered noise
             if self.set_channel == 'left':
                 data[:, 1] = 0
@@ -268,17 +270,13 @@ class JackClient:
         self.write_to_outports(data)
 
     def noise(self):
-        data = np.random.uniform(-1, 1, (20, 2))
         if self.highpass is not None:
             bhi, ahi = scipy.signal.butter(1, self.highpass / (self.fs / 2), 'high')
-            data = scipy.signal.filtfilt(bhi, ahi, data)
-            data = self.amplitude * data
+            data = scipy.signal.lfilter(bhi, ahi, data)
         if self.lowpass is not None:
             blo, alo = scipy.signal.butter(1, self.lowpass / (self.fs / 2), 'low')
-            data = scipy.signal.filtfilt(blo, alo, data)
-            data = self.amplitude * data
+            data = scipy.signal.lfilter(blo, alo, data)
         return data
-
 
     def write_to_outports(self, data):
         """Write data to outports"""
@@ -314,12 +312,14 @@ class JackClient:
         #with self.lock:
         self.set_channel = mode
 
+
 ## Define a client to play sounds
 jack_client = JackClient(name='jack_client')
 
 # Raspberry Pi's identity (Change this to the identity of the Raspberry Pi you are using)
 # TODO: what is the difference between pi_identity and pi_name? # They are functionally the same, this line is from before I imported 
 pi_identity = params['identity']
+
 
 ## Creating a ZeroMQ context and socket for communication with the central system
 # TODO: what information travels over this socket? Clarify: do messages on
