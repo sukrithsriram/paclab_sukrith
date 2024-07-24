@@ -52,6 +52,9 @@ class Noise:
         ## Store provided parameters
         self.name = name
         
+        # Initializing client to get sound parameters
+        self.client = jack.Client(self.name)
+
         # This determines which channel plays sound
         self.channel = 'none'  # 'left', 'right', or 'none'
         
@@ -81,8 +84,8 @@ class Noise:
         self.highpass, self.lowpass = self.calculate_bandpass(self.center_freq, self.bandwidth)
         
         # Using sound parameters from jackclient
-        self.fs = sound_player.client.samplerate
-        self.blocksize = sound_player.client.blocksize
+        self.fs = self.client.samplerate
+        self.blocksize = self.client.blocksize
 
     def init_sound(self):
         # Generating a band-pass filtered stereo sound
@@ -110,7 +113,6 @@ class Noise:
         
         # Convert to float32
         self.table = self.table.astype(np.float32)
-
     
     def calculate_bandpass(self, center_freq, bandwidth):
         """Calculate highpass and lowpass frequencies based on center frequency and bandwidth"""
@@ -227,7 +229,6 @@ class SoundPlayer:
         # TODO: add control over verbosity of debug messages
         print("Received blocksize {} and fs {}".format(self.blocksize, self.fs))
 
-        
         ## Set up outchannels
         # TODO: outchannels should always be [0, 1] and mono_output should
         # always be False
