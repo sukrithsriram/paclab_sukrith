@@ -259,25 +259,30 @@ class JackClient:
         
         else:
             # Generating bandpass fitlered noise
+            data = self.amplitude * np.random.uniform(-1, 1, (self.blocksize, 2))
+            if self.highpass is not None:
+                bhi, ahi = scipy.signal.butter(1, self.highpass / (self.fs / 2), 'high')
+                data = scipy.signal.filtfilt(bhi, ahi, data)
+            if self.lowpass is not None:
+                blo, alo = scipy.signal.butter(1, self.lowpass / (self.fs / 2), 'low')
+                data = scipy.signal.filtfilt(blo, alo, data)
             if self.set_channel == 'left':
-                data = self.noise()
                 data[:, 1] = 0
             elif self.set_channel == 'right':
-                data = self.noise()
                 data[:, 0] = 0
             
         self.write_to_outports(data)
 
     def noise(self):
-                    data = self.amplitude * np.random.uniform(-1, 1, (self.blocksize, 2))
-                    if self.highpass is not None:
-                        bhi, ahi = scipy.signal.butter(1, self.highpass / (self.fs / 2), 'high')
-                        data = scipy.signal.filtfilt(bhi, ahi, data)
-                    if self.lowpass is not None:
-                        blo, alo = scipy.signal.butter(1, self.lowpass / (self.fs / 2), 'low')
-                        data = scipy.signal.filtfilt(blo, alo, data)
-                    return data
-    
+        data = self.amplitude * np.random.uniform(-1, 1, (self.blocksize, 2))
+        if self.highpass is not None:
+            bhi, ahi = scipy.signal.butter(1, self.highpass / (self.fs / 2), 'high')
+            data = scipy.signal.filtfilt(bhi, ahi, data)
+        if self.lowpass is not None:
+            blo, alo = scipy.signal.butter(1, self.lowpass / (self.fs / 2), 'low')
+            data = scipy.signal.filtfilt(blo, alo, data)
+        return data
+
 
     def write_to_outports(self, data):
         """Write data to outports"""
