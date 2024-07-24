@@ -89,7 +89,7 @@ class Noise:
 
     def init_sound(self):
         # Generating a band-pass filtered stereo sound
-        data = np.random.uniform(-1, 1, self.nsamples)
+        data = np.random.uniform(-1, 1, (3,2))
 
         if self.highpass is not None:
             bhi, ahi = scipy.signal.butter(2, self.highpass / (self.fs / 2), 'high')
@@ -211,7 +211,7 @@ class SoundPlayer:
         data_type = next(self.audio_cycle)
         
         if data_type == 'sound':
-            data = noise.table  # Use the noise table
+            data = data = np.random.uniform(-1, 1, (3,2))  # Use the noise table
         elif data_type == 'gap':
             data = np.zeros((self.blocksize, 2), dtype='float32')
 
