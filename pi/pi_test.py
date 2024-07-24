@@ -235,9 +235,9 @@ class SoundPlayer(object):
         
         # Get data from cycle
         data = next(self.audio_cycle)
-        if data = 'sound':
+        if data == 'sound':
             data = noise
-        if data = 'gap': 
+        if data == 'gap': 
             data = np.zeros((self.blocksize, 2), dtype='float32')
         data_std = np.std(data)
 
