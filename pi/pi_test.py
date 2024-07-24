@@ -84,6 +84,7 @@ class Noise:
         self.fs = 192000
         
         # Generating noise
+        self.table = None
         self.init_sound()
 
     def init_sound(self):
@@ -114,6 +115,8 @@ class Noise:
         
         # Convert to float32
         self.table = self.table.astype(np.float32)
+        
+        return self.table
     
     def calculate_bandpass(self, center_freq, bandwidth):
         """Calculate highpass and lowpass frequencies based on center frequency and bandwidth"""
@@ -236,7 +239,7 @@ class SoundPlayer(object):
         # Get data from cycle
         data = next(self.audio_cycle)
         if data == 'sound':
-            data = noise
+            data = noise.table
         if data == 'gap': 
             data = np.zeros((self.blocksize, 2), dtype='float32')
         #data_std = np.std(data)
