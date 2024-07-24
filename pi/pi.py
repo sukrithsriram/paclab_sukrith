@@ -258,11 +258,12 @@ class JackClient:
             pass
         
         else:
-            data = self.amplitude * self.noise()
             # Generating bandpass fitlered noise
             if self.set_channel == 'left':
+                data = self.amplitude * self.noise()
                 data[:, 1] = 0
             elif self.set_channel == 'right':
+                data = self.amplitude * self.noise()
                 data[:, 0] = 0
             
         self.write_to_outports(data)
