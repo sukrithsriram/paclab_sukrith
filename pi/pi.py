@@ -244,7 +244,7 @@ class JackClient:
         current_time = time.time()
 
         # Initialize data with zeros (silence)
-        data = np.zeros((self.blocksize, 2), dtype='float32')
+        data = np.zeros((20, 2), dtype='float32')
         data = self.amplitude * self.noise()
 
         # Check if time for chunk or gap
@@ -268,7 +268,7 @@ class JackClient:
         self.write_to_outports(data)
 
     def noise(self):
-        data = np.random.uniform(-1, 1, (20, 1))
+        data = np.random.uniform(-1, 1, (20, 2))
         if self.highpass is not None:
             bhi, ahi = scipy.signal.butter(1, self.highpass / (self.fs / 2), 'high')
             data = scipy.signal.filtfilt(bhi, ahi, data)
