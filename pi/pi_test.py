@@ -52,7 +52,7 @@ class Noise:
         self.name = name
 
         # Getting sound parameters from server (dummy initialization for this example)
-        self.nsamples = 48000  # Ensure this is large enough for the filtering process
+        self.nsamples = 1024  # Ensure this is large enough for the filtering process
 
         # This determines which channel plays sound
         self.channel = 'left'  # 'left', 'right', or 'none'
@@ -111,9 +111,6 @@ class Noise:
         if self.channel == 'left':
             self.table[:, 0] = data
         elif self.channel == 'right':
-            self.table[:, 1] = data
-        elif self.channel == 'both':
-            self.table[:, 0] = data
             self.table[:, 1] = data
 
         # Scale by the amplitude
