@@ -272,9 +272,9 @@ class JackClient:
         """Generate bandpass filtered noise"""
         data = self.amplitude * np.random.uniform(-1, 1, (self.blocksize, 2))
         if self.highpass is not None:
-            data = scipy.signal.lfilter(self.bhi, self.ahi, data)
+            data = scipy.signal.filtfilt(self.bhi, self.ahi, data)
         if self.lowpass is not None:
-            data = scipy.signal.lfilter(self.blo, self.alo, data)
+            data = scipy.signal.filtfilt(self.blo, self.alo, data)
         return data
     
 
