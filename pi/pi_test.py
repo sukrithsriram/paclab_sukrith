@@ -553,7 +553,7 @@ try:
                 
                 # Wait for the client to finish processing any remaining chunks
                 # TODO: why is this here? It's already deactivated 
-                time.sleep(noise.chunk_duration + noise.pause_duration)
+                time.sleep(sound_player.noise.chunk_duration + soundplayer.noise.pause_duration)
                 
                 # Stop the Jack client
                 # TODO: Probably want to leave this running for the next
