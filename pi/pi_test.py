@@ -128,7 +128,7 @@ class Noise:
         print(parameter_message)
         return parameter_message
     
-    def generate_noise(self):
+    def generate_noise(self, blocksize):
         # Generating a band-pass filtered stereo sound
         data = np.zeros((blocksize, 2), dtype='float32')
         
