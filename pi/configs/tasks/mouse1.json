@@ -8,7 +8,7 @@
     "pause_min": 0.3,
     "pause_max": 0.3,
     "reward_value": 0.5,
-    "center_freq_min": 10000.0,
-    "center_freq_max": 10000.0,
+    "center_freq_min": 20000.0,
+    "center_freq_max": 20000.0,
     "bandwidth": 3000.0
 }
