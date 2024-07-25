@@ -1,0 +1,55 @@
+Experiment Started!
+Reward Port: 7
+Updated: Current Parameters - Amplitude: 0.5, Chunk Duration: 0.01 s, Pause Duration: 0.3 s,Center Frequency: 5000.0 HzBandwidth: 3000.0, Highpass: 3500.0, Lowpass: 6500.0
+Unknown message: Current Parameters - Amplitude: 0.5, Chunk Duration: 0.01 s, Pause Duration: 0.3 s,Center Frequency: 5000.0 HzBandwidth: 3000.0, Highpass: 3500.0, Lowpass: 6500.0
+Received 'stop' message, aborting update.
+Updated: Current Parameters - Amplitude: 0.5, Chunk Duration: 0.01 s, Pause Duration: 0.3 s,Center Frequency: 5000.0 HzBandwidth: 3000.0, Highpass: 3500.0, Lowpass: 6500.0
+Unknown message: Current Parameters - Amplitude: 0.5, Chunk Duration: 0.01 s, Pause Duration: 0.3 s,Center Frequency: 5000.0 HzBandwidth: 3000.0, Highpass: 3500.0, Lowpass: 6500.0
+Updated: Current Parameters - Amplitude: 0.5, Chunk Duration: 0.01 s, Pause Duration: 0.3 s,Center Frequency: 5000.0 HzBandwidth: 3000.0, Highpass: 3500.0, Lowpass: 6500.0
+Unknown message: Current Parameters - Amplitude: 0.5, Chunk Duration: 0.01 s, Pause Duration: 0.3 s,Center Frequency: 5000.0 HzBandwidth: 3000.0, Highpass: 3500.0, Lowpass: 6500.0
+Unknown message: start
+Updated: Current Parameters - Amplitude: 0.5, Chunk Duration: 0.01 s, Pause Duration: 0.3 s,Center Frequency: 5000.0 HzBandwidth: 3000.0, Highpass: 3500.0, Lowpass: 6500.0
+Unknown message: Current Parameters - Amplitude: 0.5, Chunk Duration: 0.01 s, Pause Duration: 0.3 s,Center Frequency: 5000.0 HzBandwidth: 3000.0, Highpass: 3500.0, Lowpass: 6500.0
+Unknown message: start
+Sequence: [7]
+Reward Port: 3
+Updated: Current Parameters - Amplitude: 0.5, Chunk Duration: 0.01 s, Pause Duration: 0.3 s,Center Frequency: 5000.0 HzBandwidth: 3000.0, Highpass: 3500.0, Lowpass: 6500.0
+Unknown message: Current Parameters - Amplitude: 0.5, Chunk Duration: 0.01 s, Pause Duration: 0.3 s,Center Frequency: 5000.0 HzBandwidth: 3000.0, Highpass: 3500.0, Lowpass: 6500.0
+Updated: Current Parameters - Amplitude: 0.5, Chunk Duration: 0.01 s, Pause Duration: 0.3 s,Center Frequency: 5000.0 HzBandwidth: 3000.0, Highpass: 3500.0, Lowpass: 6500.0
+Unknown message: Current Parameters - Amplitude: 0.5, Chunk Duration: 0.01 s, Pause Duration: 0.3 s,Center Frequency: 5000.0 HzBandwidth: 3000.0, Highpass: 3500.0, Lowpass: 6500.0
+Sequence: [7, 3]
+Reward Port: 1
+Updated: Current Parameters - Amplitude: 0.5, Chunk Duration: 0.01 s, Pause Duration: 0.3 s,Center Frequency: 5000.0 HzBandwidth: 3000.0, Highpass: 3500.0, Lowpass: 6500.0
+Unknown message: Current Parameters - Amplitude: 0.5, Chunk Duration: 0.01 s, Pause Duration: 0.3 s,Center Frequency: 5000.0 HzBandwidth: 3000.0, Highpass: 3500.0, Lowpass: 6500.0
+Updated: Current Parameters - Amplitude: 0.5, Chunk Duration: 0.01 s, Pause Duration: 0.3 s,Center Frequency: 5000.0 HzBandwidth: 3000.0, Highpass: 3500.0, Lowpass: 6500.0
+Unknown message: Current Parameters - Amplitude: 0.5, Chunk Duration: 0.01 s, Pause Duration: 0.3 s,Center Frequency: 5000.0 HzBandwidth: 3000.0, Highpass: 3500.0, Lowpass: 6500.0
+Sequence: [7, 3, 1]
+Reward Port: 7
+Updated: Current Parameters - Amplitude: 0.5, Chunk Duration: 0.01 s, Pause Duration: 0.3 s,Center Frequency: 5000.0 HzBandwidth: 3000.0, Highpass: 3500.0, Lowpass: 6500.0
+Unknown message: Current Parameters - Amplitude: 0.5, Chunk Duration: 0.01 s, Pause Duration: 0.3 s,Center Frequency: 5000.0 HzBandwidth: 3000.0, Highpass: 3500.0, Lowpass: 6500.0
+Updated: Current Parameters - Amplitude: 0.5, Chunk Duration: 0.01 s, Pause Duration: 0.3 s,Center Frequency: 5000.0 HzBandwidth: 3000.0, Highpass: 3500.0, Lowpass: 6500.0
+Unknown message: Current Parameters - Amplitude: 0.5, Chunk Duration: 0.01 s, Pause Duration: 0.3 s,Center Frequency: 5000.0 HzBandwidth: 3000.0, Highpass: 3500.0, Lowpass: 6500.0
+Sequence: [7, 3, 1, 7]
+Reward Port: 3
+Updated: Current Parameters - Amplitude: 0.5, Chunk Duration: 0.01 s, Pause Duration: 0.3 s,Center Frequency: 5000.0 HzBandwidth: 3000.0, Highpass: 3500.0, Lowpass: 6500.0
+Unknown message: Current Parameters - Amplitude: 0.5, Chunk Duration: 0.01 s, Pause Duration: 0.3 s,Center Frequency: 5000.0 HzBandwidth: 3000.0, Highpass: 3500.0, Lowpass: 6500.0
+Updated: Current Parameters - Amplitude: 0.5, Chunk Duration: 0.01 s, Pause Duration: 0.3 s,Center Frequency: 5000.0 HzBandwidth: 3000.0, Highpass: 3500.0, Lowpass: 6500.0
+Unknown message: Current Parameters - Amplitude: 0.5, Chunk Duration: 0.01 s, Pause Duration: 0.3 s,Center Frequency: 5000.0 HzBandwidth: 3000.0, Highpass: 3500.0, Lowpass: 6500.0
+Sequence: [7, 3, 1, 7, 3]
+Reward Port: 5
+Updated: Current Parameters - Amplitude: 0.5, Chunk Duration: 0.01 s, Pause Duration: 0.3 s,Center Frequency: 5000.0 HzBandwidth: 3000.0, Highpass: 3500.0, Lowpass: 6500.0
+Unknown message: Current Parameters - Amplitude: 0.5, Chunk Duration: 0.01 s, Pause Duration: 0.3 s,Center Frequency: 5000.0 HzBandwidth: 3000.0, Highpass: 3500.0, Lowpass: 6500.0
+Updated: Current Parameters - Amplitude: 0.5, Chunk Duration: 0.01 s, Pause Duration: 0.3 s,Center Frequency: 5000.0 HzBandwidth: 3000.0, Highpass: 3500.0, Lowpass: 6500.0
+Unknown message: Current Parameters - Amplitude: 0.5, Chunk Duration: 0.01 s, Pause Duration: 0.3 s,Center Frequency: 5000.0 HzBandwidth: 3000.0, Highpass: 3500.0, Lowpass: 6500.0
+Sequence: [7, 3, 1, 7, 3, 5]
+Reward Port: 1
+Updated: Current Parameters - Amplitude: 0.5, Chunk Duration: 0.01 s, Pause Duration: 0.3 s,Center Frequency: 5000.0 HzBandwidth: 3000.0, Highpass: 3500.0, Lowpass: 6500.0
+Unknown message: Current Parameters - Amplitude: 0.5, Chunk Duration: 0.01 s, Pause Duration: 0.3 s,Center Frequency: 5000.0 HzBandwidth: 3000.0, Highpass: 3500.0, Lowpass: 6500.0
+Updated: Current Parameters - Amplitude: 0.5, Chunk Duration: 0.01 s, Pause Duration: 0.3 s,Center Frequency: 5000.0 HzBandwidth: 3000.0, Highpass: 3500.0, Lowpass: 6500.0
+Unknown message: Current Parameters - Amplitude: 0.5, Chunk Duration: 0.01 s, Pause Duration: 0.3 s,Center Frequency: 5000.0 HzBandwidth: 3000.0, Highpass: 3500.0, Lowpass: 6500.0
+Sequence: [7, 3, 1, 7, 3, 5, 1]
+Reward Port: 3
+Updated: Current Parameters - Amplitude: 0.5, Chunk Duration: 0.01 s, Pause Duration: 0.3 s,Center Frequency: 5000.0 HzBandwidth: 3000.0, Highpass: 3500.0, Lowpass: 6500.0
+Unknown message: Current Parameters - Amplitude: 0.5, Chunk Duration: 0.01 s, Pause Duration: 0.3 s,Center Frequency: 5000.0 HzBandwidth: 3000.0, Highpass: 3500.0, Lowpass: 6500.0
+Updated: Current Parameters - Amplitude: 0.5, Chunk Duration: 0.01 s, Pause Duration: 0.3 s,Center Frequency: 5000.0 HzBandwidth: 3000.0, Highpass: 3500.0, Lowpass: 6500.0
+Unknown message: Current Parameters - Amplitude: 0.5, Chunk Duration: 0.01 s, Pause Duration: 0.3 s,Center Frequency: 5000.0 HzBandwidth: 3000.0, Highpass: 3500.0, Lowpass: 6500.0

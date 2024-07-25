@@ -1,0 +1,5 @@
+Experiment Started!
+Reward Port: 5
+Connected to Raspberry Pi: rpi27
+Unknown message: rpi27
+Sequence: [1]
