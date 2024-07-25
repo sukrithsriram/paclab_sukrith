@@ -10,7 +10,7 @@ import threading
 import random
 import json
 import socket as sc
-import queue
+import itertools
 import scipy.signal
 
 ## Killing previous pigpiod and jackd background processes
@@ -66,10 +66,7 @@ class Filter:
 
 # Class to generate noise into a queue
 class Noise:
-    def __init__(self, sound_queue, fs):
-        
-        # Queue to continuously send sound to jackclient
-        self.sound_queue = sound_queue
+    def __init__(self, fs):
 
         # This determines which channel plays sound
         self.channel = 'left'  # 'left', 'right', or 'none'
@@ -102,7 +99,7 @@ class Noise:
         # Chunking the noise based on sampling rate 
         self.chunk_frames = int(self.chunk_duration * self.fs)
         self.pause_frames = int(self.pause_duration * self.fs)
-        self.current_state = 'chunk'
+        self.current_state = itertools.cycle(['chunk', 'pause'])
         self.frame_counter = 0
         
     def update_parameters(self, chunk_min, chunk_max, pause_min, pause_max, amplitude_min, amplitude_max, center_freq_min, center_freq_max, bandwidth):
@@ -127,51 +124,46 @@ class Noise:
         print(parameter_message)
         return parameter_message
     
-    def generate_noise_chunk(self, blocksize):
-        data = np.zeros((blocksize, 2), dtype='float32')
-        frames_to_generate = min(blocksize, self.chunk_frames - self.frame_counter)
-
-        if self.channel == 'left':
-            table = self.amplitude * np.random.uniform(-1, 1, (frames_to_generate, 2))
-            table[:, 1] = 0
-        elif self.channel == 'right':
-            table = self.amplitude * np.random.uniform(-1, 1, (frames_to_generate, 2))
-            table[:, 0] = 0
-        else:
-            table = np.zeros((frames_to_generate, 2), dtype='float32')
-
-        filtered_data = Filter.bandpass_filter(table, self.center_freq, self.bandwidth, self.fs, self.filter_order)
-        data[:frames_to_generate] = filtered_data
-        self.frame_counter += frames_to_generate
-
-        if self.frame_counter >= self.chunk_frames:
-            self.current_state = 'pause'
-            self.frame_counter = 0
-
-        return data
-    
-    def generate_pause_chunk(self, blocksize):
-        data = np.zeros((blocksize, 2), dtype='float32')
-        frames_to_generate = min(blocksize, self.pause_frames - self.frame_counter)
-        self.frame_counter += frames_to_generate
-
-        if self.frame_counter >= self.pause_frames:
-            self.current_state = 'chunk'
-            self.frame_counter = 0
-
-        return data
-    
     def generate_noise(self, blocksize):
-        if self.current_state == 'chunk':
-            return self.generate_noise_chunk(blocksize)
-        else:
-            return self.generate_pause_chunk(blocksize)
-    
-    def noisequeue(self):
-        while True:
-            with self.lock:
-                data = self.generate_noise(self.chunk_frames)
-                self.sound_queue.put(data)
+        # Generating a band-pass filtered stereo sound
+        data = np.zeros((blocksize, 2), dtype='float32')
+        
+        # Playing sound or silence depending on the duration
+        while blocksize > 0:
+            if self.current_state == 'chunk':
+                # Calculating frames of sound to play (sframes = number of frames of sound)
+                sframes = min(blocksize, self.chunk_frames - self.frame_counter)
+                if self.channel == 'left':
+                    table = (self.amplitude * np.random.uniform(-1, 1, (sframes, 2)))
+                    table[:, 1] = 0
+                elif self.channel == 'right':
+                    table = (self.amplitude * np.random.uniform(-1, 1, (sframes, 2)))
+                    table[:, 0] = 0
+                    
+                # Filtering the frames of white noise
+                filtered_data = Filter.bandpass_filter(table, self.center_freq, self.bandwidth, self.fs, self.filter_order)
+                data[:sframes] = filtered_data
+                self.frame_counter += sframes
+                blocksize -= sframes
+                
+                # Setting to silence after it finishes
+                if self.frame_counter >= self.chunk_frames:
+                    self.current_state = 'pause'
+                    self.frame_counter = 0
+                
+            # Logic for if it is time for a pause
+            elif self.current_state == 'pause':
+                sframes = min(blocksize, self.pause_frames - self.frame_counter)
+                data[:sframes] = 0
+                self.frame_counter += sframes
+                blocksize -= sframes
+
+                if self.frame_counter >= self.pause_frames:
+                    self.current_state = 'chunk'
+                    self.frame_counter = 0
+                    
+        # Adding frames to queue            
+        self.sound_queue.put(data)
     
     def set_channel(self, mode):
         """Set which channel to play sound from"""
@@ -200,7 +192,8 @@ class SoundPlayer(object):
         ## Store provided parameters
         self.name = name
         
-        self.sound_queue = queue.Queue()
+        self.noise = Noise(self.fs)
+        self.noise.generate_noise()
         
         ## Acoustic parameters of the sound
         # TODO: define these elsewhere -- these should not be properties of
@@ -223,22 +216,21 @@ class SoundPlayer(object):
         # `fs` is the sampling rate
         self.fs = self.client.samplerate
         
-        # Generating noise 
-        self.noise = Noise(self.sound_queue, self.fs)
-        threading.Thread(target=self.noise.noisequeue, daemon=True).start()
-        
         # Debug message
         # TODO: add control over verbosity of debug messages
         print("Received blocksize {} and fs {}".format(self.blocksize, self.fs))
 
+        
         ## Set up outchannels
         self.client.outports.register('out_0')
         self.client.outports.register('out_1')
+
 
         ## Set up the process callback
         # This will be called on every block and must provide data
         self.client.set_process_callback(self.process)
 
+        
         ## Activate the client
         self.client.activate()
 
@@ -252,7 +244,7 @@ class SoundPlayer(object):
         # Connect virtual outport to physical channel
         self.client.outports[0].connect(target_ports[0])
         self.client.outports[1].connect(target_ports[1])
-    
+
     def process(self, frames):
         """Process callback function (used to play sound)
         
@@ -267,13 +259,12 @@ class SoundPlayer(object):
         # the lock is working?)
         
         # Get data from cycle
-        if not self.sound_queue.empty():
-            data = self.sound_queue.get()
+        data = next(self.noise.current_state )
 
-            # Write one column to each channel
-            for n_outport, outport in enumerate(self.client.outports):
-                buff = outport.get_array()
-                buff[:] = data[:, n_outport]
+        # Write one column to each channel
+        for n_outport, outport in enumerate(self.client.outports):
+            buff = outport.get_array()
+            buff[:] = data[:, n_outport]
 
 # Define a client to play sounds
 sound_player = SoundPlayer(name='sound_player')
