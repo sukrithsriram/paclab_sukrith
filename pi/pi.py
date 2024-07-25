@@ -229,6 +229,7 @@ class SoundPlayer(object):
         ## Set up outchannels
         self.client.outports.register('out_0')
         self.client.outports.register('out_1')
+        threading.Thread(target=self.generate_sound_loop, daemon=True).start()
 
 
         ## Set up the process callback
@@ -249,6 +250,10 @@ class SoundPlayer(object):
         self.client.outports[0].connect(target_ports[0])
         self.client.outports[1].connect(target_ports[1])
 
+    def generate_sound_loop(self):
+        while True:
+            self.noise.generate_noise(self.blocksize)
+    
     def process(self, frames):
         """Process callback function (used to play sound)
         
