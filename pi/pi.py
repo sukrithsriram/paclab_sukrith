@@ -219,7 +219,6 @@ class SoundPlayer(object):
         
         # Generating noise 
         self.noise = Noise(self.sound_queue, self.fs)
-        self.noise.generate_noise(self.blocksize)
         
         # Debug message
         # TODO: add control over verbosity of debug messages
@@ -228,9 +227,10 @@ class SoundPlayer(object):
         ## Set up outchannels
         self.client.outports.register('out_0')
         self.client.outports.register('out_1')
-        #threading.Thread(target=self.generate_sound_loop, daemon=True).start()
-
-
+        
+        # Generating continuous queue
+        self.generate_sound_loop()
+        
         ## Set up the process callback
         # This will be called on every block and must provide data
         self.client.set_process_callback(self.process)
