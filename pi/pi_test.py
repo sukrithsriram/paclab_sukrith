@@ -67,7 +67,7 @@ class Filter:
 
 # Class to generate noise into a queue
 class Noise:
-    def __init__(self, name='noise', sound_queue, fs):
+    def __init__(self, sound_queue, fs):
         # Store provided parameters
         self.name = name
         
