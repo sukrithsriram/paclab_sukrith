@@ -99,7 +99,6 @@ class Noise:
         # Chunking the noise based on sampling rate 
         self.chunk_frames = int(self.chunk_duration * self.fs)
         self.pause_frames = int(self.pause_duration * self.fs)
-        self.audio_cycle = itertools.cycle([self.generate_noise(blocksize), self.generate_pause(blocksize)])
         self.frame_counter = 0
         
     def update_parameters(self, chunk_min, chunk_max, pause_min, pause_max, amplitude_min, amplitude_max, center_freq_min, center_freq_max, bandwidth):
@@ -224,6 +223,8 @@ class SoundPlayer(object):
         ## Activate the client
         self.client.activate()
 
+        # Sound Queue
+        self.audio_cycle = itertools.cycle([self.noise.generate_noise(self.blocksize), self.noise.generate_pause(self.blocksize)])
 
         ## Hook up the outports (data sinks) to physical ports
         # Get the actual physical ports that can play sound
