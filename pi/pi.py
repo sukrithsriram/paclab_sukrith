@@ -137,14 +137,14 @@ class Noise:
                 # Calculating frames of sound to play (sframes = number of frames of sound)
                 sframes = min(blocksize, self.chunk_frames - self.frame_counter)
                 if self.channel == 'left':
-                    table = (self.amplitude * np.random.uniform(-1, 1, (sframes, 2)))
+                    data = (self.amplitude * np.random.uniform(-1, 1, (sframes, 2)))
                     table[:, 1] = 0
                 elif self.channel == 'right':
-                    table = (self.amplitude * np.random.uniform(-1, 1, (sframes, 2)))
-                    table[:, 0] = 0
+                    data = (self.amplitude * np.random.uniform(-1, 1, (sframes, 2)))
+                    data[:, 0] = 0
                     
                 # Filtering the frames of white noise
-                filtered_data = Filter.bandpass_filter(table, self.center_freq, self.bandwidth, self.fs, self.filter_order)
+                filtered_data = Filter.bandpass_filter(data, self.center_freq, self.bandwidth, self.fs, self.filter_order)
                 data[:sframes] = filtered_data
                 self.frame_counter += sframes
                 blocksize -= sframes
