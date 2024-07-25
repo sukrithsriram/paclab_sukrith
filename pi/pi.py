@@ -140,7 +140,7 @@ class Noise:
         else:
             table = np.zeros((frames_to_generate, 2), dtype='float32')
 
-        filtered_data = self.bandpass_filter(table)
+        filtered_data = Filter.bandpass_filter(table, self.center_freq, self.bandwidth, self.fs, self.filter_order)
         data[:frames_to_generate] = filtered_data
         self.frame_counter += frames_to_generate
 
