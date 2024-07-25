@@ -168,6 +168,10 @@ class Noise:
         # Adding frames to queue            
         self.sound_queue.put(data)
     
+    def generate_sound_loop(self):
+        while True:
+            self.generate_noise(self.blocksize)
+    
     def set_channel(self, mode):
         """Set which channel to play sound from"""
         self.channel = mode
@@ -220,7 +224,6 @@ class SoundPlayer(object):
         
         # Generating noise 
         self.noise = Noise(self.sound_queue, self.fs)
-        self.noise.generate_noise(self.blocksize)
         
         # Debug message
         # TODO: add control over verbosity of debug messages
@@ -229,7 +232,7 @@ class SoundPlayer(object):
         ## Set up outchannels
         self.client.outports.register('out_0')
         self.client.outports.register('out_1')
-        threading.Thread(target=self.generate_sound_loop, daemon=True).start()
+        threading.Thread(target=self.noise.generate_sound_loop, daemon=True).start()
 
 
         ## Set up the process callback
@@ -250,10 +253,6 @@ class SoundPlayer(object):
         self.client.outports[0].connect(target_ports[0])
         self.client.outports[1].connect(target_ports[1])
 
-    def generate_sound_loop(self):
-        while True:
-            self.noise.generate_noise(self.blocksize)
-    
     def process(self, frames):
         """Process callback function (used to play sound)
         
