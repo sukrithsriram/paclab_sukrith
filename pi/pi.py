@@ -99,7 +99,7 @@ class Noise:
         # Chunking the noise based on sampling rate 
         self.chunk_frames = int(self.chunk_duration * self.fs)
         self.pause_frames = int(self.pause_duration * self.fs)
-        self.audio_cycle = itertools.cycle([generate_noise(), generate_pause()])
+        self.audio_cycle = itertools.cycle([self.generate_noise(), self.generate_pause()])
         self.frame_counter = 0
         
     def update_parameters(self, chunk_min, chunk_max, pause_min, pause_max, amplitude_min, amplitude_max, center_freq_min, center_freq_max, bandwidth):
