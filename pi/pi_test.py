@@ -527,7 +527,7 @@ try:
             bandwidth = config_data['bandwidth']
             
             # Update the jack client with the new acoustic parameters
-            noise.update_parameters(
+            sound_player.noise.update_parameters(
                 chunk_min, chunk_max, pause_min, pause_max, 
                 amplitude_min, amplitude_max, center_freq_min, center_freq_max, bandwidth)
             
@@ -665,7 +665,7 @@ try:
                 # Updating Parameters
                 # TODO: fix this; chunk_min etc are not necessarily defined
                 # yet, or haven't changed recently
-                noise.update_parameters(
+                sound_player.noise.update_parameters(
                     chunk_min, chunk_max, pause_min, pause_max, 
                     amplitude_min, amplitude_max, center_freq_min, center_freq_max, bandwidth)
                 
