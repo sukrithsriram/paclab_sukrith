@@ -451,7 +451,7 @@ def stop_session():
     pi.write(10, 0)
     pi.write(27, 0)
     pi.write(9, 0)
-    sound_player.set_channel('none')
+    sound_player.noise.set_channel('none')
 
 ## Set up pigpio and callbacks
 # TODO: rename this variable to pig or something; "pi" is ambiguous
