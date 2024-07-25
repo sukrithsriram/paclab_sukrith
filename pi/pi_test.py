@@ -61,7 +61,7 @@ class Filter:
     # Main filter function
     def bandpass_filter(data, center_freq, bandwidth, fs, order=2):
         b, a = Filter.calculate_bandpass(center_freq, bandwidth, fs, order=order)
-        data = lfilter(b, a, data, axis=0)
+        data = scipy.signal.lfilter(b, a, data, axis=0)
         return data
 
 
