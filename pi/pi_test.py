@@ -275,7 +275,6 @@ class SoundPlayer(object):
                 buff[:] = data[:, n_outport]
 
 # Define a client to play sounds
-noise = Noise()
 sound_player = SoundPlayer(name='sound_player')
 
 # Raspberry Pi's identity (Change this to the identity of the Raspberry Pi you are using)
@@ -618,7 +617,7 @@ try:
                     pi.set_PWM_dutycycle(reward_pin, pwm_duty_cycle)
                     
                     # Playing sound from the left speaker
-                    noise.set_channel('left')
+                    sound_player.noise.set_channel('left')
                     
                     # Debug message
                     print("Turning Nosepoke 5 Green")
@@ -641,7 +640,7 @@ try:
                     pi.set_PWM_dutycycle(reward_pin, pwm_duty_cycle)
                     
                     # Playing sound from the right speaker
-                    noise.set_channel('right')
+                    sound_player.noise.set_channel('right')
                     
                     # Debug message
                     print("Turning Nosepoke 7 Green")
@@ -681,7 +680,7 @@ try:
                     print("No LED is currently active.")
 
                 # Reset play mode to 'none'
-                noise.set_channel('none')
+                sound_player.noise.set_channel('none')
            
             else:
                 print("Unknown message received:", msg)
