@@ -173,7 +173,7 @@ class Noise:
 # Rename to SoundPlayer to avoid confusion with jack.Client
 class SoundPlayer(object):
     """Object to play sounds"""
-    def __init__(self, name='jack_client'):
+    def __init__(self, name='jack_client', self.fs):
         """Initialize a new JackClient
 
         This object contains a jack.Client object that actually plays audio.
