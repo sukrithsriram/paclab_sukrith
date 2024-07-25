@@ -238,7 +238,6 @@ class SoundPlayer(object):
         ## Activate the client
         self.client.activate()
 
-
         ## Hook up the outports (data sinks) to physical ports
         # Get the actual physical ports that can play sound
         target_ports = self.client.get_ports(
@@ -250,9 +249,10 @@ class SoundPlayer(object):
         self.client.outports[1].connect(target_ports[1])
 
     def generate_sound_loop(self):
-        while True:
+        for n in range(10):
             data = self.noise.generate_noise(self.blocksize)
             self.sound_queue.put(data)
+            time.sleep(1)
     
     def process(self, frames):
         """Process callback function (used to play sound)
