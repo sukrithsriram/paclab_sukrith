@@ -99,7 +99,7 @@ class Noise:
         # Chunking the noise based on sampling rate 
         self.chunk_frames = int(self.chunk_duration * self.fs)
         self.pause_frames = int(self.pause_duration * self.fs)
-        self.current_state = itertools.cycle(['chunk', 'pause'])
+        self.audio_cycle = itertools.cycle([generate_noise(), generate_pause()])
         self.frame_counter = 0
         
     def update_parameters(self, chunk_min, chunk_max, pause_min, pause_max, amplitude_min, amplitude_max, center_freq_min, center_freq_max, bandwidth):
@@ -125,45 +125,36 @@ class Noise:
         return parameter_message
     
     def generate_noise(self, blocksize):
-        # Generating a band-pass filtered stereo sound
         data = np.zeros((blocksize, 2), dtype='float32')
-        
-        # Playing sound or silence depending on the duration
-        while blocksize > 0:
-            if self.current_state == 'chunk':
-                # Calculating frames of sound to play (sframes = number of frames of sound)
-                sframes = min(blocksize, self.chunk_frames - self.frame_counter)
-                if self.channel == 'left':
-                    table = (self.amplitude * np.random.uniform(-1, 1, (sframes, 2)))
-                    table[:, 1] = 0
-                elif self.channel == 'right':
-                    table = (self.amplitude * np.random.uniform(-1, 1, (sframes, 2)))
-                    table[:, 0] = 0
-                    
-                # Filtering the frames of white noise
-                filtered_data = Filter.bandpass_filter(table, self.center_freq, self.bandwidth, self.fs, self.filter_order)
-                data[:sframes] = filtered_data
-                self.frame_counter += sframes
-                blocksize -= sframes
-                
-                # Setting to silence after it finishes
-                if self.frame_counter >= self.chunk_frames:
-                    self.current_state = 'pause'
-                    self.frame_counter = 0
-                
-            # Logic for if it is time for a pause
-            elif self.current_state == 'pause':
-                sframes = min(blocksize, self.pause_frames - self.frame_counter)
-                data[:sframes] = 0
-                self.frame_counter += sframes
-                blocksize -= sframes
+        frames_to_generate = min(blocksize, self.chunk_frames - self.frame_counter)
 
-                if self.frame_counter >= self.pause_frames:
-                    self.current_state = 'chunk'
-                    self.frame_counter = 0
-                    
-        # Adding frames to queue            
-        self.sound_queue.put(data)
+        if self.channel == 'left':
+            table = self.amplitude * np.random.uniform(-1, 1, (frames_to_generate, 2))
+            table[:, 1] = 0
+        elif self.channel == 'right':
+            table = self.amplitude * np.random.uniform(-1, 1, (frames_to_generate, 2))
+            table[:, 0] = 0
+        else:
+            table = np.zeros((frames_to_generate, 2), dtype='float32')
+
+        filtered_data = self.bandpass_filter(table)
+        data[:frames_to_generate] = filtered_data
+        self.frame_counter += frames_to_generate
+
+        if self.frame_counter >= self.chunk_frames:
+            self.frame_counter = 0
+
+        return data
+
+    def generate_pause(self, blocksize):
+        data = np.zeros((blocksize, 2), dtype='float32')
+        frames_to_generate = min(blocksize, self.pause_frames - self.frame_counter)
+        self.frame_counter += frames_to_generate
+
+        if self.frame_counter >= self.pause_frames:
+            self.frame_counter = 0
+
+        return data
     
     def set_channel(self, mode):
         """Set which channel to play sound from"""
@@ -219,7 +210,6 @@ class SoundPlayer(object):
 
         # Defining Noise object
         self.noise = Noise(self.fs)
-        #self.noise.generate_noise()
         
         ## Set up outchannels
         self.client.outports.register('out_0')
@@ -259,7 +249,7 @@ class SoundPlayer(object):
         # the lock is working?)
         
         # Get data from cycle
-        data = next(self.noise.current_state )
+        data = next(self.noise.audio_cycle)
 
         # Write one column to each channel
         for n_outport, outport in enumerate(self.client.outports):
