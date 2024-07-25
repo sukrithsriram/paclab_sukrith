@@ -145,7 +145,7 @@ class Noise:
                     table[:, 0] = 0
                     
                 # Filtering the frames of white noise
-                filtered_data = Filter.bandpass_filter(sound_data, self.center_freq, self.bandwidth, self.fs, self.filter_order)
+                filtered_data = Filter.bandpass_filter(table, self.center_freq, self.bandwidth, self.fs, self.filter_order)
                 data[:sframes] = filtered_data
                 self.frame_counter += sframes
                 blocksize -= sframes
