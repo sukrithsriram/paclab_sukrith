@@ -173,7 +173,7 @@ class Noise:
 # Rename to SoundPlayer to avoid confusion with jack.Client
 class SoundPlayer(object):
     """Object to play sounds"""
-    def __init__(self, name='jack_client', self.fs):
+    def __init__(self, name='jack_client'):
         """Initialize a new JackClient
 
         This object contains a jack.Client object that actually plays audio.
@@ -191,9 +191,6 @@ class SoundPlayer(object):
         """
         ## Store provided parameters
         self.name = name
-        
-        self.noise = Noise(self.fs)
-        self.noise.generate_noise()
         
         ## Acoustic parameters of the sound
         # TODO: define these elsewhere -- these should not be properties of
@@ -220,6 +217,9 @@ class SoundPlayer(object):
         # TODO: add control over verbosity of debug messages
         print("Received blocksize {} and fs {}".format(self.blocksize, self.fs))
 
+        # Defining Noise object
+        self.noise = Noise(self.fs)
+        #self.noise.generate_noise()
         
         ## Set up outchannels
         self.client.outports.register('out_0')
