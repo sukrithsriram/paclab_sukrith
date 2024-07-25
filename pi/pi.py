@@ -250,7 +250,7 @@ class SoundPlayer(object):
         # the lock is working?)
         
         # Get data from cycle
-        data = next(self.noise.audio_cycle)
+        data = next(self.audio_cycle)
 
         # Write one column to each channel
         for n_outport, outport in enumerate(self.client.outports):
