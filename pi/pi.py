@@ -138,7 +138,7 @@ class Noise:
                 sframes = min(blocksize, self.chunk_frames - self.frame_counter)
                 if self.channel == 'left':
                     data = (self.amplitude * np.random.uniform(-1, 1, (sframes, 2)))
-                    table[:, 1] = 0
+                    data[:, 1] = 0
                 elif self.channel == 'right':
                     data = (self.amplitude * np.random.uniform(-1, 1, (sframes, 2)))
                     data[:, 0] = 0
