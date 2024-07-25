@@ -252,7 +252,7 @@ class SoundPlayer(object):
     def generate_sound_loop(self):
         while True:
             self.noise.generate_noise(self.blocksize)
-            self.sound_queue.put(data)
+            self.sound_queue.put()
     
     def process(self, frames):
         """Process callback function (used to play sound)
