@@ -247,6 +247,12 @@ class SoundPlayer(object):
         ## Activate the client
         self.client.activate()
 
+
+        # Letting frames of audio be added to the queue in the background
+        self.generate_sound_thread = threading.Thread(target=self.noise.generate_sound_loop, daemon=True)
+        self.generate_sound_thread.start()
+        
+        
         ## Hook up the outports (data sinks) to physical ports
         # Get the actual physical ports that can play sound
         target_ports = self.client.get_ports(
