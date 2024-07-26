@@ -14,6 +14,7 @@ import itertools
 import queue
 import scipy.signal
 
+
 ## Killing previous pigpiod and jackd background processes
 os.system('sudo killall pigpiod')
 os.system('sudo killall jackd')
@@ -47,66 +48,9 @@ param_directory = f"configs/pis/{pi_name}.json"
 with open(param_directory, "r") as p:
     params = json.load(p)    
 
-# Class to filter generated noise 
-class Filter:
-    @staticmethod
-    # Function to calculate the cutoffs
-    def calculate_bandpass(center_freq, bandwidth, fs, order = 2):
-        """Calculate highpass and lowpass frequencies based on center frequency and bandwidth"""
-        highpass = (center_freq - (bandwidth / 2)) / (fs / 2)
-        lowpass = (center_freq + (bandwidth / 2)) / (fs / 2)
-        b, a = scipy.signal.butter(order, [highpass, lowpass], btype='band')
-        return b, a
-    
-    @staticmethod
-    # Main filter function
-    def bandpass_filter(data, center_freq, bandwidth, fs, order=2):
-        b, a = Filter.calculate_bandpass(center_freq, bandwidth, fs, order=order)
-        data = scipy.signal.filtfilt(b, a, data, axis=0)
-        return data
 
-# Class to generate noise into a queue
-class Noise:
-    def __init__(self, sound_queue, fs):
-        
-        # Queue to continuously send sound to jackclient
-        self.sound_queue = sound_queue
-
-        # This determines which channel plays sound
-        self.channel = 'left'  # 'left', 'right', or 'none'
-
-        # Lock for thread-safe channel() updates
-        self.lock = threading.Lock()
-
-        ## Default Acoustic Parameters if a config is not received
-        # Duration of each chunk (noise burst) in seconds
-        self.chunk_duration = 0.01
-
-        # Pause duration between chunk in seconds
-        self.pause_duration = 0.3
-
-        # Amplitude of the sound
-        self.amplitude = 0.01
-
-        # Bandwidth of the filter
-        self.bandwidth = 3000
-
-        # Centre frequency of the filter
-        self.center_freq = 10000
-
-        # Using sound parameters from jackclient
-        self.fs = fs
-
-        # Order of the bandpass filter
-        self.filter_order = 2
-        
-        # Chunking the noise based on sampling rate 
-        self.chunk_frames = int(self.chunk_duration * self.fs)
-        self.pause_frames = int(self.pause_duration * self.fs)
-
-        # Queue state: Running or Paused
-        self.running = False
-
+class SoundChooser(self):
+    """Object to choose the sounds and pauses for this trial"""
     def update_parameters(self, chunk_min, chunk_max, pause_min, pause_max, amplitude_min, amplitude_max, center_freq_min, center_freq_max, bandwidth):
         """Method to update sound parameters dynamically"""
         self.chunk_duration = random.uniform(chunk_min, chunk_max)
@@ -128,17 +72,6 @@ class Noise:
         print(parameter_message)
         return parameter_message
     
-    def generate_chunk(self):
-        # Generate a chunk of noise
-        table = (self.amplitude * np.random.uniform(-1, 1, (self.chunk_frames, 2)))
-        # Playing from channel based on current state
-        if self.channel == 'left':
-            table[:, 1] = 0
-        elif self.channel == 'right':
-            table[:, 0] = 0
-        filtered_data = Filter.bandpass_filter(table, self.center_freq, self.bandwidth, self.fs, self.filter_order)
-        return filtered_data
-
     def generate_pause(self):
         # Generate a chunk of silence
         return np.zeros((self.pause_frames, 2), dtype='float32')
@@ -146,6 +79,7 @@ class Noise:
     # Continuously adding frames of audio to the queue
     def queue_loop(self):
         chunks = itertools.cycle([self.generate_chunk, self.generate_pause])
+        
         for chunk in chunks:
             data = chunk()
             self.sound_queue.put(data)
@@ -165,6 +99,166 @@ class Noise:
     def set_channel(self, mode):
         """Set which channel to play sound from"""
         self.channel = mode
+        
+class Noise:
+    """Class to define bandpass filtered white noise."""
+    def __init__(self, blocksize, fs, duration, amplitude=0.01, channel=None, 
+        highpass=None, lowpass=None, attenuation_file=None, **kwargs):
+        """Initialize a new white noise burst with specified parameters.
+        
+        The sound itself is stored as the attribute `self.table`. This can
+        be 1-dimensional or 2-dimensional, depending on `channel`. If it is
+        2-dimensional, then each channel is a column.
+        
+        Args:
+            duration (float): duration of the noise
+            amplitude (float): amplitude of the sound as a proportion of 1.
+            channel (int or None): which channel should be used
+                If 0, play noise from the first channel
+                If 1, play noise from the second channel
+                If None, send the same information to all channels ("mono")
+            highpass (float or None): highpass the Noise above this value
+                If None, no highpass is applied
+            lowpass (float or None): lowpass the Noise below this value
+                If None, no lowpass is applied       
+            attenuation_file (string or None)
+                Path to where a pandas.Series can be loaded containing attenuation
+            **kwargs: extraneous parameters that might come along with instantiating us
+        """
+        # Set duraiton and amplitude as float
+        self.duration = float(duration)
+        self.amplitude = float(amplitude)
+        
+        # Save optional parameters - highpass, lowpass, channel
+        if highpass is None:
+            self.highpass = None
+        else:
+            self.highpass = float(highpass)
+        
+        if lowpass is None:
+            self.lowpass = None
+        else:
+            self.lowpass = float(lowpass)
+        
+        # Save attenuation
+        if attenuation_file is not None:
+            self.attenuation = pandas.read_table(
+                attenuation_file, sep=',').set_index('freq')['atten']
+        else:
+            self.attenuation = None        
+        
+        # Save channel
+        # Currently only mono or stereo sound is supported
+        if channel is None:
+            self.channel = None
+        except TypeError:
+            self.channel = int(channel)
+        
+        if self.channel not in [0, 1]:
+            raise ValueError(
+                "audio channel must be 0 or 1, not {}".format(
+                self.channel))
+
+        # Initialize the sound itself
+        self.chunks = None
+        self.initialized = False
+        self.init_sound()
+
+    def init_sound(self):
+        """Defines `self.table`, the waveform that is played. 
+        
+        The way this is generated depends on `self.server_type`, because
+        parameters like the sampling rate cannot be known otherwise.
+        
+        The sound is generated and then it is "chunked" (zero-padded and
+        divided into chunks). Finally `self.initialized` is set True.
+        """
+        # Calculate the number of samples
+        self.nsamples = int(np.rint(self.duration * self.fs))
+        
+        # Generate the table by sampling from a uniform distribution
+        # The shape of the table depends on `self.channel`
+        # The table will be 2-dimensional for stereo sound
+        # Each channel is a column
+        # Only the specified channel contains data and the other is zero
+        data = np.random.uniform(-1, 1, self.nsamples)
+        
+        # Highpass filter it
+        if self.highpass is not None:
+            bhi, ahi = scipy.signal.butter(
+                2, self.highpass / (self.fs / 2), 'high')
+            data = scipy.signal.filtfilt(bhi, ahi, data)
+        
+        # Lowpass filter it
+        if self.lowpass is not None:
+            blo, alo = scipy.signal.butter(
+                2, self.lowpass / (self.fs / 2), 'low')
+            data = scipy.signal.filtfilt(blo, alo, data)
+        
+        # Assign data into table
+        self.table = np.zeros((self.nsamples, 2))
+        assert self.channel in [0, 1]
+        self.table[:, self.channel] = data
+        
+        # Scale by the amplitude
+        self.table = self.table * self.amplitude
+        
+        # Convert to float32
+        self.table = self.table.astype(np.float32)
+        
+        # Apply attenuation
+        if self.attenuation is not None:
+            # To make the attenuated sounds roughly match the original
+            # sounds in loudness, multiply table by np.sqrt(10) (10 dB)
+            # Better solution is to encode this into attenuation profile,
+            # or a separate "gain" parameter
+            self.table = self.table * np.sqrt(10)
+            
+            # Apply the attenuation to each column
+            for n_column in range(self.table.shape[1]):
+                self.table[:, n_column] = apply_attenuation(
+                    self.table[:, n_column], self.attenuation, self.fs)
+        
+        # Break the sound table into individual chunks of length blocksize
+        self.chunk()
+
+        # Flag as initialized
+        self.initialized = True
+
+    def chunk(self):
+        """Break the sound in self.table into chunks of length blocksize
+        
+        The sound in self.table is zero-padded to a length that is a multiple
+        of `self.blocksize`. Then it is broken into `self.chunks`, a list 
+        of chunks each of length `blocksize`.
+        
+        TODO: move this into a superclass, since the same code can be used
+        for other sounds.
+        """
+        # Zero-pad the self.table to a new length that is multiple of blocksize
+        oldlen = len(self.table)
+        
+        # Calculate how many blocks we need to contain the sound
+        n_blocks_needed = int(np.ceil(oldlen / self.blocksize))
+        
+        # Calculate the new length
+        newlen = n_blocks_needed * self.blocksize
+
+        # Pad with 2d array of zeros
+        to_concat = np.zeros(
+            (newlen - oldlen, self.table.shape[1]), 
+            np.float32)
+
+        # Zero pad
+        padded_sound = np.concatenate([sound, to_concat])
+        
+        # Start of each chunk
+        start_samples = range(0, len(padded_sound), self.blocksize)
+        
+        # Break the table into chunks
+        self.chunks = [
+            self.table[start_sample:start_sample + self.blocksize, :] 
+            for start_sample in start_samples]
 
 # Define a JackClient, which will play sounds in the background
 # Rename to SoundPlayer to avoid confusion with jack.Client
@@ -192,6 +286,7 @@ class SoundPlayer(object):
         # Calling the queue from the noise class 
         self.sound_queue = queue.Queue()
         
+        
         ## Acoustic parameters of the sound
         # TODO: define these elsewhere -- these should not be properties of
         # this object, because this object should be able to play many sounds
@@ -213,27 +308,24 @@ class SoundPlayer(object):
         # `fs` is the sampling rate
         self.fs = self.client.samplerate
         
-        # Generating noise 
-        self.noise = Noise(self.sound_queue, self.fs)
-        
         # Debug message
         # TODO: add control over verbosity of debug messages
         print("Received blocksize {} and fs {}".format(self.blocksize, self.fs))
+
 
         ## Set up outchannels
         self.client.outports.register('out_0')
         self.client.outports.register('out_1')
         
-        # Letting frames of audio be added to the queue in the background
-        self.generate_sound_thread = threading.Thread(target=self.noise.queue_loop, daemon=True)
-        self.generate_sound_thread.start()
         
         ## Set up the process callback
         # This will be called on every block and must provide data
         self.client.set_process_callback(self.process)
 
+
         ## Activate the client
         self.client.activate()
+
         
         ## Hook up the outports (data sinks) to physical ports
         # Get the actual physical ports that can play sound
@@ -252,25 +344,25 @@ class SoundPlayer(object):
         The current implementation uses time.time(), but we need to be more
         precise.
         """
-        # Making process() thread-safe (so that multiple calls don't try to
-        # write to the outports at the same time)
-        # with self.lock: 
-        # This seems to noticeably increase xrun errors (possibly because
-        # the lock is working?)
-        
-        # Get data from cycle
-        if not self.sound_queue.empty():
+        # Check if the queue is empty
+        if self.sound_queue.empty():
+            # No sound to play, so play silence 
+            # Although this shouldn't be happening
+
+            for n_outport, outport in enumerate(self.client.outports):
+                buff = outport.get_array()
+                buff[:] = np.zeros(self.blocksize, dtype='float32')
+            
+        else:
+            # Queue is not empty, so play data from it
             data = self.sound_queue.get()
+            assert data.shape == (self.blocksize, 2)
 
             # Write one column to each channel
             for n_outport, outport in enumerate(self.client.outports):
                 buff = outport.get_array()
                 buff[:] = data[:, n_outport]
     
-    # Method to handle thread 
-    def stop(self):
-        self.noise.stop()
-        self.generate_sound_thread.join()
 
 # Define a client to play sounds
 sound_player = SoundPlayer(name='sound_player')
@@ -278,6 +370,7 @@ sound_player = SoundPlayer(name='sound_player')
 # Raspberry Pi's identity (Change this to the identity of the Raspberry Pi you are using)
 # TODO: what is the difference between pi_identity and pi_name? # They are functionally the same, this line is from before I imported 
 pi_identity = params['identity']
+
 
 ## Creating a ZeroMQ context and socket for communication with the central system
 # TODO: what information travels over this socket? Clarify: do messages on
@@ -501,7 +594,8 @@ try:
         socks = dict(poller.poll(1))
         
         
-        # Check queue here and see if more needs to be added 
+        # Check sound_chooser here, and if it has the parameters it needs,
+        # then use it to top up the queue. 
         
         
         ## Check for incoming messages on json_socket
