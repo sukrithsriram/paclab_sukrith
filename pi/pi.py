@@ -151,6 +151,7 @@ class Noise:
             self.sound_queue.put(data)
             duration = self.chunk_duration if chunk == self.generate_chunk else self.pause_duration
             time.sleep(duration)
+            # Check length of queue instead of sleeping 
     
     # Method to start queue
     def start(self):
@@ -498,6 +499,9 @@ try:
         ## Wait for events on registered sockets
         # TODO: how long does it wait? # Can be set, currently not sure
         socks = dict(poller.poll(1))
+        
+        
+        # Check queue here and see if more needs to be added 
         
         
         ## Check for incoming messages on json_socket
