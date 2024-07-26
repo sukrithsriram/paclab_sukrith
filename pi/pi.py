@@ -10,6 +10,7 @@ import threading
 import random
 import json
 import socket as sc
+import itertools
 import queue
 import scipy.signal
 
