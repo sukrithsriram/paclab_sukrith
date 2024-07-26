@@ -147,8 +147,6 @@ class Noise:
     def queue_loop(self):
         chunks = itertools.cycle([self.generate_chunk, self.generate_pause])
         for chunk in chunks:
-            #if not self.running:
-                #break
             data = chunk()
             self.sound_queue.put(data)
             duration = self.chunk_duration if chunk == self.generate_chunk else self.pause_duration
@@ -688,6 +686,7 @@ try:
 
 except KeyboardInterrupt:
     # Stops the pigpio connection
+    sound_player.noise.stop()
     pi.stop()
 
 finally:
