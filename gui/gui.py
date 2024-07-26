@@ -32,7 +32,7 @@ parser.add_argument('json_filename', type=str, help="The name of the JSON file (
 args = parser.parse_args()
 
 # Constructing the full path to the config file
-param_directory = f"configs/{args.json_filename}.json"
+param_directory = f"/home/mouse/dev/gui/configs/{args.json_filename}.json"
 
 # Load the parameters from the specified JSON file
 with open(param_directory, "r") as p:

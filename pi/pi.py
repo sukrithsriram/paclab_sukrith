@@ -154,7 +154,7 @@ class Noise:
                     self.current_state = 'pause'
                     self.frame_counter = 0
                 
-            # Logic for if it is time for a pause
+            # Time for a pause
             elif self.current_state == 'pause':
                 sframes = min(blocksize, self.pause_frames - self.frame_counter)
                 data[:sframes] = 0
@@ -167,6 +167,14 @@ class Noise:
                     
         return data
     
+    # Continuously adding frames of audio to the queue
+    def queue_loop(self):
+        while True:
+            data = self.generate_noise(self.chunk_frames)
+            self.sound_queue.put(data)
+            time.sleep(self.chunk_duration + self.pause_duration)
+    
+    # Setting channel to play audio from 
     def set_channel(self, mode):
         """Set which channel to play sound from"""
         self.channel = mode
@@ -194,6 +202,7 @@ class SoundPlayer(object):
         ## Store provided parameters
         self.name = name
         
+        # Calling the queue from the noise class 
         self.sound_queue = queue.Queue()
         
         ## Acoustic parameters of the sound
@@ -229,7 +238,7 @@ class SoundPlayer(object):
         self.client.outports.register('out_1')
         
         # Generating continuous queue
-        self.generate_sound_loop()
+        self.noise.queue_loop()
         
         ## Set up the process callback
         # This will be called on every block and must provide data
@@ -247,12 +256,6 @@ class SoundPlayer(object):
         # Connect virtual outport to physical channel
         self.client.outports[0].connect(target_ports[0])
         self.client.outports[1].connect(target_ports[1])
-
-    def generate_sound_loop(self):
-        for n in range(10):
-            data = self.noise.generate_noise(self.blocksize)
-            self.sound_queue.put(data)
-            time.sleep(1)
     
     def process(self, frames):
         """Process callback function (used to play sound)
