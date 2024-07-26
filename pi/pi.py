@@ -12,6 +12,7 @@ import json
 import socket as sc
 import itertools
 import queue
+import pandas as pd
 import scipy.signal
 
 
@@ -21,7 +22,6 @@ os.system('sudo killall jackd')
 
 # Wait long enough to make sure they are killed
 time.sleep(1)
-
 
 ## Starting pigpiod and jackd background processes
 # Start pigpiod
@@ -48,8 +48,43 @@ param_directory = f"configs/pis/{pi_name}.json"
 with open(param_directory, "r") as p:
     params = json.load(p)    
 
+class SoundQueue(self):
+    def __init__(self, stage_block, task_type, subject, child, reward):
+    ## Stages
+        # Only one stage
+        self.stages = itertools.cycle([self.play])
+        self.stage_block = stage_block
+        
+        # This is used to ensure only one reward per trial
+        # It is set to False as soon as the "port open" trigger is added
+        # And it is set to True as soon as the port is opened
+        # The port will not open if the flag is True
+        # As written, this wouldn't allow rewarding multiple ports
+        self.reward_already_dispensed_on_this_trial = True
+        
+        
+        ## Initialize sounds
+        # Each block/frame is about 5 ms
+        # Longer is more buffer against unexpected delays
+        # Shorter is faster to empty and refill the queue
+        self.target_qsize = 200
 
-class SoundChooser(self):
+        # Some counters to keep track of how many sounds we've played
+        self.frame_rate_warning_already_issued = False
+        self.n_frames = 0
+        self.n_error_counter = 0
+        
+        # Fill the queue with empty frames
+        # Sounds aren't initialized till the trial starts
+        # Using False here should work even without sounds initialized yet
+        self.set_sound_cycle(params={'left_on': False, 'right_on': False})
+
+        # Use this to keep track of generated sounds
+        self.current_audio_times_df = None
+
+        # This is needed when sending messages about generated sounds
+        self.n_messages_sent = 0        
+    
     """Object to choose the sounds and pauses for this trial"""
     def update_parameters(self, chunk_min, chunk_max, pause_min, pause_max, amplitude_min, amplitude_max, center_freq_min, center_freq_max, bandwidth):
         """Method to update sound parameters dynamically"""
@@ -69,36 +104,216 @@ class SoundChooser(self):
             f"Center Frequency: {self.center_freq} Hz, "
             f"Bandwidth: {self.bandwidth}"
             )
+
         print(parameter_message)
         return parameter_message
-    
-    def generate_pause(self):
-        # Generate a chunk of silence
-        return np.zeros((self.pause_frames, 2), dtype='float32')
-    
-    # Continuously adding frames of audio to the queue
-    def queue_loop(self):
-        chunks = itertools.cycle([self.generate_chunk, self.generate_pause])
+
+    def set_sound_cycle(self, params):
+        """Define self.sound_cycle, to go through sounds
         
-        for chunk in chunks:
-            data = chunk()
-            self.sound_queue.put(data)
-            duration = self.chunk_duration if chunk == self.generate_chunk else self.pause_duration
-            time.sleep(duration)
-            # Check length of queue instead of sleeping 
-    
-    # Method to start queue
-    def start(self):
-        self.running = True
-    
-    # Method to make the queue stop 
-    def stop(self):
-        self.running = False
-    
-    # Setting channel to play audio from 
-    def set_channel(self, mode):
-        """Set which channel to play sound from"""
-        self.channel = mode
+        params : dict
+            This comes from a message on the net node.
+            Possible keys:
+                left_on
+                right_on
+                left_mean_interval
+                right_mean_interval
+        """
+        # Array to attach chunked sounds
+        self.sound_block = []
+
+        # Helper function
+        def append_gap(gap_chunk_size=30):
+            """Append `gap_chunk_size` silent chunks to sound_block"""
+            for n_blank_chunks in range(gap_chunk_size):
+                self.sound_block.append(
+                    np.zeros(autopilot.stim.sound.jackclient.BLOCKSIZE, 
+                    dtype='float32'))
+
+        # Extract params or use defaults
+        left_on = params.get('left_on', False)
+        right_on = params.get('right_on', False)
+        left_target_rate = params.get('left_target_rate', 0) # Use sound duration here instead of rate
+        right_target_rate = params.get('right_target_rate', 0)
+        
+        # Global params
+        target_temporal_std = 10 ** params.get(
+            'stim_target_temporal_log_std', -2)
+        
+        ## Generate intervals 
+        # left target
+        if left_on and left_target_rate > 1e-3:
+            # Change of basis
+            mean_interval = 1 / left_target_rate
+            var_interval = target_temporal_std ** 2
+
+            # Change of basis
+            gamma_shape = (mean_interval ** 2) / var_interval
+            gamma_scale = var_interval / mean_interval
+
+            # Draw
+            left_target_intervals = np.random.gamma(
+                gamma_shape, gamma_scale, 100)
+        else:
+            left_target_intervals = np.array([])
+
+        # right target
+        if right_on and right_target_rate > 1e-3:
+            # Change of basis
+            mean_interval = 1 / right_target_rate
+            var_interval = target_temporal_std ** 2
+
+            # Change of basis
+            gamma_shape = (mean_interval ** 2) / var_interval
+            gamma_scale = var_interval / mean_interval
+
+            # Draw
+            right_target_intervals = np.random.gamma(
+                gamma_shape, gamma_scale, 100)
+        else:
+            right_target_intervals = np.array([])              
+        
+        
+        ## Sort all the drawn intervals together
+        # Turn into series
+        left_target_df = pandas.DataFrame.from_dict({
+            'time': np.cumsum(left_target_intervals),
+            'side': ['left'] * len(left_target_intervals),
+            'sound': ['target'] * len(left_target_intervals),
+            })
+        right_target_df = pandas.DataFrame.from_dict({
+            'time': np.cumsum(right_target_intervals),
+            'side': ['right'] * len(right_target_intervals),
+            'sound': ['target'] * len(right_target_intervals),
+            })
+
+        # Concatenate them all together and resort by time
+        both_df = pandas.concat([
+            left_target_df, right_target_df], axis=0).sort_values('time')
+
+        # Calculate the gap between sounds
+        both_df['gap'] = both_df['time'].diff().shift(-1)
+        
+        # Drop the last row which has a null gap
+        both_df = both_df.loc[~both_df['gap'].isnull()].copy()
+
+        # Keep only those below the sound cycle length
+        both_df = both_df.loc[both_df['time'] < 10].copy()
+        
+        # Nothing should be null
+        assert not both_df.isnull().any().any() 
+
+        # Calculate gap size in chunks
+        both_df['gap_chunks'] = (both_df['gap'] *
+            autopilot.stim.sound.jackclient.FS / 
+            autopilot.stim.sound.jackclient.BLOCKSIZE)
+        both_df['gap_chunks'] = both_df['gap_chunks'].round().astype(np.int)
+        
+        # Floor gap_chunks at 1 chunk, the minimal gap size
+        # This is to avoid distortion
+        both_df.loc[both_df['gap_chunks'] < 1, 'gap_chunks'] = 1
+        
+        # Log
+        self.logger.debug("generated both_df: {}".format(both_df))
+        
+        # Save
+        self.current_audio_times_df = both_df.copy()
+        self.current_audio_times_df = self.current_audio_times_df.rename(
+            columns={'time': 'relative_time'})
+
+        
+        ## Depends on how long both_df is
+        # If both_df has a nonzero but short length, results will be weird,
+        # because it might just be one noise burst repeating every ten seconds
+        # This only happens with low rates ~0.1Hz
+        if len(both_df) == 0:
+            # If no sound, then just put gaps
+            append_gap(100)
+        else:
+            # Iterate through the rows, adding the sound and the gap
+            # TODO: the gap should be shorter by the duration of the sound,
+            # and simultaneous sounds should be possible
+            for bdrow in both_df.itertuples():
+                # Append the sound
+                if bdrow.side == 'left' and bdrow.sound == 'target':
+                    for frame in self.left_target_stim.chunks:
+                        self.sound_block.append(frame)                      
+                elif bdrow.side == 'right' and bdrow.sound == 'target':
+                    for frame in self.right_target_stim.chunks:
+                        self.sound_block.append(frame)       
+                else:
+                    raise ValueError(
+                        "unrecognized side and sound: {} {}".format(
+                        bdrow.side, bdrow.sound))
+                
+                # Append the gap
+                append_gap(bdrow.gap_chunks)
+        
+        
+        ## Cycle so it can repeat forever
+        self.sound_cycle = itertools.cycle(self.sound_block)        
+
+    def play(self):
+        """A single stage"""
+        # Don't want to do a "while True" here, because we need to exit
+        # this method eventually, so that it can respond to END
+        # But also don't want to change stage too frequently or the debug
+        # messages are overwhelming
+        for n in range(10):
+            # Add stimulus sounds to queue 1 as needed
+            self.append_sound_to_queue1_as_needed()
+
+            # Don't want to iterate too quickly, but rather add chunks
+            # in a controlled fashion every so often
+            time.sleep(.1)
+
+        ## Extract any recently played sound info
+        sound_data_l = []
+        with autopilot.stim.sound.jackclient.QUEUE_NONZERO_BLOCKS_LOCK:
+            while True:
+                try:
+                    data = autopilot.stim.sound.jackclient.QUEUE_NONZERO_BLOCKS.get_nowait()
+                except queue.Empty:
+                    break
+                sound_data_l.append(data)
+        
+        if len(sound_data_l) > 0:
+            # DataFrame it
+            # This has to match code in jackclient.py
+            # And it also has to match task_class.ChunkData_SoundsPlayed
+            payload = pandas.DataFrame.from_records(
+                sound_data_l,
+                columns=['hash', 'last_frame_time', 'frames_since_cycle_start', 'equiv_dt'],
+                )
+            self.send_chunk_of_sound_played_data(payload)
+        
+        # Estimate how fast we're playing sounds
+        # This should be about 192000 / 1024 = 187.5 frames / s, 
+        # although it will be a bit more because some the queue itself holds
+        # 200 frames, and those are all deleted at the beginning of each trial
+        # without being played. 
+        # However, if there is the sample rate bug, this will be more like
+        # 31 (empirically), about 6x less, not sure what this corresponds to,
+        # maybe a true sample rate of 32 kHz?
+        time_so_far = (datetime.datetime.now() - self.dt_start).total_seconds()
+        frame_rate = self.n_frames / time_so_far
+        self.logger.debug("info: "
+            "added {} frames in {:.1f} s for a rate of {:.2f} frames/s".format(
+            self.n_frames, time_so_far, frame_rate))
+        
+        # Warn if this is happening (but just once per session)
+        # Really I would prefer that it inform the user to restart the pi
+        # TODO: send some kind of "help/error" message to the plot
+        if frame_rate < 150 and not self.frame_rate_warning_already_issued:
+            self.logger.debug("error: frame rate seems to be far too low")
+            self.frame_rate_warning_already_issued = True
+
+
+        ## Continue to the next stage (which is this one again)
+        # If it is cleared, then nothing happens until the next message
+        # from the Parent (not sure why)
+        # If we never end this function, then it won't respond to END
+        self.stage_block.set()
         
 class Noise:
     """Class to define bandpass filtered white noise."""
@@ -312,11 +527,9 @@ class SoundPlayer(object):
         # TODO: add control over verbosity of debug messages
         print("Received blocksize {} and fs {}".format(self.blocksize, self.fs))
 
-
         ## Set up outchannels
         self.client.outports.register('out_0')
         self.client.outports.register('out_1')
-        
         
         ## Set up the process callback
         # This will be called on every block and must provide data
@@ -326,7 +539,6 @@ class SoundPlayer(object):
         ## Activate the client
         self.client.activate()
 
-        
         ## Hook up the outports (data sinks) to physical ports
         # Get the actual physical ports that can play sound
         target_ports = self.client.get_ports(
