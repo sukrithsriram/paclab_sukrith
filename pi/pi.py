@@ -114,7 +114,6 @@ class Noise:
         self.amplitude = random.uniform(amplitude_min, amplitude_max)
         self.center_freq = random.uniform(center_freq_min, center_freq_max)
         self.bandwidth = bandwidth
-        
         self.chunk_frames = int(self.chunk_duration * self.fs)
         self.pause_frames = int(self.pause_duration * self.fs)
 
@@ -148,8 +147,8 @@ class Noise:
     def queue_loop(self):
         chunks = itertools.cycle([self.generate_chunk, self.generate_pause])
         for chunk in chunks:
-            if not self.running:
-                break
+            #if not self.running:
+                #break
             data = chunk()
             self.sound_queue.put(data)
             duration = self.chunk_duration if chunk == self.generate_chunk else self.pause_duration
