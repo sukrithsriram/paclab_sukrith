@@ -1,6 +1,6 @@
 {
     "identity" : "rpi99",
-    "gui_ip" : "192.168.0.207",
+    "gui_ip" : "192.168.1.96",
     "poke_port" : ":5555",
     "config_port": ":5556",
     "nosepokeL_type": "903",
