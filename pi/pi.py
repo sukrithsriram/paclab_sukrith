@@ -49,7 +49,7 @@ param_directory = f"configs/pis/{pi_name}.json"
 with open(param_directory, "r") as p:
     params = json.load(p)    
 
-class SoundQueue(self):
+class SoundQueue:
     def __init__(self, stage_block, task_type, subject, child, reward):
     ## Stages
         # Only one stage
