@@ -388,8 +388,10 @@ class Noise:
         # Currently only mono or stereo sound is supported
         if channel is None:
             self.channel = None
-        except TypeError:
+        try:
             self.channel = int(channel)
+        except TypeError:
+            self.channel = channel
         
         if self.channel not in [0, 1]:
             raise ValueError(
