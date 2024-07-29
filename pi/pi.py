@@ -12,6 +12,7 @@ import json
 import socket as sc
 import itertools
 import queue
+import multiprocessing as mp
 import pandas as pd
 import scipy.signal
 
@@ -55,14 +56,6 @@ class SoundQueue(self):
         self.stages = itertools.cycle([self.play])
         self.stage_block = stage_block
         
-        # This is used to ensure only one reward per trial
-        # It is set to False as soon as the "port open" trigger is added
-        # And it is set to True as soon as the port is opened
-        # The port will not open if the flag is True
-        # As written, this wouldn't allow rewarding multiple ports
-        self.reward_already_dispensed_on_this_trial = True
-        
-        
         ## Initialize sounds
         # Each block/frame is about 5 ms
         # Longer is more buffer against unexpected delays
@@ -70,20 +63,15 @@ class SoundQueue(self):
         self.target_qsize = 200
 
         # Some counters to keep track of how many sounds we've played
-        self.frame_rate_warning_already_issued = False
         self.n_frames = 0
-        self.n_error_counter = 0
-        
+
         # Fill the queue with empty frames
         # Sounds aren't initialized till the trial starts
         # Using False here should work even without sounds initialized yet
         self.set_sound_cycle(params={'left_on': False, 'right_on': False})
 
         # Use this to keep track of generated sounds
-        self.current_audio_times_df = None
-
-        # This is needed when sending messages about generated sounds
-        self.n_messages_sent = 0        
+        self.current_audio_times_df = None       
     
     """Object to choose the sounds and pauses for this trial"""
     def update_parameters(self, chunk_min, chunk_max, pause_min, pause_max, amplitude_min, amplitude_max, center_freq_min, center_freq_max, bandwidth):
@@ -127,8 +115,7 @@ class SoundQueue(self):
             """Append `gap_chunk_size` silent chunks to sound_block"""
             for n_blank_chunks in range(gap_chunk_size):
                 self.sound_block.append(
-                    np.zeros(autopilot.stim.sound.jackclient.BLOCKSIZE, 
-                    dtype='float32'))
+                    np.zeros(1024, dtype='float32'))
 
         # Extract params or use defaults
         left_on = params.get('left_on', False)
@@ -137,8 +124,7 @@ class SoundQueue(self):
         right_target_rate = params.get('right_target_rate', 0)
         
         # Global params
-        target_temporal_std = 10 ** params.get(
-            'stim_target_temporal_log_std', -2)
+        target_temporal_std = 10 ** params.get('stim_target_temporal_log_std', -2)
         
         ## Generate intervals 
         # left target
@@ -204,17 +190,12 @@ class SoundQueue(self):
         assert not both_df.isnull().any().any() 
 
         # Calculate gap size in chunks
-        both_df['gap_chunks'] = (both_df['gap'] *
-            autopilot.stim.sound.jackclient.FS / 
-            autopilot.stim.sound.jackclient.BLOCKSIZE)
+        both_df['gap_chunks'] = (both_df['gap'] * (192000 / 1024)
         both_df['gap_chunks'] = both_df['gap_chunks'].round().astype(np.int)
         
         # Floor gap_chunks at 1 chunk, the minimal gap size
         # This is to avoid distortion
         both_df.loc[both_df['gap_chunks'] < 1, 'gap_chunks'] = 1
-        
-        # Log
-        self.logger.debug("generated both_df: {}".format(both_df))
         
         # Save
         self.current_audio_times_df = both_df.copy()
@@ -260,8 +241,8 @@ class SoundQueue(self):
         # But also don't want to change stage too frequently or the debug
         # messages are overwhelming
         for n in range(10):
-            # Add stimulus sounds to queue 1 as needed
-            self.append_sound_to_queue1_as_needed()
+            # Add stimulus sounds to queue as needed
+            self.append_sound_to_queue_as_needed()
 
             # Don't want to iterate too quickly, but rather add chunks
             # in a controlled fashion every so often
@@ -269,44 +250,37 @@ class SoundQueue(self):
 
         ## Extract any recently played sound info
         sound_data_l = []
-        with autopilot.stim.sound.jackclient.QUEUE_NONZERO_BLOCKS_LOCK:
+        with sound_player.qlock:
             while True:
                 try:
-                    data = autopilot.stim.sound.jackclient.QUEUE_NONZERO_BLOCKS.get_nowait()
-                except queue.Empty:
+                    data = sound_player.nonzero_blocks.get_nowait()
+                except sound_queue.Empty:
                     break
                 sound_data_l.append(data)
         
-        if len(sound_data_l) > 0:
-            # DataFrame it
-            # This has to match code in jackclient.py
-            # And it also has to match task_class.ChunkData_SoundsPlayed
-            payload = pandas.DataFrame.from_records(
-                sound_data_l,
-                columns=['hash', 'last_frame_time', 'frames_since_cycle_start', 'equiv_dt'],
-                )
-            self.send_chunk_of_sound_played_data(payload)
+        #~ if len(sound_data_l) > 0:
+            #~ # DataFrame it
+            #~ # This has to match code in jackclient.py
+            #~ # And it also has to match task_class.ChunkData_SoundsPlayed
+            #~ payload = pandas.DataFrame.from_records(
+                #~ sound_data_l,
+                #~ columns=['hash', 'last_frame_time', 'frames_since_cycle_start', 'equiv_dt'],
+                #~ )
+            #~ self.send_chunk_of_sound_played_data(payload)
         
-        # Estimate how fast we're playing sounds
-        # This should be about 192000 / 1024 = 187.5 frames / s, 
-        # although it will be a bit more because some the queue itself holds
-        # 200 frames, and those are all deleted at the beginning of each trial
-        # without being played. 
-        # However, if there is the sample rate bug, this will be more like
-        # 31 (empirically), about 6x less, not sure what this corresponds to,
-        # maybe a true sample rate of 32 kHz?
-        time_so_far = (datetime.datetime.now() - self.dt_start).total_seconds()
-        frame_rate = self.n_frames / time_so_far
-        self.logger.debug("info: "
-            "added {} frames in {:.1f} s for a rate of {:.2f} frames/s".format(
-            self.n_frames, time_so_far, frame_rate))
-        
-        # Warn if this is happening (but just once per session)
-        # Really I would prefer that it inform the user to restart the pi
-        # TODO: send some kind of "help/error" message to the plot
-        if frame_rate < 150 and not self.frame_rate_warning_already_issued:
-            self.logger.debug("error: frame rate seems to be far too low")
-            self.frame_rate_warning_already_issued = True
+        #~ # Estimate how fast we're playing sounds
+        #~ # This should be about 192000 / 1024 = 187.5 frames / s, 
+        #~ # although it will be a bit more because some the queue itself holds
+        #~ # 200 frames, and those are all deleted at the beginning of each trial
+        #~ # without being played. 
+        #~ # However, if there is the sample rate bug, this will be more like
+        #~ # 31 (empirically), about 6x less, not sure what this corresponds to,
+        #~ # maybe a true sample rate of 32 kHz?
+        #~ time_so_far = (datetime.datetime.now() - self.dt_start).total_seconds()
+        #~ frame_rate = self.n_frames / time_so_far
+        #~ self.logger.debug("info: "
+            #~ "added {} frames in {:.1f} s for a rate of {:.2f} frames/s".format(
+            #~ self.n_frames, time_so_far, frame_rate))
 
 
         ## Continue to the next stage (which is this one again)
@@ -314,6 +288,54 @@ class SoundQueue(self):
         # from the Parent (not sure why)
         # If we never end this function, then it won't respond to END
         self.stage_block.set()
+    
+    def append_sound_to_queue_as_needed(self):
+        """Dump frames from `self.sound_cycle` into queue
+
+        The queue is filled until it reaches `self.target_qsize`
+
+        This function should be called often enough that the queue is never
+        empty.
+        """        
+        # TODO: as a figure of merit, keep track of how empty the queue gets
+        # between calls. If it's getting too close to zero, then target_qsize
+        # needs to be increased.
+        # Get the size of queue now
+        qsize = sound_player.sound_queue.qsize()
+
+        # Add frames until target size reached
+        while qsize < self.target_qsize:
+            with sound_player.qlock:
+                # Add a frame from the sound cycle
+                frame = next(self.sound_cycle)
+                sound_player.sound_queue.put_nowait(frame)
+                
+                # Keep track of how many frames played
+                self.n_frames = self.n_frames + 1
+            
+            # Update qsize
+            qsize = sound_player.sound_queue.qsize()
+            
+    def empty_queue(self, tosize=0):
+        """Empty queue"""
+        while True:
+            # I think it's important to keep the lock for a short period
+            # (ie not throughout the emptying)
+            # in case the `process` function needs it to play sounds
+            # (though if this does happen, there will be an artefact because
+            # we just skipped over a bunch of frames)
+            with sound_player.qlock:
+                try:
+                    data = sound_player.sound_queue.get_nowait()
+                except sound_queue.Empty:
+                    break
+            
+            # Stop if we're at or below the target size
+            qsize = sound_player.sound_queue.qsize()
+            if qsize < tosize:
+                break
+        
+        qsize = sound_player.sound_queue.qsize()
         
 class Noise:
     """Class to define bandpass filtered white noise."""
@@ -498,8 +520,9 @@ class SoundPlayer(object):
         ## Store provided parameters
         self.name = name
         
-        # Calling the queue from the noise class 
-        self.sound_queue = queue.Queue()
+        # Making a queue for sound 
+        self.sound_queue = mp.Queue()
+        self.nonzero_blocks = mp.Queue()
         
         
         ## Acoustic parameters of the sound
@@ -507,7 +530,7 @@ class SoundPlayer(object):
         # this object, because this object should be able to play many sounds
         
         # Lock for thread-safe set_channel() updates
-        self.lock = threading.Lock()  
+        self.qlock = mp.Lock()  
         
         
         ## Create the contained jack.Client
