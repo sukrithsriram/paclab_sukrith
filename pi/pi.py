@@ -74,21 +74,21 @@ class SoundQueue:
         self.current_audio_times_df = None       
     
     """Object to choose the sounds and pauses for this trial"""
-    def update_parameters(self, chunk_min, chunk_max, pause_min, pause_max, amplitude_min, amplitude_max, center_freq_min, center_freq_max, bandwidth):
+    def update_parameters(self, rate_min, rate_max, irregularity_min, irregularity_max, amplitude_min, amplitude_max, center_freq_min, center_freq_max, bandwidth):
         """Method to update sound parameters dynamically"""
-        self.chunk_duration = random.uniform(chunk_min, chunk_max)
-        self.pause_duration = random.uniform(pause_min, pause_max)
+        self.target_rate = random.uniform(rate_min, rate_max)
+        self.target_temporal_log_std = random.uniform(irregularity_min, irregularity_max)
         self.amplitude = random.uniform(amplitude_min, amplitude_max)
         self.center_freq = random.uniform(center_freq_min, center_freq_max)
         self.bandwidth = bandwidth
-        self.chunk_frames = int(self.chunk_duration * self.fs)
-        self.pause_frames = int(self.pause_duration * self.fs)
+        self.chunk_frames = int(self.target_rate * self.fs)
+        self.pause_frames = int(self.target_temporal_log_std * self.fs)
 
         # Debug message
         parameter_message = (
             f"Current Parameters - Amplitude: {self.amplitude}, "
-            f"Sound Duration: {self.chunk_duration} s, "
-            f"Pause Duration: {self.pause_duration} s, "
+            f"Rate: {self.target_rate} s, "
+            f"Irregularity: {self.target_temporal_log_std} s, "
             f"Center Frequency: {self.center_freq} Hz, "
             f"Bandwidth: {self.bandwidth}"
             )
@@ -120,11 +120,11 @@ class SoundQueue:
         # Extract params or use defaults
         left_on = params.get('left_on', False)
         right_on = params.get('right_on', False)
-        left_target_rate = params.get('left_target_rate', 0) # Use sound duration here instead of rate
-        right_target_rate = params.get('right_target_rate', 0)
+        left_target_rate = self.target_rate 
+        right_target_rate = self.target_rate 
         
         # Global params
-        target_temporal_std = 10 ** params.get('stim_target_temporal_log_std', -2)
+        target_temporal_std = 10 ** self.target_temporal_log_std 
         
         ## Generate intervals 
         # left target
@@ -190,7 +190,7 @@ class SoundQueue:
         assert not both_df.isnull().any().any() 
 
         # Calculate gap size in chunks
-        both_df['gap_chunks'] = (both_df['gap'] * (192000 / 1024))
+        both_df['gap_chunks'] = (both_df['gap'] * (sound_player.fs / sound_player.blocksize))
         both_df['gap_chunks'] = both_df['gap_chunks'].round().astype(np.int)
         
         # Floor gap_chunks at 1 chunk, the minimal gap size
@@ -799,12 +799,12 @@ pwm_frequency = 1
 pwm_duty_cycle = 50
 
 # Duration of sounds
-chunk_min = 0.0
-chunk_max = 0.0
+rate_min = 0.0
+rate_max = 0.0
 
 # Duration of pauses
-pause_min = 0.0
-pause_max = 0.0
+irregularity_min = 0.0
+irregularity_max = 0.0
 
 # Range of amplitudes
 # TODO: these need to be received from task, not specified here # These were all initial values set incase a task was not selected
@@ -850,10 +850,10 @@ try:
             print(config_data)
 
             # Update parameters from JSON data
-            chunk_min = config_data['chunk_min']
-            chunk_max = config_data['chunk_max']
-            pause_min = config_data['pause_min']
-            pause_max = config_data['pause_max']
+            rate_min = config_data['rate_min']
+            rate_max = config_data['rate_max']
+            irregularity_min = config_data['irregularity_min']
+            irregularity_max = config_data['irregularity_max']
             amplitude_min = config_data['amplitude_min']
             amplitude_max = config_data['amplitude_max']
             center_freq_min = config_data['center_freq_min']
@@ -862,7 +862,7 @@ try:
             
             # Update the jack client with the new acoustic parameters
             sound_player.noise.update_parameters(
-                chunk_min, chunk_max, pause_min, pause_max, 
+                rate_min, rate_max, irregularity_min, irregularity_max, 
                 amplitude_min, amplitude_max, center_freq_min, center_freq_max, bandwidth)
             
             # Debug print
@@ -887,7 +887,7 @@ try:
                 
                 # Wait for the client to finish processing any remaining chunks
                 # TODO: why is this here? It's already deactivated 
-                time.sleep(sound_player.noise.chunk_duration + sound_player.noise.pause_duration)
+                ##time.sleep(sound_player.noise.target_rate + sound_player.noise.target_temporal_log_std)
                 
                 # Stop the Jack client
                 # TODO: Probably want to leave this running for the next
@@ -999,10 +999,10 @@ try:
                 flash()
                 
                 # Updating Parameters
-                # TODO: fix this; chunk_min etc are not necessarily defined
+                # TODO: fix this; rate_min etc are not necessarily defined
                 # yet, or haven't changed recently
                 sound_player.noise.update_parameters(
-                    chunk_min, chunk_max, pause_min, pause_max, 
+                    rate_min, rate_max, irregularity_min, irregularity_max, 
                     amplitude_min, amplitude_max, center_freq_min, center_freq_max, bandwidth)
                 
                 # Turn off the currently active LED
