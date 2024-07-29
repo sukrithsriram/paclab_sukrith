@@ -50,7 +50,7 @@ with open(param_directory, "r") as p:
     params = json.load(p)    
 
 class SoundQueue:
-    def __init__(self, stage_block, task_type, subject, child, reward):
+    def __init__(self, stage_block):
     ## Stages
         # Only one stage
         self.stages = itertools.cycle([self.play])
@@ -81,8 +81,6 @@ class SoundQueue:
         self.amplitude = random.uniform(amplitude_min, amplitude_max)
         self.center_freq = random.uniform(center_freq_min, center_freq_max)
         self.bandwidth = bandwidth
-        self.chunk_frames = int(self.target_rate * self.fs)
-        self.pause_frames = int(self.target_temporal_log_std * self.fs)
 
         # Debug message
         parameter_message = (
@@ -339,7 +337,7 @@ class SoundQueue:
         
 class Noise:
     """Class to define bandpass filtered white noise."""
-    def __init__(self, blocksize, fs, duration, amplitude=0.01, channel=None, 
+    def __init__(self, blocksize, fs, duration = 0.01, amplitude=0.01, channel=None, 
         highpass=None, lowpass=None, attenuation_file=None, **kwargs):
         """Initialize a new white noise burst with specified parameters.
         
@@ -603,6 +601,8 @@ class SoundPlayer(object):
 
 # Define a client to play sounds
 sound_player = SoundPlayer(name='sound_player')
+noise =  Noise(duration = 0.01)
+sound_chooser = SoundQueue()
 
 # Raspberry Pi's identity (Change this to the identity of the Raspberry Pi you are using)
 # TODO: what is the difference between pi_identity and pi_name? # They are functionally the same, this line is from before I imported 
@@ -832,7 +832,9 @@ try:
         
         
         # Check sound_chooser here, and if it has the parameters it needs,
-        # then use it to top up the queue. 
+        # then use it to top up the queue.
+        sound_chooser.set_cycle()
+        sound_chooser_append_to_queue_if_needed()
         
         
         ## Check for incoming messages on json_socket
@@ -861,7 +863,7 @@ try:
             bandwidth = config_data['bandwidth']
             
             # Update the jack client with the new acoustic parameters
-            sound_player.noise.update_parameters(
+            sound_chooser.update_parameters(
                 rate_min, rate_max, irregularity_min, irregularity_max, 
                 amplitude_min, amplitude_max, center_freq_min, center_freq_max, bandwidth)
             
@@ -1001,7 +1003,7 @@ try:
                 # Updating Parameters
                 # TODO: fix this; rate_min etc are not necessarily defined
                 # yet, or haven't changed recently
-                sound_player.noise.update_parameters(
+                sound_chooser.update_parameters(
                     rate_min, rate_max, irregularity_min, irregularity_max, 
                     amplitude_min, amplitude_max, center_freq_min, center_freq_max, bandwidth)
                 
