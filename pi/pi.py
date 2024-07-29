@@ -50,6 +50,7 @@ with open(param_directory, "r") as p:
     params = json.load(p)    
 
 class SoundQueue:
+    """This is a class used to generate and """
     def __init__(self, stage_block):
     ## Stages
         # Only one stage
@@ -60,6 +61,7 @@ class SoundQueue:
         # Each block/frame is about 5 ms
         # Longer is more buffer against unexpected delays
         # Shorter is faster to empty and refill the queue
+        slef.amplitude = -1 ## Temporary
         self.target_qsize = 200
 
         # Some counters to keep track of how many sounds we've played
@@ -71,7 +73,8 @@ class SoundQueue:
         self.set_sound_cycle(params={'left_on': False, 'right_on': False})
 
         # Use this to keep track of generated sounds
-        self.current_audio_times_df = None       
+        self.current_audio_times_df = None      
+    
     
     """Object to choose the sounds and pauses for this trial"""
     def update_parameters(self, rate_min, rate_max, irregularity_min, irregularity_max, amplitude_min, amplitude_max, center_freq_min, center_freq_max, bandwidth):
@@ -93,6 +96,25 @@ class SoundQueue:
 
         print(parameter_message)
         return parameter_message
+
+    """Method to choose which sound to initialize based on the target channel"""
+    def initalize_sounds(self,             
+        target_highpass, target_amplitude, target_lowpass,
+        distracter_highpass, distracter_amplitude, distracter_lowpass,
+        ):
+        """Defines sounds that will be played during the task"""
+        ## Define sounds
+        # Left and right target noise bursts
+        self.left_target_stim = Noise(
+            duration=0.01, amplitude= self.amplitude, channel=0, 
+            lowpass=lowpass, highpass=highpass
+            )       
+        
+        self.right_target_stim = Noise(
+            duration=0.01, amplitude= self.amplitude, channel=1, 
+            lowpass=lowpass, highpass=highpass
+            )  
+
 
     def set_sound_cycle(self, params):
         """Define self.sound_cycle, to go through sounds
@@ -601,13 +623,11 @@ class SoundPlayer(object):
 
 # Define a client to play sounds
 sound_player = SoundPlayer(name='sound_player')
-noise =  Noise(sound_player.fs, sound_player.blocksize)
 sound_chooser = SoundQueue()
 
 # Raspberry Pi's identity (Change this to the identity of the Raspberry Pi you are using)
 # TODO: what is the difference between pi_identity and pi_name? # They are functionally the same, this line is from before I imported 
 pi_identity = params['identity']
-
 
 ## Creating a ZeroMQ context and socket for communication with the central system
 # TODO: what information travels over this socket? Clarify: do messages on
