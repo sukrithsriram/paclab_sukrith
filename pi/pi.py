@@ -190,7 +190,7 @@ class SoundQueue(self):
         assert not both_df.isnull().any().any() 
 
         # Calculate gap size in chunks
-        both_df['gap_chunks'] = (both_df['gap'] * (192000 / 1024)
+        both_df['gap_chunks'] = (both_df['gap'] * (192000 / 1024))
         both_df['gap_chunks'] = both_df['gap_chunks'].round().astype(np.int)
         
         # Floor gap_chunks at 1 chunk, the minimal gap size
