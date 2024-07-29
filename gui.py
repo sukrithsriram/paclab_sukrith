@@ -118,11 +118,11 @@ class Worker(QObject):
 
         # Initializing values for sound parameters
         self.amplitudes = []
-        self.chunk_durations = []
-        self.pause_durations = []
+        self.rate_durations = []
+        self.irregularity_durations = []
         self.current_amplitude = 0.0
-        self.current_chunk_duration = 0.0
-        self.current_pause_duration = 0.0
+        self.current_rate_duration = 0.0
+        self.current_irregularity_duration = 0.0
         
         # Initialize reward_port and related variables that need to be continually updated
         self.last_pi_received = None
@@ -189,8 +189,8 @@ class Worker(QObject):
         self.reward_ports.clear()
         self.poked_port_numbers.clear()
         self.amplitudes.clear()
-        self.chunk_durations.clear()
-        self.pause_durations.clear()
+        self.rate_durations.clear()
+        self.irregularity_durations.clear()
         self.unique_ports_visited.clear()
         self.identities.clear()
         self.last_poke_timestamp = None
@@ -266,8 +266,8 @@ class Worker(QObject):
                 
                 # Extract and convert the values
                 self.current_amplitude = float(params.get("Amplitude", 0))
-                self.current_chunk_duration = float(params.get("Chunk Duration", "0").split()[0])
-                self.current_pause_duration = float(params.get("Pause Duration", 0))
+                self.current_rate_duration = float(params.get("Rate", "0").split()[0])
+                self.current_irregularity_duration = float(params.get("Irregularity", 0))
 
             else:
                 poked_port = int(message_str)
@@ -296,8 +296,8 @@ class Worker(QObject):
                     self.timestamps.append(elapsed_time)
                     self.reward_ports.append(self.reward_port)
                     self.amplitudes.append(self.current_amplitude)
-                    self.chunk_durations.append(self.current_chunk_duration)
-                    self.pause_durations.append(self.current_pause_duration)
+                    self.rate_durations.append(self.current_rate_duration)
+                    self.irregularity_durations.append(self.current_irregularity_duration)
                     self.update_unique_ports()
 
                     if color == "green" or color == "blue":
@@ -336,9 +336,9 @@ class Worker(QObject):
         # Save results to a CSV file
         with open(f"{save_directory}/{filename}", 'w', newline='') as csvfile:
             writer = csv.writer(csvfile)
-            writer.writerow(["Poke Timestamp (seconds)", "Port Visited", "Current Reward Port", "Amplitude", "Sound Duration", "Pause Duration"])
-            for timestamp, poked_port, reward_port, amplitude, chunk_duration, pause_duration in zip(self.timestamps, self.poked_port_numbers, self.reward_ports, self.amplitudes, self.chunk_durations, self.pause_durations):
-                writer.writerow([timestamp, poked_port, reward_port, amplitude, chunk_duration, pause_duration])
+            writer.writerow(["Poke Timestamp (seconds)", "Port Visited", "Current Reward Port", "Amplitude", "Rate", "Irregularity"])
+            for timestamp, poked_port, reward_port, amplitude, rate_duration, irregularity_duration in zip(self.timestamps, self.poked_port_numbers, self.reward_ports, self.amplitudes, self.rate_durations, self.irregularity_durations):
+                writer.writerow([timestamp, poked_port, reward_port, amplitude, rate_duration, irregularity_duration])
         
         print_out(f"Results saved to logs")
     
@@ -704,8 +704,8 @@ class ConfigurationDetailsDialog(QDialog):
         self.name_label = QLabel(f"Name: {config['name']}")
         self.task_label = QLabel(f"Task: {config['task']}")
         self.amplitude_label = QLabel(f"Amplitude: {config['amplitude_min']} - {config['amplitude_max']}")
-        self.chunk_label = QLabel(f"Sound Duration: {config['chunk_min']} - {config['chunk_max']}")
-        self.pause_label = QLabel(f"Pause Duration: {config['pause_min']} - {config['pause_max']}")
+        self.rate_label = QLabel(f"Rate: {config['rate_min']} - {config['rate_max']}")
+        self.irregularity_label = QLabel(f"Irregularity: {config['irregularity_min']} - {config['irregularity_max']}")
         self.reward_label = QLabel(f"Reward Value: {config['reward_value']}")
 
         # Create button box with OK button
@@ -717,8 +717,8 @@ class ConfigurationDetailsDialog(QDialog):
         layout.addWidget(self.name_label)
         layout.addWidget(self.task_label)
         layout.addWidget(self.amplitude_label)
-        layout.addWidget(self.chunk_label)
-        layout.addWidget(self.pause_label)
+        layout.addWidget(self.rate_label)
+        layout.addWidget(self.irregularity_label)
         layout.addWidget(self.reward_label)
         layout.addWidget(self.button_box)
         self.setLayout(layout)
@@ -759,10 +759,10 @@ class ConfigurationDialog(QDialog):
             "task": "",
             "amplitude_min": 0.0,
             "amplitude_max": 0.0,
-            "chunk_min": 0.0,
-            "chunk_max": 0.0,
-            "pause_min": 0.0,
-            "pause_max": 0.0,
+            "rate_min": 0.0,
+            "rate_max": 0.0,
+            "irregularity_min": 0.0,
+            "irregularity_max": 0.0,
             "reward_value": 0.0
         }
         self.init_ui()
@@ -786,27 +786,27 @@ class ConfigurationDialog(QDialog):
         amplitude_layout.addWidget(self.amplitude_max_label)
         amplitude_layout.addWidget(self.amplitude_max_edit)
 
-        self.chunk_label = QLabel("Sound Duration:")
-        chunk_layout = QHBoxLayout()
-        self.chunk_min_label = QLabel("Min:")
-        self.chunk_min_edit = QLineEdit(str(self.config.get("chunk_min", "")))
-        self.chunk_max_label = QLabel("Max:")
-        self.chunk_max_edit = QLineEdit(str(self.config.get("chunk_max", "")))
-        chunk_layout.addWidget(self.chunk_min_label)
-        chunk_layout.addWidget(self.chunk_min_edit)
-        chunk_layout.addWidget(self.chunk_max_label)
-        chunk_layout.addWidget(self.chunk_max_edit)
+        self.rate_label = QLabel("Rate:")
+        rate_layout = QHBoxLayout()
+        self.rate_min_label = QLabel("Min:")
+        self.rate_min_edit = QLineEdit(str(self.config.get("rate_min", "")))
+        self.rate_max_label = QLabel("Max:")
+        self.rate_max_edit = QLineEdit(str(self.config.get("rate_max", "")))
+        rate_layout.addWidget(self.rate_min_label)
+        rate_layout.addWidget(self.rate_min_edit)
+        rate_layout.addWidget(self.rate_max_label)
+        rate_layout.addWidget(self.rate_max_edit)
 
-        self.pause_label = QLabel("Gap Duration:")
-        pause_layout = QHBoxLayout()
-        self.pause_min_label = QLabel("Min:")
-        self.pause_min_edit = QLineEdit(str(self.config.get("pause_min", "")))
-        self.pause_max_label = QLabel("Max:")
-        self.pause_max_edit = QLineEdit(str(self.config.get("pause_max", "")))
-        pause_layout.addWidget(self.pause_min_label)
-        pause_layout.addWidget(self.pause_min_edit)
-        pause_layout.addWidget(self.pause_max_label)
-        pause_layout.addWidget(self.pause_max_edit)
+        self.irregularity_label = QLabel("Irregularity:")
+        irregularity_layout = QHBoxLayout()
+        self.irregularity_min_label = QLabel("Min:")
+        self.irregularity_min_edit = QLineEdit(str(self.config.get("irregularity_min", "")))
+        self.irregularity_max_label = QLabel("Max:")
+        self.irregularity_max_edit = QLineEdit(str(self.config.get("irregularity_max", "")))
+        irregularity_layout.addWidget(self.irregularity_min_label)
+        irregularity_layout.addWidget(self.irregularity_min_edit)
+        irregularity_layout.addWidget(self.irregularity_max_label)
+        irregularity_layout.addWidget(self.irregularity_max_edit)
         
         self.reward_label = QLabel("Reward Value:")
         self.reward_edit = QLineEdit(str(self.config.get("reward_value", "")))
@@ -822,10 +822,10 @@ class ConfigurationDialog(QDialog):
         layout.addWidget(self.task_label)
         layout.addWidget(self.amplitude_label)
         layout.addLayout(amplitude_layout)
-        layout.addWidget(self.chunk_label)
-        layout.addLayout(chunk_layout)
-        layout.addWidget(self.pause_label)
-        layout.addLayout(pause_layout)
+        layout.addWidget(self.rate_label)
+        layout.addLayout(rate_layout)
+        layout.addWidget(self.irregularity_label)
+        layout.addLayout(irregularity_layout)
         layout.addWidget(self.reward_label)
         layout.addWidget(self.reward_edit)
         layout.addWidget(self.button_box)
@@ -843,17 +843,17 @@ class ConfigurationDialog(QDialog):
             self.amplitude_min_label.hide()
             self.amplitude_max_label.hide()
             self.amplitude_max_edit.hide()
-            self.chunk_min_label.hide()
-            self.chunk_max_label.hide()
-            self.chunk_max_edit.hide()
-            self.pause_min_label.hide()
-            self.pause_max_label.hide()
-            self.pause_max_edit.hide()
+            self.rate_min_label.hide()
+            self.rate_max_label.hide()
+            self.rate_max_edit.hide()
+            self.irregularity_min_label.hide()
+            self.irregularity_max_label.hide()
+            self.irregularity_max_edit.hide()
 
             # Connect min edit fields to update max fields
             self.amplitude_min_edit.textChanged.connect(self.update_amplitude_max)
-            self.chunk_min_edit.textChanged.connect(self.update_chunk_max)
-            self.pause_min_edit.textChanged.connect(self.update_pause_max)
+            self.rate_min_edit.textChanged.connect(self.update_rate_max)
+            self.irregularity_min_edit.textChanged.connect(self.update_irregularity_max)
 
         else:
             # For other tasks, show all min and max edit fields
@@ -863,13 +863,13 @@ class ConfigurationDialog(QDialog):
         value = self.amplitude_min_edit.text()
         self.amplitude_max_edit.setText(value)
 
-    def update_chunk_max(self):
-        value = self.chunk_min_edit.text()
-        self.chunk_max_edit.setText(value)
+    def update_rate_max(self):
+        value = self.rate_min_edit.text()
+        self.rate_max_edit.setText(value)
 
-    def update_pause_max(self):
-        value = self.pause_min_edit.text()
-        self.pause_max_edit.setText(value)
+    def update_irregularity_max(self):
+        value = self.irregularity_min_edit.text()
+        self.irregularity_max_edit.setText(value)
 
     def get_configuration(self):
         updated_name = self.name_edit.text()
@@ -878,10 +878,10 @@ class ConfigurationDialog(QDialog):
         try:
             amplitude_min = float(self.amplitude_min_edit.text())
             amplitude_max = float(self.amplitude_max_edit.text())
-            chunk_min = float(self.chunk_min_edit.text())
-            chunk_max = float(self.chunk_max_edit.text())
-            pause_min = float(self.pause_min_edit.text())
-            pause_max = float(self.pause_max_edit.text())
+            rate_min = float(self.rate_min_edit.text())
+            rate_max = float(self.rate_max_edit.text())
+            irregularity_min = float(self.irregularity_min_edit.text())
+            irregularity_max = float(self.irregularity_max_edit.text())
             reward_value = float(self.reward_edit.text())
             
         except ValueError:
@@ -893,10 +893,10 @@ class ConfigurationDialog(QDialog):
             "task": task,
             "amplitude_min": amplitude_min,
             "amplitude_max": amplitude_max,
-            "chunk_min": chunk_min,
-            "chunk_max": chunk_max,
-            "pause_min": pause_min,
-            "pause_max": pause_max,
+            "rate_min": rate_min,
+            "rate_max": rate_max,
+            "irregularity_min": irregularity_min,
+            "irregularity_max": irregularity_max,
             "reward_value": reward_value
         }
 
@@ -986,10 +986,10 @@ class ConfigurationList(QWidget):
                 default_params = {
                     "amplitude_min": 0.0,
                     "amplitude_max": 0.0,
-                    "chunk_min": 0.0,
-                    "chunk_max": 0.0,
-                    "pause_min": 0.0,
-                    "pause_max": 0.0,
+                    "rate_min": 0.0,
+                    "rate_max": 0.0,
+                    "irregularity_min": 0.0,
+                    "irregularity_max": 0.0,
                     "reward_value": 0.0
                 }
 
