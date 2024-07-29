@@ -601,7 +601,7 @@ class SoundPlayer(object):
 
 # Define a client to play sounds
 sound_player = SoundPlayer(name='sound_player')
-noise =  Noise(fs = sound_player.fs, blocksize = sound_player.blocksize, duration = 0.01)
+noise =  Noise()
 sound_chooser = SoundQueue()
 
 # Raspberry Pi's identity (Change this to the identity of the Raspberry Pi you are using)
