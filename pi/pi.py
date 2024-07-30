@@ -934,10 +934,8 @@ try:
             
             elif msg.startswith("Reward Port:"):    
                 ## This specifies which port to reward
-                sound_player.noise.start()
                 # Debug print
                 print(msg)
-                
                 
                 # Extract the integer part from the message
                 msg_parts = msg.split()
@@ -966,7 +964,7 @@ try:
                     pi.set_PWM_dutycycle(reward_pin, pwm_duty_cycle)
                     
                     # Playing sound from the left speaker
-                    sound_player.noise.set_channel('left')
+                    sound_chooser.set_channel('left')
                     
                     # Debug message
                     print("Turning Nosepoke 5 Green")
@@ -989,7 +987,7 @@ try:
                     pi.set_PWM_dutycycle(reward_pin, pwm_duty_cycle)
                     
                     # Playing sound from the right speaker
-                    sound_player.noise.set_channel('right')
+                    sound_chooser.set_channel('right')
                     
                     # Debug message
                     print("Turning Nosepoke 7 Green")
@@ -1029,7 +1027,7 @@ try:
                     print("No LED is currently active.")
 
                 # Reset play mode to 'none'
-                sound_player.noise.set_channel('none')
+                sound_chooser.set_channel('none')
            
             else:
                 print("Unknown message received:", msg)
