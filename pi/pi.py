@@ -324,8 +324,8 @@ class SoundQueue:
                     np.zeros((1024, 2), dtype='float32'))
 
         # Extract params or use defaults
-        left_on = params.get('left_on', False)
-        right_on = params.get('right_on', False)
+        left_on = self.left_on
+        right_on = self.right_on
         left_target_rate = self.target_rate 
         right_target_rate = self.target_rate 
         
