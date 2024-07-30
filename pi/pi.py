@@ -257,7 +257,7 @@ class SoundQueue:
         # Sounds aren't initialized till the trial starts
         # Using False here should work even without sounds initialized yet
         self.initialize_sounds(self.blocksize, self.fs, self.amplitude, self.target_highpass,  self.target_lowpass)
-        self.set_sound_cycle(params={'left_on': self.left_on, 'right_on': self.right_on})
+        self.set_sound_cycle()
         self.play()
 
         # Use this to keep track of generated sounds
@@ -302,7 +302,7 @@ class SoundQueue:
             )  
 
 
-    def set_sound_cycle(self, params):
+    def set_sound_cycle(self):
         """Define self.sound_cycle, to go through sounds
         
         params : dict
@@ -873,6 +873,7 @@ try:
             sound_chooser.update_parameters(
                 rate_min, rate_max, irregularity_min, irregularity_max, 
                 amplitude_min, amplitude_max, center_freq_min, center_freq_max, bandwidth)
+            sound_chooser.set_sound_cycle()
 
             # Debug print
             print("Parameters updated")
@@ -1011,6 +1012,7 @@ try:
                 sound_chooser.update_parameters(
                     rate_min, rate_max, irregularity_min, irregularity_max, 
                     amplitude_min, amplitude_max, center_freq_min, center_freq_max, bandwidth)
+                sound_chooser.set_sound_cycle()
                 
                 # Turn off the currently active LED
                 if current_pin is not None:
