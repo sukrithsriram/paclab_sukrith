@@ -203,7 +203,7 @@ class Noise:
             np.float32)
 
         # Zero pad
-        padded_sound = np.concatenate([sound, to_concat])
+        padded_sound = np.concatenate([self.table, to_concat])
         
         # Start of each chunk
         start_samples = range(0, len(padded_sound), self.blocksize)
