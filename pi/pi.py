@@ -238,8 +238,8 @@ class SoundQueue:
         self.n_frames = 0
 
         # Instancing noise parameters
-        #self.blocksize = 1024
-        #self.fs = 192000
+        self.blocksize = sound_player.blocksize
+        self.fs = sound_player.fs
         self.amplitude = -1
         self.target_rate = 4
         self.target_temporal_log_std = -1.5
