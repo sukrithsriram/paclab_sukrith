@@ -243,6 +243,7 @@ class SoundQueue:
         # Fill the queue with empty frames
         # Sounds aren't initialized till the trial starts
         # Using False here should work even without sounds initialized yet
+        self.initialize_sounds()
         self.set_sound_cycle(params={'left_on': False, 'right_on': False})
 
         # Use this to keep track of generated sounds
@@ -439,41 +440,6 @@ class SoundQueue:
             # in a controlled fashion every so often
             time.sleep(0.1)
 
-        ## Extract any recently played sound info
-        sound_data_l = []
-        with sound_player.qlock:
-            while True:
-                try:
-                    data = sound_player.nonzero_blocks.get_nowait()
-                except sound_queue.Empty:
-                    break
-                sound_data_l.append(data)
-        
-        #~ if len(sound_data_l) > 0:
-            #~ # DataFrame it
-            #~ # This has to match code in jackclient.py
-            #~ # And it also has to match task_class.ChunkData_SoundsPlayed
-            #~ payload = pd.DataFrame.from_records(
-                #~ sound_data_l,
-                #~ columns=['hash', 'last_frame_time', 'frames_since_cycle_start', 'equiv_dt'],
-                #~ )
-            #~ self.send_chunk_of_sound_played_data(payload)
-        
-        #~ # Estimate how fast we're playing sounds
-        #~ # This should be about 192000 / 1024 = 187.5 frames / s, 
-        #~ # although it will be a bit more because some the queue itself holds
-        #~ # 200 frames, and those are all deleted at the beginning of each trial
-        #~ # without being played. 
-        #~ # However, if there is the sample rate bug, this will be more like
-        #~ # 31 (empirically), about 6x less, not sure what this corresponds to,
-        #~ # maybe a true sample rate of 32 kHz?
-        #~ time_so_far = (datetime.datetime.now() - self.dt_start).total_seconds()
-        #~ frame_rate = self.n_frames / time_so_far
-        #~ self.logger.debug("info: "
-            #~ "added {} frames in {:.1f} s for a rate of {:.2f} frames/s".format(
-            #~ self.n_frames, time_so_far, frame_rate))
-
-
         ## Continue to the next stage (which is this one again)
         # If it is cleared, then nothing happens until the next message
         # from the Parent (not sure why)
@@ -527,6 +493,9 @@ class SoundQueue:
                 break
         
         qsize = sound_player.sound_queue.qsize()
+    
+    def set_channel(self):
+        
         
 
 # Define a JackClient, which will play sounds in the background
@@ -893,12 +862,15 @@ try:
 
             # Debug print
             print("Parameters updated")
-                    
+            
+            # Adding chunks to queue for the sound
+            sound_chooser.play()
+            
             # Check sound_chooser here, and if it has the parameters it needs,
             # then use it to top up the queue.
-            sound_chooser.initialize_sounds(sound_player.blocksize, sound_player.fs, sound_chooser.amplitude, sound_chooser.target_lowpass, sound_chooser.target_highpass)
-            sound_chooser.set_sound_cycle()
-            sound_chooser.append_to_queue_if_needed()
+            #~ sound_chooser.initialize_sounds(sound_player.blocksize, sound_player.fs, sound_chooser.amplitude, sound_chooser.target_lowpass, sound_chooser.target_highpass)
+            #~ sound_chooser.set_sound_cycle()
+            #~ sound_chooser.append_to_queue_if_needed()
 
             
         ## Check for incoming messages on poke_socket
