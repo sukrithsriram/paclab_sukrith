@@ -254,6 +254,8 @@ class SoundQueue:
         self.amplitude = random.uniform(amplitude_min, amplitude_max)
         self.center_freq = random.uniform(center_freq_min, center_freq_max)
         self.bandwidth = bandwidth
+        self.target_lowpass = self.center_freq + (self.bandwidth / 2)
+        self.target_highpass = self.center_freq - (self.bandwidth / 2)
 
         # Debug message
         parameter_message = (
@@ -857,12 +859,6 @@ try:
         # TODO: how long does it wait? # Can be set, currently not sure
         socks = dict(poller.poll(1))
         
-        # Check sound_chooser here, and if it has the parameters it needs,
-        # then use it to top up the queue.
-        sound_chooser.initialize_sounds()
-        sound_chooser.set_cycle()
-        sound_chooser.append_to_queue_if_needed()
-        
         ## Check for incoming messages on json_socket
         # If so, use it to update the acoustic parameters
         if json_socket in socks and socks[json_socket] == zmq.POLLIN:
@@ -892,9 +888,16 @@ try:
             sound_chooser.update_parameters(
                 rate_min, rate_max, irregularity_min, irregularity_max, 
                 amplitude_min, amplitude_max, center_freq_min, center_freq_max, bandwidth)
-            
+
             # Debug print
             print("Parameters updated")
+                    
+            # Check sound_chooser here, and if it has the parameters it needs,
+            # then use it to top up the queue.
+            sound_chooser.initialize_sounds(target_amplitude, target_lowpass, target_highpass)
+            sound_chooser.set_cycle()
+            sound_chooser.append_to_queue_if_needed()
+
             
         ## Check for incoming messages on poke_socket
         # TODO: document the types of messages that can be sent on poke_socket 
