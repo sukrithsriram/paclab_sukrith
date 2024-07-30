@@ -71,7 +71,7 @@ class Noise:
             lowpass (float or None): lowpass the Noise below this value
                 If None, no lowpass is applied       
             attenuation_file (string or None)
-                Path to where a pandas.Series can be loaded containing attenuation
+                Path to where a pd.Series can be loaded containing attenuation
             **kwargs: extraneous parameters that might come along with instantiating us
         """
         # Set duraiton and amplitude as float
@@ -91,7 +91,7 @@ class Noise:
         
         # Save attenuation
         if attenuation_file is not None:
-            self.attenuation = pandas.read_table(
+            self.attenuation = pd.read_table(
                 attenuation_file, sep=',').set_index('freq')['atten']
         else:
             self.attenuation = None        
@@ -266,7 +266,7 @@ class SoundQueue:
 
         print(parameter_message)
         return parameter_message
-
+pd
     """Method to choose which sound to initialize based on the target channel"""
     def initialize_sounds(self, target_amplitude, target_highpass,  target_lowpass):
         """Defines sounds that will be played during the task"""
@@ -349,19 +349,19 @@ class SoundQueue:
         
         ## Sort all the drawn intervals together
         # Turn into series
-        left_target_df = pandas.DataFrame.from_dict({
+        left_target_df = pd.DataFrame.from_dict({
             'time': np.cumsum(left_target_intervals),
             'side': ['left'] * len(left_target_intervals),
             'sound': ['target'] * len(left_target_intervals),
             })
-        right_target_df = pandas.DataFrame.from_dict({
+        right_target_df = pd.DataFrame.from_dict({
             'time': np.cumsum(right_target_intervals),
             'side': ['right'] * len(right_target_intervals),
             'sound': ['target'] * len(right_target_intervals),
             })
 
         # Concatenate them all together and resort by time
-        both_df = pandas.concat([
+        both_df = pd.concat([
             left_target_df, right_target_df], axis=0).sort_values('time')
 
         # Calculate the gap between sounds
@@ -449,7 +449,7 @@ class SoundQueue:
             #~ # DataFrame it
             #~ # This has to match code in jackclient.py
             #~ # And it also has to match task_class.ChunkData_SoundsPlayed
-            #~ payload = pandas.DataFrame.from_records(
+            #~ payload = pd.DataFrame.from_records(
                 #~ sound_data_l,
                 #~ columns=['hash', 'last_frame_time', 'frames_since_cycle_start', 'equiv_dt'],
                 #~ )
