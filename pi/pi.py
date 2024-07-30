@@ -417,6 +417,7 @@ class SoundQueue:
             # If no sound, then just put gaps
             append_gap(100)
         else:
+            print(both_df)
             # Iterate through the rows, adding the sound and the gap
             # TODO: the gap should be shorter by the duration of the sound,
             # and simultaneous sounds should be possible
