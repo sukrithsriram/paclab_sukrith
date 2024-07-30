@@ -413,11 +413,11 @@ class SoundQueue:
         # If both_df has a nonzero but short length, results will be weird,
         # because it might just be one noise burst repeating every ten seconds
         # This only happens with low rates ~0.1Hz
+        print(both_df)
         if len(both_df) == 0:
             # If no sound, then just put gaps
             append_gap(100)
         else:
-            print(both_df)
             # Iterate through the rows, adding the sound and the gap
             # TODO: the gap should be shorter by the duration of the sound,
             # and simultaneous sounds should be possible
