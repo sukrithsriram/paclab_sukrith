@@ -49,6 +49,168 @@ param_directory = f"configs/pis/{pi_name}.json"
 with open(param_directory, "r") as p:
     params = json.load(p)    
 
+class Noise:
+    """Class to define bandpass filtered white noise."""
+    def __init__(self, blocksize, fs, duration = 0.01, amplitude=0.01, channel=None, 
+        highpass=None, lowpass=None, attenuation_file=None, **kwargs):
+        """Initialize a new white noise burst with specified parameters.
+        
+        The sound itself is stored as the attribute `self.table`. This can
+        be 1-dimensional or 2-dimensional, depending on `channel`. If it is
+        2-dimensional, then each channel is a column.
+        
+        Args:
+            duration (float): duration of the noise
+            amplitude (float): amplitude of the sound as a proportion of 1.
+            channel (int or None): which channel should be used
+                If 0, play noise from the first channel
+                If 1, play noise from the second channel
+                If None, send the same information to all channels ("mono")
+            highpass (float or None): highpass the Noise above this value
+                If None, no highpass is applied
+            lowpass (float or None): lowpass the Noise below this value
+                If None, no lowpass is applied       
+            attenuation_file (string or None)
+                Path to where a pandas.Series can be loaded containing attenuation
+            **kwargs: extraneous parameters that might come along with instantiating us
+        """
+        # Set duraiton and amplitude as float
+        self.duration = float(duration)
+        self.amplitude = float(amplitude)
+        
+        # Save optional parameters - highpass, lowpass, channel
+        if highpass is None:
+            self.highpass = None
+        else:
+            self.highpass = float(highpass)
+        
+        if lowpass is None:
+            self.lowpass = None
+        else:
+            self.lowpass = float(lowpass)
+        
+        # Save attenuation
+        if attenuation_file is not None:
+            self.attenuation = pandas.read_table(
+                attenuation_file, sep=',').set_index('freq')['atten']
+        else:
+            self.attenuation = None        
+        
+        # Save channel
+        # Currently only mono or stereo sound is supported
+        if channel is None:
+            self.channel = None
+        try:
+            self.channel = int(channel)
+        except TypeError:
+            self.channel = channel
+        
+        if self.channel not in [0, 1]:
+            raise ValueError(
+                "audio channel must be 0 or 1, not {}".format(
+                self.channel))
+
+        # Initialize the sound itself
+        self.chunks = None
+        self.initialized = False
+        self.init_sound()
+
+    def init_sound(self):
+        """Defines `self.table`, the waveform that is played. 
+        
+        The way this is generated depends on `self.server_type`, because
+        parameters like the sampling rate cannot be known otherwise.
+        
+        The sound is generated and then it is "chunked" (zero-padded and
+        divided into chunks). Finally `self.initialized` is set True.
+        """
+        # Calculate the number of samples
+        self.nsamples = int(np.rint(self.duration * self.fs))
+        
+        # Generate the table by sampling from a uniform distribution
+        # The shape of the table depends on `self.channel`
+        # The table will be 2-dimensional for stereo sound
+        # Each channel is a column
+        # Only the specified channel contains data and the other is zero
+        data = np.random.uniform(-1, 1, self.nsamples)
+        
+        # Highpass filter it
+        if self.highpass is not None:
+            bhi, ahi = scipy.signal.butter(
+                2, self.highpass / (self.fs / 2), 'high')
+            data = scipy.signal.filtfilt(bhi, ahi, data)
+        
+        # Lowpass filter it
+        if self.lowpass is not None:
+            blo, alo = scipy.signal.butter(
+                2, self.lowpass / (self.fs / 2), 'low')
+            data = scipy.signal.filtfilt(blo, alo, data)
+        
+        # Assign data into table
+        self.table = np.zeros((self.nsamples, 2))
+        assert self.channel in [0, 1]
+        self.table[:, self.channel] = data
+        
+        # Scale by the amplitude
+        self.table = self.table * self.amplitude
+        
+        # Convert to float32
+        self.table = self.table.astype(np.float32)
+        
+        # Apply attenuation
+        if self.attenuation is not None:
+            # To make the attenuated sounds roughly match the original
+            # sounds in loudness, multiply table by np.sqrt(10) (10 dB)
+            # Better solution is to encode this into attenuation profile,
+            # or a separate "gain" parameter
+            self.table = self.table * np.sqrt(10)
+            
+            # Apply the attenuation to each column
+            for n_column in range(self.table.shape[1]):
+                self.table[:, n_column] = apply_attenuation(
+                    self.table[:, n_column], self.attenuation, self.fs)
+        
+        # Break the sound table into individual chunks of length blocksize
+        self.chunk()
+
+        # Flag as initialized
+        self.initialized = True
+
+    def chunk(self):
+        """Break the sound in self.table into chunks of length blocksize
+        
+        The sound in self.table is zero-padded to a length that is a multiple
+        of `self.blocksize`. Then it is broken into `self.chunks`, a list 
+        of chunks each of length `blocksize`.
+        
+        TODO: move this into a superclass, since the same code can be used
+        for other sounds.
+        """
+        # Zero-pad the self.table to a new length that is multiple of blocksize
+        oldlen = len(self.table)
+        
+        # Calculate how many blocks we need to contain the sound
+        n_blocks_needed = int(np.ceil(oldlen / self.blocksize))
+        
+        # Calculate the new length
+        newlen = n_blocks_needed * self.blocksize
+
+        # Pad with 2d array of zeros
+        to_concat = np.zeros(
+            (newlen - oldlen, self.table.shape[1]), 
+            np.float32)
+
+        # Zero pad
+        padded_sound = np.concatenate([sound, to_concat])
+        
+        # Start of each chunk
+        start_samples = range(0, len(padded_sound), self.blocksize)
+        
+        # Break the table into chunks
+        self.chunks = [
+            self.table[start_sample:start_sample + self.blocksize, :] 
+            for start_sample in start_samples]
+
 class SoundQueue:
     """This is a class used to generate and """
     def __init__(self, stage_block):
@@ -266,7 +428,7 @@ class SoundQueue:
 
             # Don't want to iterate too quickly, but rather add chunks
             # in a controlled fashion every so often
-            time.sleep(.1)
+            time.sleep(0.1)
 
         ## Extract any recently played sound info
         sound_data_l = []
@@ -357,167 +519,6 @@ class SoundQueue:
         
         qsize = sound_player.sound_queue.qsize()
         
-class Noise:
-    """Class to define bandpass filtered white noise."""
-    def __init__(self, blocksize, fs, duration = 0.01, amplitude=0.01, channel=None, 
-        highpass=None, lowpass=None, attenuation_file=None, **kwargs):
-        """Initialize a new white noise burst with specified parameters.
-        
-        The sound itself is stored as the attribute `self.table`. This can
-        be 1-dimensional or 2-dimensional, depending on `channel`. If it is
-        2-dimensional, then each channel is a column.
-        
-        Args:
-            duration (float): duration of the noise
-            amplitude (float): amplitude of the sound as a proportion of 1.
-            channel (int or None): which channel should be used
-                If 0, play noise from the first channel
-                If 1, play noise from the second channel
-                If None, send the same information to all channels ("mono")
-            highpass (float or None): highpass the Noise above this value
-                If None, no highpass is applied
-            lowpass (float or None): lowpass the Noise below this value
-                If None, no lowpass is applied       
-            attenuation_file (string or None)
-                Path to where a pandas.Series can be loaded containing attenuation
-            **kwargs: extraneous parameters that might come along with instantiating us
-        """
-        # Set duraiton and amplitude as float
-        self.duration = float(duration)
-        self.amplitude = float(amplitude)
-        
-        # Save optional parameters - highpass, lowpass, channel
-        if highpass is None:
-            self.highpass = None
-        else:
-            self.highpass = float(highpass)
-        
-        if lowpass is None:
-            self.lowpass = None
-        else:
-            self.lowpass = float(lowpass)
-        
-        # Save attenuation
-        if attenuation_file is not None:
-            self.attenuation = pandas.read_table(
-                attenuation_file, sep=',').set_index('freq')['atten']
-        else:
-            self.attenuation = None        
-        
-        # Save channel
-        # Currently only mono or stereo sound is supported
-        if channel is None:
-            self.channel = None
-        try:
-            self.channel = int(channel)
-        except TypeError:
-            self.channel = channel
-        
-        if self.channel not in [0, 1]:
-            raise ValueError(
-                "audio channel must be 0 or 1, not {}".format(
-                self.channel))
-
-        # Initialize the sound itself
-        self.chunks = None
-        self.initialized = False
-        self.init_sound()
-
-    def init_sound(self):
-        """Defines `self.table`, the waveform that is played. 
-        
-        The way this is generated depends on `self.server_type`, because
-        parameters like the sampling rate cannot be known otherwise.
-        
-        The sound is generated and then it is "chunked" (zero-padded and
-        divided into chunks). Finally `self.initialized` is set True.
-        """
-        # Calculate the number of samples
-        self.nsamples = int(np.rint(self.duration * self.fs))
-        
-        # Generate the table by sampling from a uniform distribution
-        # The shape of the table depends on `self.channel`
-        # The table will be 2-dimensional for stereo sound
-        # Each channel is a column
-        # Only the specified channel contains data and the other is zero
-        data = np.random.uniform(-1, 1, self.nsamples)
-        
-        # Highpass filter it
-        if self.highpass is not None:
-            bhi, ahi = scipy.signal.butter(
-                2, self.highpass / (self.fs / 2), 'high')
-            data = scipy.signal.filtfilt(bhi, ahi, data)
-        
-        # Lowpass filter it
-        if self.lowpass is not None:
-            blo, alo = scipy.signal.butter(
-                2, self.lowpass / (self.fs / 2), 'low')
-            data = scipy.signal.filtfilt(blo, alo, data)
-        
-        # Assign data into table
-        self.table = np.zeros((self.nsamples, 2))
-        assert self.channel in [0, 1]
-        self.table[:, self.channel] = data
-        
-        # Scale by the amplitude
-        self.table = self.table * self.amplitude
-        
-        # Convert to float32
-        self.table = self.table.astype(np.float32)
-        
-        # Apply attenuation
-        if self.attenuation is not None:
-            # To make the attenuated sounds roughly match the original
-            # sounds in loudness, multiply table by np.sqrt(10) (10 dB)
-            # Better solution is to encode this into attenuation profile,
-            # or a separate "gain" parameter
-            self.table = self.table * np.sqrt(10)
-            
-            # Apply the attenuation to each column
-            for n_column in range(self.table.shape[1]):
-                self.table[:, n_column] = apply_attenuation(
-                    self.table[:, n_column], self.attenuation, self.fs)
-        
-        # Break the sound table into individual chunks of length blocksize
-        self.chunk()
-
-        # Flag as initialized
-        self.initialized = True
-
-    def chunk(self):
-        """Break the sound in self.table into chunks of length blocksize
-        
-        The sound in self.table is zero-padded to a length that is a multiple
-        of `self.blocksize`. Then it is broken into `self.chunks`, a list 
-        of chunks each of length `blocksize`.
-        
-        TODO: move this into a superclass, since the same code can be used
-        for other sounds.
-        """
-        # Zero-pad the self.table to a new length that is multiple of blocksize
-        oldlen = len(self.table)
-        
-        # Calculate how many blocks we need to contain the sound
-        n_blocks_needed = int(np.ceil(oldlen / self.blocksize))
-        
-        # Calculate the new length
-        newlen = n_blocks_needed * self.blocksize
-
-        # Pad with 2d array of zeros
-        to_concat = np.zeros(
-            (newlen - oldlen, self.table.shape[1]), 
-            np.float32)
-
-        # Zero pad
-        padded_sound = np.concatenate([sound, to_concat])
-        
-        # Start of each chunk
-        start_samples = range(0, len(padded_sound), self.blocksize)
-        
-        # Break the table into chunks
-        self.chunks = [
-            self.table[start_sample:start_sample + self.blocksize, :] 
-            for start_sample in start_samples]
 
 # Define a JackClient, which will play sounds in the background
 # Rename to SoundPlayer to avoid confusion with jack.Client
@@ -623,7 +624,7 @@ class SoundPlayer(object):
 
 # Define a client to play sounds
 sound_player = SoundPlayer(name='sound_player')
-sound_chooser = SoundQueue(stage_block)
+sound_chooser = SoundQueue()#stage_block)
 
 # Raspberry Pi's identity (Change this to the identity of the Raspberry Pi you are using)
 # TODO: what is the difference between pi_identity and pi_name? # They are functionally the same, this line is from before I imported 
