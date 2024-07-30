@@ -214,7 +214,8 @@ class Noise:
             for start_sample in start_samples]
 
 class SoundQueue:
-    """This is a class used to generate and """
+    """This is a class used to continuously generate frames of audio and add them to a queue. 
+    It also handles updating the parameters of the sound to be played. """
     def __init__(self, stage_block):
     ## Stages
         # Only one stage
@@ -542,18 +543,6 @@ class SoundPlayer(object):
         ## Store provided parameters
         self.name = name
         
-        #~ # Making a queue for sound 
-        #~ self.sound_queue = mp.Queue()
-        #~ self.nonzero_blocks = mp.Queue()
-        
-        #~ ## Acoustic parameters of the sound
-        #~ # TODO: define these elsewhere -- these should not be properties of
-        #~ # this object, because this object should be able to play many sounds
-        
-        #~ # Lock for thread-safe set_channel() updates
-        #~ self.qlock = mp.Lock()  
-        
-        
         ## Create the contained jack.Client
         # Creating a jack client
         self.client = jack.Client(self.name)
@@ -578,7 +567,6 @@ class SoundPlayer(object):
         ## Set up the process callback
         # This will be called on every block and must provide data
         self.client.set_process_callback(self.process)
-
 
         ## Activate the client
         self.client.activate()
@@ -618,7 +606,6 @@ class SoundPlayer(object):
             for n_outport, outport in enumerate(self.client.outports):
                 buff = outport.get_array()
                 buff[:] = data[:, n_outport]
-    
 
 # Define a client to play sounds
 stage_block = threading.Event()
