@@ -507,7 +507,7 @@ class SoundQueue:
         qsize = self.sound_queue.qsize()
     
     def set_channel(self, mode):
-    """:Controlling which channel the sound is played from """
+        """Controlling which channel the sound is played from """
         if mode == 'none':
             self.left_on = False
             self.right_on = False
