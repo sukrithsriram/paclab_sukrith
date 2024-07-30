@@ -365,6 +365,9 @@ class SoundQueue:
         else:
             right_target_intervals = np.array([])              
         
+        print(left_target_intervals)
+        print(right_target_intervals)
+
         
         ## Sort all the drawn intervals together
         # Turn into series
