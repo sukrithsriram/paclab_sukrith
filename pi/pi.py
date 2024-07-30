@@ -621,8 +621,8 @@ class SoundPlayer(object):
 
 # Define a client to play sounds
 stage_block = threading.Event()
-sound_player = SoundPlayer(name='sound_player')
 sound_chooser = SoundQueue(stage_block)
+sound_player = SoundPlayer(name='sound_player')
 
 # Raspberry Pi's identity (Change this to the identity of the Raspberry Pi you are using)
 # TODO: what is the difference between pi_identity and pi_name? # They are functionally the same, this line is from before I imported 
