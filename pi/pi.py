@@ -474,7 +474,7 @@ class SoundQueue:
 
         # Add frames until target size reached
         while qsize < self.target_qsize:
-            with sound_player.qlock:
+            with self.qlock:
                 # Add a frame from the sound cycle
                 frame = next(self.sound_cycle)
                 self.sound_queue.put_nowait(frame)
