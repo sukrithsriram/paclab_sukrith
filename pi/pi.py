@@ -600,6 +600,8 @@ class SoundPlayer(object):
         else:
             # Queue is not empty, so play data from it
             data = sound_chooser.sound_queue.get()
+            if data.shape != (self.blocksize, 2):
+                print(data.shape)
             assert data.shape == (self.blocksize, 2)
 
             # Write one column to each channel
