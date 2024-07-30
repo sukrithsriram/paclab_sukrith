@@ -225,7 +225,13 @@ class SoundQueue:
         # Each block/frame is about 5 ms
         # Longer is more buffer against unexpected delays
         # Shorter is faster to empty and refill the queue
-        self.amplitude = -1 ## Temporary
+        
+        # Initializing queues to be used by sound player
+        self.sound_queue = mp.Queue()
+        self.nonzero_blocks = mp.Queue()
+        
+        # Lock for thread-safe set_channel() updates
+        self.qlock = mp.Lock() 
         self.target_qsize = 200
 
         # Some counters to keep track of how many sounds we've played
@@ -464,14 +470,14 @@ class SoundQueue:
         # between calls. If it's getting too close to zero, then target_qsize
         # needs to be increased.
         # Get the size of queue now
-        qsize = sound_player.sound_queue.qsize()
+        qsize = self.sound_queue.qsize()
 
         # Add frames until target size reached
         while qsize < self.target_qsize:
             with sound_player.qlock:
                 # Add a frame from the sound cycle
                 frame = next(self.sound_cycle)
-                sound_player.sound_queue.put_nowait(frame)
+                self.sound_queue.put_nowait(frame)
                 
                 # Keep track of how many frames played
                 self.n_frames = self.n_frames + 1
@@ -487,20 +493,24 @@ class SoundQueue:
             # in case the `process` function needs it to play sounds
             # (though if this does happen, there will be an artefact because
             # we just skipped over a bunch of frames)
-            with sound_player.qlock:
+            with self.qlock:
                 try:
-                    data = sound_player.sound_queue.get_nowait()
+                    data = self.sound_queue.get_nowait()
                 except sound_queue.Empty:
                     break
             
             # Stop if we're at or below the target size
-            qsize = sound_player.sound_queue.qsize()
+            qsize = self.sound_queue.qsize()
             if qsize < tosize:
                 break
         
-        qsize = sound_player.sound_queue.qsize()
+        qsize = self.sound_queue.qsize()
     
     def set_channel(self, mode):
+    """:Controlling which channel the sound is played from """
+        if mode == 'none':
+            self.left_on = False
+            self.right_on = False
         if mode == 'left':
             self.left_on = True
             self.right_on = False
@@ -531,17 +541,16 @@ class SoundPlayer(object):
         ## Store provided parameters
         self.name = name
         
-        # Making a queue for sound 
-        self.sound_queue = mp.Queue()
-        self.nonzero_blocks = mp.Queue()
+        #~ # Making a queue for sound 
+        #~ self.sound_queue = mp.Queue()
+        #~ self.nonzero_blocks = mp.Queue()
         
+        #~ ## Acoustic parameters of the sound
+        #~ # TODO: define these elsewhere -- these should not be properties of
+        #~ # this object, because this object should be able to play many sounds
         
-        ## Acoustic parameters of the sound
-        # TODO: define these elsewhere -- these should not be properties of
-        # this object, because this object should be able to play many sounds
-        
-        # Lock for thread-safe set_channel() updates
-        self.qlock = mp.Lock()  
+        #~ # Lock for thread-safe set_channel() updates
+        #~ self.qlock = mp.Lock()  
         
         
         ## Create the contained jack.Client
@@ -591,7 +600,7 @@ class SoundPlayer(object):
         precise.
         """
         # Check if the queue is empty
-        if self.sound_queue.empty():
+        if sound_chooser.sound_queue.empty():
             # No sound to play, so play silence 
             # Although this shouldn't be happening
 
@@ -601,7 +610,7 @@ class SoundPlayer(object):
             
         else:
             # Queue is not empty, so play data from it
-            data = self.sound_queue.get()
+            data = sound_chooser.sound_queue.get()
             assert data.shape == (self.blocksize, 2)
 
             # Write one column to each channel
