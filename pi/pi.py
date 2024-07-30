@@ -321,7 +321,7 @@ class SoundQueue:
             """Append `gap_chunk_size` silent chunks to sound_block"""
             for n_blank_chunks in range(gap_chunk_size):
                 self.sound_block.append(
-                    np.zeros(1024, dtype='float32'))
+                    np.zeros((1024, 2), dtype='float32'))
 
         # Extract params or use defaults
         left_on = params.get('left_on', False)
