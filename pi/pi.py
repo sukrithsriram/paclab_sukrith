@@ -894,7 +894,7 @@ try:
                     
             # Check sound_chooser here, and if it has the parameters it needs,
             # then use it to top up the queue.
-            sound_chooser.initialize_sounds(amplitude, target_lowpass, target_highpass)
+            sound_chooser.initialize_sounds(self.amplitude, self.target_lowpass, self.target_highpass)
             sound_chooser.set_cycle()
             sound_chooser.append_to_queue_if_needed()
 
