@@ -270,16 +270,16 @@ class SoundQueue:
         return parameter_message
 
     """Method to choose which sound to initialize based on the target channel"""
-    def initialize_sounds(self, target_amplitude, target_highpass,  target_lowpass):
+    def initialize_sounds(self, blocksize, fs, target_amplitude, target_highpass,  target_lowpass):
         """Defines sounds that will be played during the task"""
         ## Define sounds
         # Left and right target noise bursts
-        self.left_target_stim = Noise(
+        self.left_target_stim = Noise(blocksize, fs,
             duration=0.01, amplitude= self.amplitude, channel=0, 
             lowpass=self.target_lowpass, highpass=self.target_highpass
             )       
         
-        self.right_target_stim = Noise(
+        self.right_target_stim = Noise(blocksize, fs,
             duration=0.01, amplitude= self.amplitude, channel=1, 
             lowpass=self.target_lowpass, highpass=self.target_highpass
             )  
@@ -894,7 +894,7 @@ try:
                     
             # Check sound_chooser here, and if it has the parameters it needs,
             # then use it to top up the queue.
-            sound_chooser.initialize_sounds(sound_chooser.amplitude, sound_chooser.target_lowpass, sound_chooser.target_highpass)
+            sound_chooser.initialize_sounds(sound_player.blocksize, sound_player.fs, sound_chooser.amplitude, sound_chooser.target_lowpass, sound_chooser.target_highpass)
             sound_chooser.set_cycle()
             sound_chooser.append_to_queue_if_needed()
 
