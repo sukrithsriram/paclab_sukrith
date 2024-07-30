@@ -434,10 +434,12 @@ class SoundQueue:
                 if bdrow.side == 'left' and bdrow.sound == 'target':
                     for frame in self.left_target_stim.chunks:
                         self.sound_block.append(frame)
+                        print(frame.shape)
                         assert frame.shape == (1024, 2)
                 elif bdrow.side == 'right' and bdrow.sound == 'target':
                     for frame in self.right_target_stim.chunks:
-                        self.sound_block.append(frame) 
+                        self.sound_block.append(frame)
+                        print(frame.shape)
                         assert frame.shape == (1024, 2)                        
                 else:
                     raise ValueError(
