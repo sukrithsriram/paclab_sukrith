@@ -394,7 +394,7 @@ class SoundQueue:
         assert not both_df.isnull().any().any() 
 
         # Calculate gap size in chunks
-        both_df['gap_chunks'] = (both_df['gap'] * (sound_player.fs / sound_player.blocksize))
+        both_df['gap_chunks'] = (both_df['gap'] * (self.fs / self.blocksize))
         both_df['gap_chunks'] = both_df['gap_chunks'].round().astype(int)
         
         # Floor gap_chunks at 1 chunk, the minimal gap size
