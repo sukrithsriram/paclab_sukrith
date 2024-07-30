@@ -483,7 +483,7 @@ class SoundQueue:
                 self.n_frames = self.n_frames + 1
             
             # Update qsize
-            qsize = sound_player.sound_queue.qsize()
+            qsize = self.sound_queue.qsize()
             
     def empty_queue(self, tosize=0):
         """Empty queue"""
