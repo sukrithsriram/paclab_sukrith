@@ -247,7 +247,7 @@ class SoundQueue:
         # Fill the queue with empty frames
         # Sounds aren't initialized till the trial starts
         # Using False here should work even without sounds initialized yet
-        self.initialize_sounds()
+        self.initialize_sounds(blocksize = 1024, fs = 192000, self.target_amplitude, self.target_highpass,  self.target_lowpass)
         self.set_sound_cycle(params={'left_on': self.left_on, 'right_on': self.right_on})
 
         # Use this to keep track of generated sounds
