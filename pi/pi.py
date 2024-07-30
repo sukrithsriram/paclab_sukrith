@@ -240,11 +240,15 @@ class SoundQueue:
         self.target_lowpass = self.center_freq + (self.bandwidth / 2)
         self.target_highpass = self.center_freq - (self.bandwidth / 2)
         
+        # State of channels
+        self.left_on = False
+        self.right_on = False
+        
         # Fill the queue with empty frames
         # Sounds aren't initialized till the trial starts
         # Using False here should work even without sounds initialized yet
         self.initialize_sounds()
-        self.set_sound_cycle(params={'left_on': False, 'right_on': False})
+        self.set_sound_cycle(params={'left_on': self.left_on, 'right_on': self.right_on})
 
         # Use this to keep track of generated sounds
         self.current_audio_times_df = None
@@ -494,9 +498,13 @@ class SoundQueue:
         
         qsize = sound_player.sound_queue.qsize()
     
-    def set_channel(self):
-        
-        
+    def set_channel(self, mode):
+        if mode == 'left':
+            self.left_on = True
+            self.right_on = False
+        if mode == 'right':
+            self.left_on = False
+            self.right_on = True
 
 # Define a JackClient, which will play sounds in the background
 # Rename to SoundPlayer to avoid confusion with jack.Client
