@@ -51,7 +51,7 @@ with open(param_directory, "r") as p:
 
 class Noise:
     """Class to define bandpass filtered white noise."""
-    def __init__(self, blocksize, fs, duration = 0.01, amplitude=0.01, channel=None, 
+    def __init__(self, blocksize=1024, fs=192000, duration = 0.01, amplitude=0.01, channel=None, 
         highpass=None, lowpass=None, attenuation_file=None, **kwargs):
         """Initialize a new white noise burst with specified parameters.
         
