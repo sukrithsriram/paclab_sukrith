@@ -229,6 +229,10 @@ class SoundQueue:
         # Some counters to keep track of how many sounds we've played
         self.n_frames = 0
 
+        # Instancing noise parameters
+        self.amplitude = -1
+        self.target_rate = 4
+        
         # Fill the queue with empty frames
         # Sounds aren't initialized till the trial starts
         # Using False here should work even without sounds initialized yet
@@ -236,10 +240,6 @@ class SoundQueue:
 
         # Use this to keep track of generated sounds
         self.current_audio_times_df = None
-        
-        # Instancing noise parameters
-        self.amplitude = -1
-        self.target_rate = 4
     
     """Object to choose the sounds and pauses for this trial"""
     def update_parameters(self, rate_min, rate_max, irregularity_min, irregularity_max, amplitude_min, amplitude_max, center_freq_min, center_freq_max, bandwidth):
