@@ -329,6 +329,11 @@ class SoundQueue:
         left_target_rate = self.target_rate 
         right_target_rate = self.target_rate 
         
+        print(self.target_rate)
+        print(left_on)
+        print(right_on)
+        
+        
         # Global params
         target_temporal_std = 10 ** self.target_temporal_log_std 
         
