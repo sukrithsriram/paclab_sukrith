@@ -238,8 +238,8 @@ class SoundQueue:
         self.n_frames = 0
 
         # Instancing noise parameters
-        self.blocksize = sound_player.blocksize
-        self.fs = sound_player.fs
+        self.blocksize = 1024
+        self.fs = 192000
         self.amplitude = -1
         self.target_rate = 4
         self.target_temporal_log_std = -1.5
@@ -570,9 +570,6 @@ class SoundPlayer(object):
         # TODO: add control over verbosity of debug messages
         print("Received blocksize {} and fs {}".format(self.blocksize, self.fs))
 
-        # Initializing sound chooser
-        sound_chooser = SoundQueue(stage_block)
-        
         ## Set up outchannels
         self.client.outports.register('out_0')
         self.client.outports.register('out_1')
@@ -624,7 +621,7 @@ class SoundPlayer(object):
 
 # Define a client to play sounds
 stage_block = threading.Event()
-#sound_chooser = SoundQueue(stage_block)
+sound_chooser = SoundQueue(stage_block)
 sound_player = SoundPlayer(name='sound_player')
 
 # Raspberry Pi's identity (Change this to the identity of the Raspberry Pi you are using)
@@ -878,7 +875,7 @@ try:
             bandwidth = config_data['bandwidth']
             
             # Update the jack client with the new acoustic parameters
-            sound_player.sound_chooser.update_parameters(
+            sound_chooser.update_parameters(
                 rate_min, rate_max, irregularity_min, irregularity_max, 
                 amplitude_min, amplitude_max, center_freq_min, center_freq_max, bandwidth)
 
@@ -886,7 +883,7 @@ try:
             print("Parameters updated")
             
             # Adding chunks to queue for the sound
-            sound_player.sound_chooser.play()
+            sound_chooser.play()
             
             # Check sound_chooser here, and if it has the parameters it needs,
             # then use it to top up the queue.
@@ -999,7 +996,7 @@ try:
                     pi.set_PWM_dutycycle(reward_pin, pwm_duty_cycle)
                     
                     # Playing sound from the right speaker
-                    sound_player.sound_chooser.set_channel('right')
+                    sound_chooser.set_channel('right')
                     
                     # Debug message
                     print("Turning Nosepoke 7 Green")
@@ -1026,7 +1023,7 @@ try:
                 # Updating Parameters
                 # TODO: fix this; rate_min etc are not necessarily defined
                 # yet, or haven't changed recently
-                sound_player.sound_chooser.update_parameters(
+                sound_chooser.update_parameters(
                     rate_min, rate_max, irregularity_min, irregularity_max, 
                     amplitude_min, amplitude_max, center_freq_min, center_freq_max, bandwidth)
                 
@@ -1039,13 +1036,14 @@ try:
                     print("No LED is currently active.")
 
                 # Reset play mode to 'none'
-                sound_player.sound_chooser.set_channel('none')
+                sound_chooser.set_channel('none')
            
             else:
                 print("Unknown message received:", msg)
 
 except KeyboardInterrupt:
     # Stops the pigpio connection
+    sound_player.noise.stop()
     pi.stop()
 
 finally:
