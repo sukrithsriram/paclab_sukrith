@@ -266,7 +266,7 @@ class SoundQueue:
 
         print(parameter_message)
         return parameter_message
-pd
+
     """Method to choose which sound to initialize based on the target channel"""
     def initialize_sounds(self, target_amplitude, target_highpass,  target_lowpass):
         """Defines sounds that will be played during the task"""
