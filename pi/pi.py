@@ -232,6 +232,11 @@ class SoundQueue:
         # Instancing noise parameters
         self.amplitude = -1
         self.target_rate = 4
+        self.target_temporal_log_std = -1.5
+        self.center_freq = 10000
+        self.bandwidth = 3000
+        self.target_lowpass = self.center_freq + (self.bandwidth / 2)
+        self.target_highpass = self.center_freq - (self.bandwidth / 2)
         
         # Fill the queue with empty frames
         # Sounds aren't initialized till the trial starts
@@ -263,21 +268,18 @@ class SoundQueue:
         return parameter_message
 
     """Method to choose which sound to initialize based on the target channel"""
-    def initalize_sounds(self,             
-        target_highpass, target_amplitude, target_lowpass,
-        distracter_highpass, distracter_amplitude, distracter_lowpass,
-        ):
+    def initialize_sounds(self, target_amplitude, target_highpass,  target_lowpass):
         """Defines sounds that will be played during the task"""
         ## Define sounds
         # Left and right target noise bursts
         self.left_target_stim = Noise(
             duration=0.01, amplitude= self.amplitude, channel=0, 
-            lowpass=lowpass, highpass=highpass
+            lowpass=self.target_lowpass, highpass=self.target_highpass
             )       
         
         self.right_target_stim = Noise(
             duration=0.01, amplitude= self.amplitude, channel=1, 
-            lowpass=lowpass, highpass=highpass
+            lowpass=self.target_lowpass, highpass=self.target_highpass
             )  
 
 
@@ -855,12 +857,11 @@ try:
         # TODO: how long does it wait? # Can be set, currently not sure
         socks = dict(poller.poll(1))
         
-        
         # Check sound_chooser here, and if it has the parameters it needs,
         # then use it to top up the queue.
+        sound_chooser.initialize_sounds()
         sound_chooser.set_cycle()
-        sound_chooser_append_to_queue_if_needed()
-        
+        sound_chooser.append_to_queue_if_needed()
         
         ## Check for incoming messages on json_socket
         # If so, use it to update the acoustic parameters
