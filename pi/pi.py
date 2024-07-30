@@ -75,6 +75,8 @@ class Noise:
             **kwargs: extraneous parameters that might come along with instantiating us
         """
         # Set duraiton and amplitude as float
+        self.blocksize = blocksize
+        self.fs = fs
         self.duration = float(duration)
         self.amplitude = float(amplitude)
         
