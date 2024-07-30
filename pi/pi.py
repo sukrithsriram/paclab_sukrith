@@ -210,7 +210,7 @@ class Noise:
         
         # Break the table into chunks
         self.chunks = [
-            self.table[start_sample:start_sample + self.blocksize, :] 
+            padded_sound[start_sample:start_sample + self.blocksize, :] 
             for start_sample in start_samples]
 
 class SoundQueue:
