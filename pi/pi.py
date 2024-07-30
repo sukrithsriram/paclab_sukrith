@@ -257,6 +257,7 @@ class SoundQueue:
         # Using False here should work even without sounds initialized yet
         self.initialize_sounds(self.blocksize, self.fs, self.amplitude, self.target_highpass,  self.target_lowpass)
         self.set_sound_cycle(params={'left_on': self.left_on, 'right_on': self.right_on})
+        self.play()
 
         # Use this to keep track of generated sounds
         self.current_audio_times_df = None
@@ -668,7 +669,6 @@ json_socket.subscribe(b"")
 # Print acknowledgment
 print(f"Connected to router at {router_ip2}")  
 
-
 ## Pigpio configuration
 # TODO: move these methods into a Nosepoke object. That object should be
 # defined in another script and imported here
@@ -882,16 +882,6 @@ try:
             # Debug print
             print("Parameters updated")
             
-            # Adding chunks to queue for the sound
-            sound_chooser.play()
-            
-            # Check sound_chooser here, and if it has the parameters it needs,
-            # then use it to top up the queue.
-            #~ sound_chooser.initialize_sounds(sound_player.blocksize, sound_player.fs, sound_chooser.amplitude, sound_chooser.target_lowpass, sound_chooser.target_highpass)
-            #~ sound_chooser.set_sound_cycle()
-            #~ sound_chooser.append_to_queue_if_needed()
-
-            
         ## Check for incoming messages on poke_socket
         # TODO: document the types of messages that can be sent on poke_socket 
         if poke_socket in socks and socks[poke_socket] == zmq.POLLIN:
@@ -1043,7 +1033,6 @@ try:
 
 except KeyboardInterrupt:
     # Stops the pigpio connection
-    sound_player.noise.stop()
     pi.stop()
 
 finally:
