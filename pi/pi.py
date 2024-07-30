@@ -223,7 +223,7 @@ class SoundQueue:
         # Each block/frame is about 5 ms
         # Longer is more buffer against unexpected delays
         # Shorter is faster to empty and refill the queue
-        slef.amplitude = -1 ## Temporary
+        self.amplitude = -1 ## Temporary
         self.target_qsize = 200
 
         # Some counters to keep track of how many sounds we've played
