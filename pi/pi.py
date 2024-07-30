@@ -235,8 +235,11 @@ class SoundQueue:
         self.set_sound_cycle(params={'left_on': False, 'right_on': False})
 
         # Use this to keep track of generated sounds
-        self.current_audio_times_df = None      
-    
+        self.current_audio_times_df = None
+        
+        # Instancing noise parameters
+        self.amplitude = -1
+        self.target_rate = 4
     
     """Object to choose the sounds and pauses for this trial"""
     def update_parameters(self, rate_min, rate_max, irregularity_min, irregularity_max, amplitude_min, amplitude_max, center_freq_min, center_freq_max, bandwidth):
