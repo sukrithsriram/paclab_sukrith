@@ -850,14 +850,6 @@ irregularity_max = 0.0
 amplitude_min = 0.0
 amplitude_max = 0.0
 
-# Trying some sound stuff
-sound_chooser.set_sound_cycle()
-
-# Empty queue1 and refill
-sound_chooser.empty_queue()
-sound_chooser.play()
-
-
 ## Main loop to keep the program running and exit when it receives an exit command
 try:
     ## TODO: document these variables and why they are tracked
@@ -992,6 +984,7 @@ try:
                     
                     # Playing sound from the left speaker
                     sound_chooser.set_channel('left')
+                    sound_chooser.set_sound_cycle()
                     
                     # Empty queue1 and refill
                     sound_chooser.empty_queue()
@@ -1019,6 +1012,7 @@ try:
                     
                     # Playing sound from the right speaker
                     sound_chooser.set_channel('right')
+                    sound_chooser.set_sound_cycle()
                     
                     # Empty queue1 and refill
                     sound_chooser.empty_queue()
