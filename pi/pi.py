@@ -465,7 +465,6 @@ class SoundQueue:
             # in a controlled fashion every so often
             time.sleep(0.1)
         
-        
         ## Extract any recently played sound info
         sound_data_l = []
         with nb_lock:
@@ -850,6 +849,14 @@ irregularity_max = 0.0
 # TODO: these need to be received from task, not specified here # These were all initial values set incase a task was not selected
 amplitude_min = 0.0
 amplitude_max = 0.0
+
+# Trying some sound stuff
+sound_chooser.set_sound_cycle()
+
+# Empty queue1 and refill
+sound_chooser.empty_queue()
+sound_chooser.play()
+
 
 ## Main loop to keep the program running and exit when it receives an exit command
 try:
