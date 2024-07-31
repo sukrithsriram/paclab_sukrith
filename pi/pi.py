@@ -880,6 +880,9 @@ try:
                 rate_min, rate_max, irregularity_min, irregularity_max, 
                 amplitude_min, amplitude_max, center_freq_min, center_freq_max, bandwidth)
             sound_chooser.set_sound_cycle()
+            
+            sound_chooser.empty_queue()
+            sound_chooser.append_sound_to_queue_as_needed()
 
             # Debug print
             print("Parameters updated")
@@ -972,7 +975,7 @@ try:
                     sound_chooser.set_sound_cycle()
                     
                     # Empty queue1 and refill
-                    #sound_chooser.empty_queue()
+                    sound_chooser.empty_queue()
                     sound_chooser.append_sound_to_queue_as_needed()
                     
                     # Debug message
@@ -1003,7 +1006,7 @@ try:
                     sound_chooser.set_sound_cycle()
                     
                     # Empty queue1 and refill
-                    #sound_chooser.empty_queue()
+                    sound_chooser.empty_queue()
                     sound_chooser.append_sound_to_queue_as_needed()
                     
                     # Debug message
