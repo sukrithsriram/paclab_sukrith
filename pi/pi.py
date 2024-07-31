@@ -1025,6 +1025,8 @@ try:
                 # Updating Parameters
                 # TODO: fix this; rate_min etc are not necessarily defined
                 # yet, or haven't changed recently
+                # Reset play mode to 'none'
+                sound_chooser.set_channel('none')
                 sound_chooser.update_parameters(
                     rate_min, rate_max, irregularity_min, irregularity_max, 
                     amplitude_min, amplitude_max, center_freq_min, center_freq_max, bandwidth)
@@ -1039,9 +1041,6 @@ try:
                     current_pin = None  # Reset the current LED
                 else:
                     print("No LED is currently active.")
-
-                # Reset play mode to 'none'
-                sound_chooser.set_channel('none')
            
             else:
                 print("Unknown message received:", msg)
