@@ -241,10 +241,10 @@ class SoundQueue:
         # Instancing noise parameters
         self.blocksize = 1024
         self.fs = 192000
-        self.amplitude = -3
+        self.amplitude = -0.03
         self.target_rate = 4
         self.target_temporal_log_std = -1.5
-        self.center_freq = 5000
+        self.center_freq = 10000
         self.bandwidth = 3000
         self.target_lowpass = self.center_freq + (self.bandwidth / 2)
         self.target_highpass = self.center_freq - (self.bandwidth / 2)
