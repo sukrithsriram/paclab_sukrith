@@ -464,7 +464,18 @@ class SoundQueue:
             # Don't want to iterate too quickly, but rather add chunks
             # in a controlled fashion every so often
             time.sleep(0.1)
-
+        
+        
+        ## Extract any recently played sound info
+        sound_data_l = []
+        with nb_lock:
+            while True:
+                try:
+                    data = nonzero_blocks.get_nowait()
+                except queue.Empty:
+                    break
+                sound_data_l.append(data)
+    
         ## Continue to the next stage (which is this one again)
         # If it is cleared, then nothing happens until the next message
         # from the Parent (not sure why)
@@ -627,7 +638,8 @@ sound_queue = mp.Queue()
 nonzero_blocks = mp.Queue()
 
 # Lock for thread-safe set_channel() updates
-qlock = mp.Lock() 
+qlock = mp.Lock()
+nb_lock = mp.Lock()
 
 # Define a client to play sounds
 stage_block = threading.Event()
@@ -977,8 +989,7 @@ try:
                     
                     # Empty queue1 and refill
                     sound_chooser.empty_queue()
-                    while True:
-                        sound_chooser.play()
+                    sound_chooser.play()
                     
                     # Debug message
                     print("Turning Nosepoke 5 Green")
@@ -1006,9 +1017,7 @@ try:
                     
                     # Empty queue1 and refill
                     sound_chooser.empty_queue()
-                    
-                    while True:
-                        sound_chooser.play()
+                    sound_chooser.play()
                     
                     # Debug message
                     print("Turning Nosepoke 7 Green")
