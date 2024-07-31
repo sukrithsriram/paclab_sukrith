@@ -431,14 +431,12 @@ class SoundQueue:
             for bdrow in both_df.itertuples():
                 # Append the sound
                 if bdrow.side == 'left' and bdrow.sound == 'target':
-                        frame = np.random.uniform(-.01,.01, (1024,2))
-                    #for frame in self.left_target_stim.chunks:
+                    for frame in self.left_target_stim.chunks:
                         self.sound_block.append(frame)
                         print(frame.shape)
                         assert frame.shape == (1024, 2)
                 elif bdrow.side == 'right' and bdrow.sound == 'target':
-                        frame = np.random.uniform(-.01,.01, (1024,2))
-                    #for frame in self.right_target_stim.chunks:
+                    for frame in self.right_target_stim.chunks:
                         self.sound_block.append(frame)
                         print(frame.shape)
                         assert frame.shape == (1024, 2)                        
@@ -492,7 +490,7 @@ class SoundQueue:
         while qsize < self.target_qsize:
             with self.qlock:
                 # Add a frame from the sound cycle
-                frame = next(self.sound_cycle)
+                frame = np.random.uniform(-.01, .01, (1024, 2)) #next(self.sound_cycle)
                 self.sound_queue.put_nowait(frame)
                 
                 # Keep track of how many frames played
@@ -603,7 +601,7 @@ class SoundPlayer(object):
         precise.
         """
         # Check if the queue is empty
-        if sound_queue.empty():
+        if sound_chooser.sound_queue.empty():
             # No sound to play, so play silence 
             # Although this shouldn't be happening
 
@@ -613,7 +611,7 @@ class SoundPlayer(object):
             
         else:
             # Queue is not empty, so play data from it
-            data = sound_queue.get()
+            data = sound_chooser.sound_queue.get()
             if data.shape != (self.blocksize, 2):
                 print(data.shape)
             assert data.shape == (self.blocksize, 2)
@@ -624,7 +622,6 @@ class SoundPlayer(object):
                 buff[:] = data[:, n_outport]
 
 # Define a client to play sounds
-sound_queue = mp.Queue
 stage_block = threading.Event()
 sound_chooser = SoundQueue(stage_block)
 sound_player = SoundPlayer(name='sound_player')
