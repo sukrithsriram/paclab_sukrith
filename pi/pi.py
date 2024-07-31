@@ -809,7 +809,7 @@ def stop_session():
     pi.write(10, 0)
     pi.write(27, 0)
     pi.write(9, 0)
-    sound_player.noise.set_channel('none')
+    sound_chooser.set_channel('none')
 
 ## Set up pigpio and callbacks
 # TODO: rename this variable to pig or something; "pi" is ambiguous
@@ -860,9 +860,6 @@ try:
         ## Wait for events on registered sockets
         # TODO: how long does it wait? # Can be set, currently not sure
         socks = dict(poller.poll(1))
-        
-        sound_player_thread = threading.Thread(target=sound_chooser.play)
-        sound_player_thread.start()
         
         ## Check for incoming messages on json_socket
         # If so, use it to update the acoustic parameters
@@ -979,9 +976,10 @@ try:
                     pi.set_PWM_dutycycle(reward_pin, pwm_duty_cycle)
                     
                     # Playing sound from the left speaker
+                    sound_chooser.empty_queue()
                     sound_chooser.set_channel('left')
                     sound_chooser.set_sound_cycle()
-                    sound_chooser.empty_queue()
+                    sound_chooser.play()
 
                     # Debug message
                     print("Turning Nosepoke 5 Green")
@@ -1004,9 +1002,10 @@ try:
                     pi.set_PWM_dutycycle(reward_pin, pwm_duty_cycle)
                     
                     # Playing sound from the right speaker
+                    sound_chooser.empty_queue()
                     sound_chooser.set_channel('right')
                     sound_chooser.set_sound_cycle()
-                    sound_chooser.empty_queue()
+                    sound_chooser.play()
 
                     
                     # Debug message
