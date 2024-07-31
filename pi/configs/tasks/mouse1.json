@@ -11,8 +11,8 @@
     "irregularity_max": -1.5,
     "irregularity_choices": 1,
     "reward_value": 0.5,
-    "center_freq_min": 10000.0,
-    "center_freq_max": 10000.0,
+    "center_freq_min": 5000.0,
+    "center_freq_max": 5000.0,
     "center_freq_choices": 1,
     "bandwidth": 3000.0
 }
