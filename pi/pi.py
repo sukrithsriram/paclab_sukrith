@@ -892,7 +892,7 @@ try:
                 rate_min, rate_max, irregularity_min, irregularity_max, 
                 amplitude_min, amplitude_max, center_freq_min, center_freq_max, bandwidth)
             sound_chooser.initialize_sounds(sound_player.blocksize, sound_player.fs, 
-                sound_chooser.amplitude, sound_chooser.highass, sound_chooser.lowpass)
+                sound_chooser.amplitude, sound_chooser.highpass, sound_chooser.lowpass)
             sound_chooser.set_sound_cycle()
             
             # Debug print
