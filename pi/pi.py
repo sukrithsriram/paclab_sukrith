@@ -510,7 +510,7 @@ class SoundQueue:
             with self.qlock:
                 try:
                     data = self.sound_queue.get_nowait()
-                except sound_queue.Empty:
+                except self.sound_queue.Empty:
                     break
             
             # Stop if we're at or below the target size
@@ -973,7 +973,7 @@ try:
                     
                     # Empty queue1 and refill
                     sound_chooser.empty_queue()
-                    sound_chooser.play()
+                    sound_chooser.append_sound_to_queue_as_needed()
                     
                     # Debug message
                     print("Turning Nosepoke 5 Green")
@@ -1004,7 +1004,7 @@ try:
                     
                     # Empty queue1 and refill
                     sound_chooser.empty_queue()
-                    sound_chooser.play()
+                    sound_chooser.append_sound_to_queue_as_needed()
                     
                     # Debug message
                     print("Turning Nosepoke 7 Green")
