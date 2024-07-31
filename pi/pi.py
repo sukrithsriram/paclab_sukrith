@@ -603,7 +603,7 @@ class SoundPlayer(object):
         precise.
         """
         # Check if the queue is empty
-        if sound_chooser.sound_queue.empty():
+        if sound_queue.empty():
             # No sound to play, so play silence 
             # Although this shouldn't be happening
 
@@ -613,7 +613,7 @@ class SoundPlayer(object):
             
         else:
             # Queue is not empty, so play data from it
-            data = sound_chooser.sound_queue.get()
+            data = sound_queue.get()
             if data.shape != (self.blocksize, 2):
                 print(data.shape)
             assert data.shape == (self.blocksize, 2)
@@ -624,6 +624,7 @@ class SoundPlayer(object):
                 buff[:] = data[:, n_outport]
 
 # Define a client to play sounds
+sound_queue = mp.Queue
 stage_block = threading.Event()
 sound_chooser = SoundQueue(stage_block)
 sound_player = SoundPlayer(name='sound_player')
