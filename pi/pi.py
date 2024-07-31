@@ -984,6 +984,7 @@ try:
                     sound_chooser.set_sound_cycle()
                     while sound_chooser.left_on == True:
                         sound_chooser.play()
+                        time.sleep(0.1)
 
                     # Debug message
                     print("Turning Nosepoke 5 Green")
