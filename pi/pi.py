@@ -861,7 +861,8 @@ try:
         # TODO: how long does it wait? # Can be set, currently not sure
         socks = dict(poller.poll(1))
         
-        sound_chooser.play()
+        sound_player_thread = threading.Thread(target=sound_chooser.play)
+        sound_player_thread.start()
         
         ## Check for incoming messages on json_socket
         # If so, use it to update the acoustic parameters
