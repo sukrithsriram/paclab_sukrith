@@ -1062,6 +1062,12 @@ try:
            
             else:
                 print("Unknown message received:", msg)
+    
+    sound_chooser.set_sound_cycle()
+    
+    # Empty queue1 and refill
+    sound_chooser.empty_queue()
+    sound_chooser.play()
 
 except KeyboardInterrupt:
     # Stops the pigpio connection
