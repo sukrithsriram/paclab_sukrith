@@ -972,8 +972,8 @@ try:
                     sound_chooser.set_sound_cycle()
                     
                     # Empty queue1 and refill
-                    self.empty_queue()
-                    self.append_sound_to_queue_as_needed()
+                    sound_chooser.empty_queue()
+                    sound_chooser.append_sound_to_queue_as_needed()
                     
                     # Debug message
                     print("Turning Nosepoke 5 Green")
@@ -1003,8 +1003,8 @@ try:
                     sound_chooser.set_sound_cycle()
                     
                     # Empty queue1 and refill
-                    self.empty_queue()
-                    self.append_sound_to_queue_as_needed()
+                    sound_chooser.empty_queue()
+                    sound_chooser.append_sound_to_queue_as_needed()
                     
                     # Debug message
                     print("Turning Nosepoke 7 Green")
