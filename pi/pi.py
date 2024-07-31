@@ -216,11 +216,7 @@ class Noise:
 class SoundQueue:
     """This is a class used to continuously generate frames of audio and add them to a queue. 
     It also handles updating the parameters of the sound to be played. """
-    def __init__(self, stage_block):
-    ## Stages
-        # Only one stage
-        self.stages = itertools.cycle([self.play])
-        self.stage_block = stage_block
+    def __init__(self):
         
         ## Initialize sounds
         # Each block/frame is about 5 ms
@@ -456,23 +452,13 @@ class SoundQueue:
 
             # Don't want to iterate too quickly, but rather add chunks
             # in a controlled fashion every so often
-            time.sleep(0.1)
-        
-        ## Extract any recently played sound info
-        sound_data_l = []
-        with nb_lock:
-            while True:
-                try:
-                    data = nonzero_blocks.get_nowait()
-                except queue.Empty:
-                    break
-                sound_data_l.append(data)
+            #time.sleep(0.1)
     
         ## Continue to the next stage (which is this one again)
         # If it is cleared, then nothing happens until the next message
         # from the Parent (not sure why)
         # If we never end this function, then it won't respond to END
-        self.stage_block.set()
+        #self.stage_block.set()
     
     def append_sound_to_queue_as_needed(self):
         """Dump frames from `self.sound_cycle` into queue
@@ -634,7 +620,6 @@ qlock = mp.Lock()
 nb_lock = mp.Lock()
 
 # Define a client to play sounds
-stage_block = threading.Event()
 sound_chooser = SoundQueue(stage_block)
 sound_player = SoundPlayer(name='sound_player')
 
@@ -859,9 +844,9 @@ try:
     while True:
         ## Wait for events on registered sockets
         # TODO: how long does it wait? # Can be set, currently not sure
-        socks = dict(poller.poll(1))
+        socks = dict(poller.poll(100))
         
-        sound_chooser.play()
+        sound_chooser.append_sound_to_queue_as_needed()
         
         ## Check for incoming messages on json_socket
         # If so, use it to update the acoustic parameters
@@ -1032,6 +1017,7 @@ try:
                 # should be opened if it knows it is the rewarded pin. 
                 
                 # Emptying the queue completely
+                sound_chooser.set_channel('none')
                 sound_chooser.empty_queue()
 
                 # Opening Solenoid Valve
@@ -1042,7 +1028,6 @@ try:
                 # TODO: fix this; rate_min etc are not necessarily defined
                 # yet, or haven't changed recently
                 # Reset play mode to 'none'
-                sound_chooser.set_channel('none')
                 sound_chooser.update_parameters(
                     rate_min, rate_max, irregularity_min, irregularity_max, 
                     amplitude_min, amplitude_max, center_freq_min, center_freq_max, bandwidth)
