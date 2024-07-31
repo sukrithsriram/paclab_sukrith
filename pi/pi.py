@@ -333,7 +333,6 @@ class SoundQueue:
         print(left_on)
         print(right_on)
         
-        
         # Global params
         target_temporal_std = 10 ** self.target_temporal_log_std 
         
@@ -432,12 +431,14 @@ class SoundQueue:
             for bdrow in both_df.itertuples():
                 # Append the sound
                 if bdrow.side == 'left' and bdrow.sound == 'target':
-                    for frame in self.left_target_stim.chunks:
+                        frame = np.random.uniform(-.01,.01, (1024,2))
+                    #for frame in self.left_target_stim.chunks:
                         self.sound_block.append(frame)
                         print(frame.shape)
                         assert frame.shape == (1024, 2)
                 elif bdrow.side == 'right' and bdrow.sound == 'target':
-                    for frame in self.right_target_stim.chunks:
+                        frame = np.random.uniform(-.01,.01, (1024,2))
+                    #for frame in self.right_target_stim.chunks:
                         self.sound_block.append(frame)
                         print(frame.shape)
                         assert frame.shape == (1024, 2)                        
