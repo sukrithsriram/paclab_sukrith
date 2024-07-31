@@ -977,7 +977,8 @@ try:
                     
                     # Empty queue1 and refill
                     sound_chooser.empty_queue()
-                    itertools.cycle([sound_chooser.play])
+                    while True:
+                        sound_chooser.play()
                     
                     # Debug message
                     print("Turning Nosepoke 5 Green")
@@ -1005,7 +1006,9 @@ try:
                     
                     # Empty queue1 and refill
                     sound_chooser.empty_queue()
-                    itertools.cycle([sound_chooser.play])
+                    
+                    while True:
+                        sound_chooser.play()
                     
                     # Debug message
                     print("Turning Nosepoke 7 Green")
