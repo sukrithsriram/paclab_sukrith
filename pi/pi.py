@@ -988,10 +988,6 @@ try:
                     sound_chooser.set_channel('left')
                     sound_chooser.set_sound_cycle()
                     
-                    # Empty queue1 and refill
-                    sound_chooser.empty_queue()
-                    sound_chooser.play()
-                    
                     # Debug message
                     print("Turning Nosepoke 5 Green")
 
@@ -1015,10 +1011,6 @@ try:
                     # Playing sound from the right speaker
                     sound_chooser.set_channel('right')
                     sound_chooser.set_sound_cycle()
-                    
-                    # Empty queue1 and refill
-                    sound_chooser.empty_queue()
-                    sound_chooser.play()
                     
                     # Debug message
                     print("Turning Nosepoke 7 Green")
