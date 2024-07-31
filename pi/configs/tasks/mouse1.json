@@ -1,8 +1,8 @@
 {
     "name": "mouse1",
     "task": "Fixed",
-    "amplitude_min": 1.0,
-    "amplitude_max": 1.0,
+    "amplitude_min": 0.05,
+    "amplitude_max": 0.05,
     "rate_min": 4.0,
     "rate_max": 4.0,
     "irregularity_min": -1.5,
