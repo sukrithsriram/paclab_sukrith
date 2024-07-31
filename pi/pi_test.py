@@ -226,13 +226,6 @@ class SoundQueue:
         # Each block/frame is about 5 ms
         # Longer is more buffer against unexpected delays
         # Shorter is faster to empty and refill the queue
-        
-        # Initializing queues to be used by sound player
-        self.sound_queue = mp.Queue()
-        self.nonzero_blocks = mp.Queue()
-        
-        # Lock for thread-safe set_channel() updates
-        self.qlock = mp.Lock() 
         self.target_qsize = 200
 
         # Some counters to keep track of how many sounds we've played
@@ -464,7 +457,17 @@ class SoundQueue:
             # Don't want to iterate too quickly, but rather add chunks
             # in a controlled fashion every so often
             time.sleep(0.1)
-
+        
+        ## Extract any recently played sound info
+        sound_data_l = []
+        with nb_lock:
+            while True:
+                try:
+                    data = nonzero_blocks.get_nowait()
+                except queue.Empty:
+                    break
+                sound_data_l.append(data)
+    
         ## Continue to the next stage (which is this one again)
         # If it is cleared, then nothing happens until the next message
         # from the Parent (not sure why)
@@ -483,21 +486,21 @@ class SoundQueue:
         # between calls. If it's getting too close to zero, then target_qsize
         # needs to be increased.
         # Get the size of queue now
-        qsize = self.sound_queue.qsize()
+        qsize = sound_queue.qsize()
 
         # Add frames until target size reached
         while qsize < self.target_qsize:
-            with self.qlock:
+            with qlock:
                 # Add a frame from the sound cycle
                 frame = next(self.sound_cycle)
                 #frame = np.random.uniform(-.01, .01, (1024, 2)) 
-                self.sound_queue.put_nowait(frame)
+                sound_queue.put_nowait(frame)
                 
                 # Keep track of how many frames played
                 self.n_frames = self.n_frames + 1
             
             # Update qsize
-            qsize = self.sound_queue.qsize()
+            qsize = sound_queue.qsize()
             
     def empty_queue(self, tosize=0):
         """Empty queue"""
@@ -507,18 +510,18 @@ class SoundQueue:
             # in case the `process` function needs it to play sounds
             # (though if this does happen, there will be an artefact because
             # we just skipped over a bunch of frames)
-            with self.qlock:
+            with qlock:
                 try:
-                    data = self.sound_queue.get_nowait()
+                    data = sound_queue.get_nowait()
                 except queue.Empty:
                     break
             
             # Stop if we're at or below the target size
-            qsize = self.sound_queue.qsize()
+            qsize = sound_queue.qsize()
             if qsize < tosize:
                 break
         
-        qsize = self.sound_queue.qsize()
+        qsize = sound_queue.qsize()
     
     def set_channel(self, mode):
         """Controlling which channel the sound is played from """
@@ -601,7 +604,7 @@ class SoundPlayer(object):
         precise.
         """
         # Check if the queue is empty
-        if sound_chooser.sound_queue.empty():
+        if sound_queue.empty():
             # No sound to play, so play silence 
             # Although this shouldn't be happening
 
@@ -611,7 +614,7 @@ class SoundPlayer(object):
             
         else:
             # Queue is not empty, so play data from it
-            data = sound_chooser.sound_queue.get()
+            data = sound_queue.get()
             if data.shape != (self.blocksize, 2):
                 print(data.shape)
             assert data.shape == (self.blocksize, 2)
@@ -620,6 +623,15 @@ class SoundPlayer(object):
             for n_outport, outport in enumerate(self.client.outports):
                 buff = outport.get_array()
                 buff[:] = data[:, n_outport]
+
+# Defining a common queue to be used by both classes 
+# Initializing queues to be used by sound player
+sound_queue = mp.Queue()
+nonzero_blocks = mp.Queue()
+
+# Lock for thread-safe set_channel() updates
+qlock = mp.Lock()
+nb_lock = mp.Lock()
 
 # Define a client to play sounds
 stage_block = threading.Event()
@@ -797,7 +809,7 @@ def stop_session():
     pi.write(10, 0)
     pi.write(27, 0)
     pi.write(9, 0)
-    sound_player.noise.set_channel('none')
+    sound_chooser.set_channel('none')
 
 ## Set up pigpio and callbacks
 # TODO: rename this variable to pig or something; "pi" is ambiguous
@@ -830,7 +842,6 @@ irregularity_max = 0.0
 # TODO: these need to be received from task, not specified here # These were all initial values set incase a task was not selected
 amplitude_min = 0.0
 amplitude_max = 0.0
-
 
 ## Main loop to keep the program running and exit when it receives an exit command
 try:
@@ -965,13 +976,11 @@ try:
                     pi.set_PWM_dutycycle(reward_pin, pwm_duty_cycle)
                     
                     # Playing sound from the left speaker
+                    sound_chooser.empty_queue()
                     sound_chooser.set_channel('left')
                     sound_chooser.set_sound_cycle()
-                    
-                    # Empty queue1 and refill
-                    sound_chooser.empty_queue()
-                    sound_chooser.append_sound_to_queue_as_needed()
-                    
+                    sound_chooser.play()
+
                     # Debug message
                     print("Turning Nosepoke 5 Green")
 
@@ -993,12 +1002,11 @@ try:
                     pi.set_PWM_dutycycle(reward_pin, pwm_duty_cycle)
                     
                     # Playing sound from the right speaker
+                    sound_chooser.empty_queue()
                     sound_chooser.set_channel('right')
                     sound_chooser.set_sound_cycle()
-                    
-                    # Empty queue1 and refill
-                    sound_chooser.empty_queue()
-                    sound_chooser.append_sound_to_queue_as_needed()
+                    sound_chooser.play()
+
                     
                     # Debug message
                     print("Turning Nosepoke 7 Green")
@@ -1044,7 +1052,7 @@ try:
            
             else:
                 print("Unknown message received:", msg)
-
+    
 except KeyboardInterrupt:
     # Stops the pigpio connection
     pi.stop()

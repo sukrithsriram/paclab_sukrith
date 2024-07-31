@@ -913,10 +913,10 @@ class ConfigurationDialog(QDialog):
         try:
             amplitude_min = float(self.amplitude_min_edit.text())
             amplitude_max = float(self.amplitude_max_edit.text())
-            chunk_min = float(self.chunk_min_edit.text())
-            chunk_max = float(self.chunk_max_edit.text())
-            pause_min = float(self.pause_min_edit.text())
-            pause_max = float(self.pause_max_edit.text())
+            rate_min = float(self.rate_min_edit.text())
+            rate_max = float(self.rate_max_edit.text())
+            irregularity_min = float(self.irregularity_min_edit.text())
+            irregularity_max = float(self.irregularity_max_edit.text())
             center_freq_min = float(self.freq_min_edit.text())
             center_freq_max = float(self.freq_max_edit.text())
             bandwidth = float(self.band_edit.text())
@@ -1027,10 +1027,10 @@ class ConfigurationList(QWidget):
                 default_params = {
                     "amplitude_min": 0.0,
                     "amplitude_max": 0.0,
-                    "chunk_min": 0.0,
-                    "chunk_max": 0.0,
-                    "pause_min": 0.0,
-                    "pause_max": 0.0,
+                    "rate_min": 0.0,
+                    "rate_max": 0.0,
+                    "irregularity_min": 0.0,
+                    "irregularity_max": 0.0,
                     "center_freq_min": 0.0,
                     "center_freq_max": 0.0,
                     "bandwidth": 0.0,
