@@ -970,7 +970,10 @@ try:
                         rate_min, rate_max, irregularity_min, irregularity_max, 
                         amplitude_min, amplitude_max, center_freq_min, center_freq_max, bandwidth)
                     sound_chooser.set_sound_cycle()
-                    sound_chooser.play()
+                    
+                    # Empty queue1 and refill
+                    self.empty_queue()
+                    self.append_sound_to_queue_as_needed()
                     
                     # Debug message
                     print("Turning Nosepoke 5 Green")
@@ -998,7 +1001,10 @@ try:
                         rate_min, rate_max, irregularity_min, irregularity_max, 
                         amplitude_min, amplitude_max, center_freq_min, center_freq_max, bandwidth)
                     sound_chooser.set_sound_cycle()
-                    sound_chooser.play()
+                    
+                    # Empty queue1 and refill
+                    self.empty_queue()
+                    self.append_sound_to_queue_as_needed()
                     
                     # Debug message
                     print("Turning Nosepoke 7 Green")
