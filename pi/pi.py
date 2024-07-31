@@ -982,7 +982,7 @@ try:
                     sound_chooser.empty_queue()
                     sound_chooser.set_channel('left')
                     sound_chooser.set_sound_cycle()
-                    while sound_queue.qsize < 200:
+                    while sound_chooser.left_on = True:
                         sound_chooser.play()
 
                     # Debug message
@@ -1009,7 +1009,7 @@ try:
                     sound_chooser.empty_queue()
                     sound_chooser.set_channel('right')
                     sound_chooser.set_sound_cycle()
-                    while sound_queue.qsize < 200:
+                    while sound_chooser.right_on = True:
                         sound_chooser.play()
                     
                     # Debug message
@@ -1030,6 +1030,9 @@ try:
                 # port was rewarded. This will be too slow. The reward port
                 # should be opened if it knows it is the rewarded pin. 
                 
+                # Emptying the queue completely
+                sound_chooser.empty_queue()
+
                 # Opening Solenoid Valve
                 open_valve(prev_port)
                 flash()
@@ -1042,9 +1045,6 @@ try:
                 sound_chooser.update_parameters(
                     rate_min, rate_max, irregularity_min, irregularity_max, 
                     amplitude_min, amplitude_max, center_freq_min, center_freq_max, bandwidth)
-                sound_chooser.empty_queue()
-
-                #sound_chooser.set_sound_cycle()
                 
                 # Turn off the currently active LED
                 if current_pin is not None:
