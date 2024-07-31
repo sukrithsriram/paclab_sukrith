@@ -707,6 +707,8 @@ class ConfigurationDetailsDialog(QDialog):
         self.rate_label = QLabel(f"Rate: {config['rate_min']} - {config['rate_max']}")
         self.irregularity_label = QLabel(f"Irregularity: {config['irregularity_min']} - {config['irregularity_max']}")
         self.reward_label = QLabel(f"Reward Value: {config['reward_value']}")
+        self.freq_label = QLabel(f"Center Frequency: {config['center_freq_min']} - {config['center_freq_max']}")
+        self.band_label = QLabel(f"Bandwidth: {config['bandwidth']}")
 
         # Create button box with OK button
         self.button_box = QDialogButtonBox(QDialogButtonBox.Ok)
@@ -717,6 +719,8 @@ class ConfigurationDetailsDialog(QDialog):
         layout.addWidget(self.name_label)
         layout.addWidget(self.task_label)
         layout.addWidget(self.amplitude_label)
+        layout.addWidget(self.freq_label)
+        layout.addWidget(self.band_label)
         layout.addWidget(self.rate_label)
         layout.addWidget(self.irregularity_label)
         layout.addWidget(self.reward_label)
@@ -763,6 +767,9 @@ class ConfigurationDialog(QDialog):
             "rate_max": 0.0,
             "irregularity_min": 0.0,
             "irregularity_max": 0.0,
+            "center_freq_min": 0.0,
+            "center_freq_max": 0.0,
+            "bandwidth": 0.0,
             "reward_value": 0.0
         }
         self.init_ui()
@@ -808,6 +815,21 @@ class ConfigurationDialog(QDialog):
         irregularity_layout.addWidget(self.irregularity_max_label)
         irregularity_layout.addWidget(self.irregularity_max_edit)
         
+        
+        self.freq_label = QLabel("Center Frequency:")
+        freq_layout = QHBoxLayout()
+        self.freq_min_label = QLabel("Min:")
+        self.freq_min_edit = QLineEdit(str(self.config.get("center_freq_min", "")))
+        self.freq_max_label = QLabel("Max:")
+        self.freq_max_edit = QLineEdit(str(self.config.get("center_freq_max", "")))
+        freq_layout.addWidget(self.freq_min_label)
+        freq_layout.addWidget(self.freq_min_edit)
+        freq_layout.addWidget(self.freq_max_label)
+        freq_layout.addWidget(self.freq_max_edit)
+        
+        self.band_label = QLabel("Bandwidth:")
+        self.band_edit = QLineEdit(str(self.config.get("bandwidth", "")))
+        
         self.reward_label = QLabel("Reward Value:")
         self.reward_edit = QLineEdit(str(self.config.get("reward_value", "")))
 
@@ -826,6 +848,10 @@ class ConfigurationDialog(QDialog):
         layout.addLayout(rate_layout)
         layout.addWidget(self.irregularity_label)
         layout.addLayout(irregularity_layout)
+        layout.addWidget(self.freq_label)
+        layout.addLayout(freq_layout)
+        layout.addWidget(self.band_label)
+        layout.addWidget(self.band_edit)
         layout.addWidget(self.reward_label)
         layout.addWidget(self.reward_edit)
         layout.addWidget(self.button_box)
@@ -849,11 +875,16 @@ class ConfigurationDialog(QDialog):
             self.irregularity_min_label.hide()
             self.irregularity_max_label.hide()
             self.irregularity_max_edit.hide()
+            self.freq_min_label.hide()
+            self.freq_max_label.hide()
+            self.freq_max_edit.hide()
 
             # Connect min edit fields to update max fields
             self.amplitude_min_edit.textChanged.connect(self.update_amplitude_max)
             self.rate_min_edit.textChanged.connect(self.update_rate_max)
             self.irregularity_min_edit.textChanged.connect(self.update_irregularity_max)
+            self.freq_min_edit.textChanged.connect(self.update_freq_max)
+
 
         else:
             # For other tasks, show all min and max edit fields
@@ -871,6 +902,10 @@ class ConfigurationDialog(QDialog):
         value = self.irregularity_min_edit.text()
         self.irregularity_max_edit.setText(value)
 
+    def update_freq_max(self):
+        value = self.freq_min_edit.text()
+        self.freq_max_edit.setText(value)
+    
     def get_configuration(self):
         updated_name = self.name_edit.text()
         task = self.config.get("task", "")
@@ -878,10 +913,13 @@ class ConfigurationDialog(QDialog):
         try:
             amplitude_min = float(self.amplitude_min_edit.text())
             amplitude_max = float(self.amplitude_max_edit.text())
-            rate_min = float(self.rate_min_edit.text())
-            rate_max = float(self.rate_max_edit.text())
-            irregularity_min = float(self.irregularity_min_edit.text())
-            irregularity_max = float(self.irregularity_max_edit.text())
+            chunk_min = float(self.chunk_min_edit.text())
+            chunk_max = float(self.chunk_max_edit.text())
+            pause_min = float(self.pause_min_edit.text())
+            pause_max = float(self.pause_max_edit.text())
+            center_freq_min = float(self.freq_min_edit.text())
+            center_freq_max = float(self.freq_max_edit.text())
+            bandwidth = float(self.band_edit.text())
             reward_value = float(self.reward_edit.text())
             
         except ValueError:
@@ -897,6 +935,9 @@ class ConfigurationDialog(QDialog):
             "rate_max": rate_max,
             "irregularity_min": irregularity_min,
             "irregularity_max": irregularity_max,
+            "center_freq_min": center_freq_min,
+            "center_freq_max": center_freq_max,
+            "bandwidth": bandwidth,
             "reward_value": reward_value
         }
 
@@ -986,10 +1027,13 @@ class ConfigurationList(QWidget):
                 default_params = {
                     "amplitude_min": 0.0,
                     "amplitude_max": 0.0,
-                    "rate_min": 0.0,
-                    "rate_max": 0.0,
-                    "irregularity_min": 0.0,
-                    "irregularity_max": 0.0,
+                    "chunk_min": 0.0,
+                    "chunk_max": 0.0,
+                    "pause_min": 0.0,
+                    "pause_max": 0.0,
+                    "center_freq_min": 0.0,
+                    "center_freq_max": 0.0,
+                    "bandwidth": 0.0,
                     "reward_value": 0.0
                 }
 
