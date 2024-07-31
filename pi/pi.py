@@ -258,7 +258,6 @@ class SoundQueue:
         # Using False here should work even without sounds initialized yet
         self.initialize_sounds(self.blocksize, self.fs, self.amplitude, self.target_highpass,  self.target_lowpass)
         self.set_sound_cycle()
-        self.play()
 
         # Use this to keep track of generated sounds
         self.current_audio_times_df = None
@@ -490,7 +489,8 @@ class SoundQueue:
         while qsize < self.target_qsize:
             with self.qlock:
                 # Add a frame from the sound cycle
-                frame = np.random.uniform(-.01, .01, (1024, 2)) #next(self.sound_cycle)
+                frame = next(self.sound_cycle)
+                #frame = np.random.uniform(-.01, .01, (1024, 2)) 
                 self.sound_queue.put_nowait(frame)
                 
                 # Keep track of how many frames played
