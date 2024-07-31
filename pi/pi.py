@@ -868,6 +868,8 @@ try:
         # TODO: how long does it wait? # Can be set, currently not sure
         socks = dict(poller.poll(1))
         
+        sound_chooser.play()
+        
         ## Check for incoming messages on json_socket
         # If so, use it to update the acoustic parameters
         if json_socket in socks and socks[json_socket] == zmq.POLLIN:
@@ -1063,12 +1065,6 @@ try:
             else:
                 print("Unknown message received:", msg)
     
-    sound_chooser.set_sound_cycle()
-    
-    # Empty queue1 and refill
-    sound_chooser.empty_queue()
-    sound_chooser.play()
-
 except KeyboardInterrupt:
     # Stops the pigpio connection
     pi.stop()
