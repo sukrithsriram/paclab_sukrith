@@ -510,7 +510,7 @@ class SoundQueue:
             with self.qlock:
                 try:
                     data = self.sound_queue.get_nowait()
-                except self.sound_queue.Empty:
+                except self.sound_queue.empty:
                     break
             
             # Stop if we're at or below the target size
