@@ -967,8 +967,8 @@ try:
                     # Playing sound from the left speaker
                     sound_chooser.set_channel('left')
                     sound_chooser.update_parameters(
-                        rate_min, rate_max, irregularity_min, irregularity_max, 
-                        amplitude_min, amplitude_max, center_freq_min, center_freq_max, bandwidth)
+                        #~ rate_min, rate_max, irregularity_min, irregularity_max, 
+                        #~ amplitude_min, amplitude_max, center_freq_min, center_freq_max, bandwidth)
                     sound_chooser.set_sound_cycle()
                     
                     # Empty queue1 and refill
@@ -997,9 +997,9 @@ try:
                     
                     # Playing sound from the right speaker
                     sound_chooser.set_channel('right')
-                    sound_chooser.update_parameters(
-                        rate_min, rate_max, irregularity_min, irregularity_max, 
-                        amplitude_min, amplitude_max, center_freq_min, center_freq_max, bandwidth)
+                    #~ sound_chooser.update_parameters(
+                        #~ rate_min, rate_max, irregularity_min, irregularity_max, 
+                        #~ amplitude_min, amplitude_max, center_freq_min, center_freq_max, bandwidth)
                     sound_chooser.set_sound_cycle()
                     
                     # Empty queue1 and refill
