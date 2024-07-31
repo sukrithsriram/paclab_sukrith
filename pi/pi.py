@@ -992,7 +992,6 @@ try:
                     
                     # Playing sound from the left speaker
                     sound_chooser.set_channel('left')
-                    sound_chooser.set_sound_cycle()
                     
                     # Empty queue1 and refill
                     sound_chooser.empty_queue()
@@ -1020,7 +1019,6 @@ try:
                     
                     # Playing sound from the right speaker
                     sound_chooser.set_channel('right')
-                    sound_chooser.set_sound_cycle()
                     
                     # Empty queue1 and refill
                     sound_chooser.empty_queue()
