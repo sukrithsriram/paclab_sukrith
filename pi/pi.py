@@ -982,10 +982,8 @@ try:
                     sound_chooser.empty_queue()
                     sound_chooser.set_channel('left')
                     sound_chooser.set_sound_cycle()
-                    while sound_chooser.left_on == True:
-                        sound_chooser.play()
-                        time.sleep(0.1)
-
+                    sound_chooser.play()
+                    
                     # Debug message
                     print("Turning Nosepoke 5 Green")
 
@@ -1010,8 +1008,8 @@ try:
                     sound_chooser.empty_queue()
                     sound_chooser.set_channel('right')
                     sound_chooser.set_sound_cycle()
-                    while sound_chooser.right_on == True:
-                        sound_chooser.play()
+                    sound_chooser.play()
+
                     
                     # Debug message
                     print("Turning Nosepoke 7 Green")
