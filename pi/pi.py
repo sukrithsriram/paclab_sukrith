@@ -226,13 +226,6 @@ class SoundQueue:
         # Each block/frame is about 5 ms
         # Longer is more buffer against unexpected delays
         # Shorter is faster to empty and refill the queue
-        
-        # Initializing queues to be used by sound player
-        sound_queue = mp.Queue()
-        qlock = mp.Queue()
-        
-        # Lock for thread-safe set_channel() updates
-        qlock = mp.Lock() 
         self.target_qsize = 200
 
         # Some counters to keep track of how many sounds we've played
@@ -987,7 +980,8 @@ try:
                     # Playing sound from the left speaker
                     sound_chooser.set_channel('left')
                     sound_chooser.set_sound_cycle()
-                    
+                    sound_chooser.empty_queue()
+
                     # Debug message
                     print("Turning Nosepoke 5 Green")
 
@@ -1011,6 +1005,8 @@ try:
                     # Playing sound from the right speaker
                     sound_chooser.set_channel('right')
                     sound_chooser.set_sound_cycle()
+                    sound_chooser.empty_queue()
+
                     
                     # Debug message
                     print("Turning Nosepoke 7 Green")
