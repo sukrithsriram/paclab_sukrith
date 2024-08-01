@@ -1036,7 +1036,7 @@ try:
                 sound_chooser.empty_queue()
 
                 # Opening Solenoid Valve
-                open_valve(prev_port)
+                open_valve(current_port_poked)
                 flash()
                 
                 # Updating Parameters
