@@ -680,6 +680,7 @@ nospokeR_id = params['nosepokeR_id']
 # Global variables for which nospoke was detected
 left_poke_detected = False
 right_poke_detected = False
+current_port_poked = None
 
 # Callback function for nosepoke pin (When the nosepoke is completed)
 def poke_inL(pin, level, tick):
@@ -714,13 +715,14 @@ def poke_inR(pin, level, tick):
 
 # Callback functions for nosepoke pin (When the nosepoke is detected)
 def poke_detectedL(pin, level, tick): 
-    global a_state, count, left_poke_detected
+    global a_state, count, left_poke_detected, current_port_poked
     a_state = 1
     count += 1
     left_poke_detected = True
     print("Poke Completed (Left)")
     print("Poke Count:", count)
     nosepoke_idL = params['nosepokeL_id']  # Set the left nosepoke_id here according to the pi
+    current_port_poked = nosepoke_idL
     pi.set_mode(17, pigpio.OUTPUT)
     if params['nosepokeL_type'] == "901":
         pi.write(17, 0)
@@ -735,13 +737,14 @@ def poke_detectedL(pin, level, tick):
         print("Error sending nosepoke_id:", e)
 
 def poke_detectedR(pin, level, tick): 
-    global a_state, count, right_poke_detected
+    global a_state, count, right_poke_detected, current_port_poked
     a_state = 1
     count += 1
     right_poke_detected = True
     print("Poke Completed (Right)")
     print("Poke Count:", count)
     nosepoke_idR = params['nosepokeR_id']  # Set the right nosepoke_id here according to the pi
+    current_port_poked = nosepoke_idR
     pi.set_mode(10, pigpio.OUTPUT)
     if params['nosepokeR_type'] == "901":
         pi.write(10, 0)
@@ -795,6 +798,7 @@ def stop_session():
     pi.write(27, 0)
     pi.write(9, 0)
     sound_chooser.set_channel('none')
+    sound_chooser.empty_queue()
 
 ## Set up pigpio and callbacks
 # TODO: rename this variable to pig or something; "pi" is ambiguous
@@ -896,6 +900,7 @@ try:
             if msg == 'exit': 
                 # Condition to terminate the main loop
                 # TODO: why are these pi.write here? # To turn the LEDs on the Pi off when the GUI is closed
+                sound_chooser.empty_queue()
                 pi.write(17, 0)
                 pi.write(10, 0)
                 pi.write(27, 0)
@@ -977,7 +982,7 @@ try:
                     # Keep track of which port is rewarded and which pin
                     # is rewarded
                     prev_port = value
-                    current_pin = reward_pin
+                    current_pin = reward_pin # for LED only 
 
                 elif value == int(params['nosepokeR_id']):
                     # Reward pin for right
@@ -997,7 +1002,6 @@ try:
                     sound_chooser.set_sound_cycle()
                     sound_chooser.play()
 
-                    
                     # Debug message
                     print("Turning Nosepoke 7 Green")
                     
@@ -1009,9 +1013,11 @@ try:
                 else:
                     # TODO: document why this happens
                     # Current Reward Port
+                    sound_chooser.set_channel('none')
+                    sound_chooser.empty_queue()
                     print(f"Current Reward Port: {value}") 
                 
-            elif msg == "Reward Poke Completed":
+            elif current_poked_port == value:
                 # This seems to occur when the GUI detects that the poked
                 # port was rewarded. This will be too slow. The reward port
                 # should be opened if it knows it is the rewarded pin. 
