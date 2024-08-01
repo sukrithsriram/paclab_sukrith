@@ -360,7 +360,7 @@ class Worker(QObject):
             writer = csv.writer(csvfile)
             writer.writerow(["No. of Pokes","Poke Timestamp (seconds)", "Port Visited", "Current Reward Port", "No. of Trials", "No. of Correct Trials", "Amplitude", "Rate", "Irregularity", "Center Frequency"])
             for poke, timestamp, poked_port, reward_port, completed_trial, correct_trial,  amplitude, target_rate, target_temporal_log_std, center_freq in zip(self.timestamps, self.poked_port_numbers, self.reward_ports, self.pokes, self.completed_trials, self.correct_trials, self.amplitudes, self.target_rates, self.target_temporal_log_stds, self.center_freqs):
-                writer.writerow([timestamp, poked_port, reward_port, poke, completed_trial, correct_trial, amplitude, target_rate, target_temporal_log_std,center_freq])
+                writer.writerow([ poke, timestamp, poked_port, reward_port, completed_trial, correct_trial, amplitude, target_rate, target_temporal_log_std,center_freq])
         
         print_out(f"Results saved to logs")
     
