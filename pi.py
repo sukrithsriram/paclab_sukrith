@@ -449,7 +449,7 @@ class SoundQueue:
         # this method eventually, so that it can respond to END
         # But also don't want to change stage too frequently or the debug
         # messages are overwhelming
-        for n in range(10):
+        while True:
             # Add stimulus sounds to queue as needed
             self.append_sound_to_queue_as_needed()
 
@@ -848,14 +848,20 @@ try:
     # Track prev_port
     prev_port = None
     
+    # Making sure queue is topped up
+    #sound_chooser.append_sound_to_queue_as_needed()
+    sound_thread = threading.Thread(target=sound_chooser.play)
+    sound_thread.daemon = True  # This will ensure the thread exits when the main program exits
+    sound_thread.start()
+
+    
     ## Loop forever
     while True:
         ## Wait for events on registered sockets
         # TODO: how long does it wait? # Can be set, currently not sure
         socks = dict(poller.poll(100))
         
-        with qlock:
-            sound_chooser.append_sound_to_queue_as_needed()
+        sound_chooser.append_sound_to_queue_as_needed()
         
         ## Check for incoming messages on json_socket
         # If so, use it to update the acoustic parameters
