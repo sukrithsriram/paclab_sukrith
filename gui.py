@@ -306,6 +306,7 @@ class Worker(QObject):
                     self.last_pi_received = identity
 
                     self.pokedportsignal.emit(poked_port, color)
+                    self.reward_ports.append(self.reward_port)
                     self.update_unique_ports()
                     
 
@@ -334,7 +335,6 @@ class Worker(QObject):
                     
                     self.pokes.append(self.current_poke)
                     self.timestamps.append(elapsed_time)
-                    self.reward_ports.append(self.reward_port)
                     self.amplitudes.append(self.current_amplitude)
                     self.target_rates.append(self.current_target_rate)
                     self.target_temporal_log_stds.append(self.current_target_temporal_log_std)
