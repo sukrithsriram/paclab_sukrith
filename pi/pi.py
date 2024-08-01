@@ -1049,7 +1049,7 @@ try:
                 sound_chooser.update_parameters(
                     rate_min, rate_max, irregularity_min, irregularity_max, 
                     amplitude_min, amplitude_max, center_freq_min, center_freq_max, bandwidth)
-                poke_socket.send_string(sound_chooser.parameter_message)
+                poke_socket.send_string(sound_chooser.update_parameters.parameter_message)
                 
                 
                 # Turn off the currently active LED
