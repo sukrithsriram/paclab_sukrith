@@ -1009,6 +1009,41 @@ try:
                     # is rewarded
                     prev_port = value
                     current_pin = reward_pin
+                
+                elif current_port_poked == value:
+                    # This seems to occur when the GUI detects that the poked
+                    # port was rewarded. This will be too slow. The reward port
+                    # should be opened if it knows it is the rewarded pin. 
+                    
+                    # Emptying the queue completely
+                    sound_chooser.set_channel('none')
+                    sound_chooser.empty_queue()
+
+                    # Opening Solenoid Valve
+                    open_valve(prev_port)
+                    flash()
+                    
+                    # Debug statement
+                    print("Reward Poke Completed")
+                    
+                    # Updating Parameters
+                    # TODO: fix this; rate_min etc are not necessarily defined
+                    # yet, or haven't changed recently
+                    # Reset play mode to 'none'
+                    sound_chooser.update_parameters(
+                        rate_min, rate_max, irregularity_min, irregularity_max, 
+                        amplitude_min, amplitude_max, center_freq_min, center_freq_max, bandwidth)
+                    
+                    # Turn off the currently active LED
+                    if current_pin is not None:
+                        pi.write(current_pin, 0)
+                        print("Turning off currently active LED.")
+                        current_pin = None  # Reset the current LED
+                    else:
+                        print("No LED is currently active.")
+               
+                else:
+                    print("Unknown message received:", msg)
 
                 else:
                     # TODO: document why this happens
@@ -1016,39 +1051,7 @@ try:
                     sound_chooser.set_channel('none')
                     sound_chooser.empty_queue()
                     print(f"Current Reward Port: {value}") 
-                
-            elif current_port_poked == value:
-                # This seems to occur when the GUI detects that the poked
-                # port was rewarded. This will be too slow. The reward port
-                # should be opened if it knows it is the rewarded pin. 
-                
-                # Emptying the queue completely
-                sound_chooser.set_channel('none')
-                sound_chooser.empty_queue()
 
-                # Opening Solenoid Valve
-                open_valve(prev_port)
-                flash()
-                
-                # Updating Parameters
-                # TODO: fix this; rate_min etc are not necessarily defined
-                # yet, or haven't changed recently
-                # Reset play mode to 'none'
-                sound_chooser.update_parameters(
-                    rate_min, rate_max, irregularity_min, irregularity_max, 
-                    amplitude_min, amplitude_max, center_freq_min, center_freq_max, bandwidth)
-                
-                # Turn off the currently active LED
-                if current_pin is not None:
-                    pi.write(current_pin, 0)
-                    print("Turning off currently active LED.")
-                    current_pin = None  # Reset the current LED
-                else:
-                    print("No LED is currently active.")
-           
-            else:
-                print("Unknown message received:", msg)
-    
 except KeyboardInterrupt:
     # Stops the pigpio connection
     pi.stop()
