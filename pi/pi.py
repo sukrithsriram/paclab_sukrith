@@ -242,6 +242,9 @@ class SoundQueue:
         self.left_on = False
         self.right_on = False
         
+        # State variable to stop appending frames 
+        self.running = False
+        
         # Fill the queue with empty frames
         # Sounds aren't initialized till the trial starts
         # Using False here should work even without sounds initialized yet
@@ -475,7 +478,7 @@ class SoundQueue:
         qsize = sound_queue.qsize()
 
         # Add frames until target size reached
-        while qsize < self.target_qsize:
+        while self.running ==True and qsize < self.target_qsize:
             with qlock:
                 # Add a frame from the sound cycle
                 frame = next(self.sound_cycle)
@@ -799,6 +802,8 @@ def stop_session():
     pi.write(9, 0)
     sound_chooser.set_channel('none')
     sound_chooser.empty_queue()
+    sound_chooser.running = False
+
 
 ## Set up pigpio and callbacks
 # TODO: rename this variable to pig or something; "pi" is ambiguous
@@ -959,6 +964,9 @@ try:
                 
                 # Manipulate pin values based on the integer value
                 if value == int(params['nosepokeL_id']):
+                    # Starting sound
+                    sound_chooser.running = True
+                    
                     # Reward pin for left
                     # TODO: these reward pins need to be stored as a parameter,
                     # not hardcoded here
@@ -985,6 +993,9 @@ try:
                     current_pin = reward_pin # for LED only 
 
                 elif value == int(params['nosepokeR_id']):
+                    # Starting sound
+                    sound_chooser.running = True
+                    
                     # Reward pin for right
                     # TODO: these reward pins need to be stored as a parameter,
                     # not hardcoded here                    
@@ -1014,6 +1025,9 @@ try:
                     # This seems to occur when the GUI detects that the poked
                     # port was rewarded. This will be too slow. The reward port
                     # should be opened if it knows it is the rewarded pin. 
+                    
+                    # Starting sound
+                    sound_chooser.running = False
                     
                     # Emptying the queue completely
                     sound_chooser.set_channel('none')
