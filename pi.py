@@ -854,7 +854,8 @@ try:
         # TODO: how long does it wait? # Can be set, currently not sure
         socks = dict(poller.poll(100))
         
-        sound_chooser.append_sound_to_queue_as_needed()
+        with qlock:
+            sound_chooser.append_sound_to_queue_as_needed()
         
         ## Check for incoming messages on json_socket
         # If so, use it to update the acoustic parameters
