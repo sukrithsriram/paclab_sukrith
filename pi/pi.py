@@ -317,19 +317,6 @@ class SoundQueue:
         left_target_rate = self.target_rate 
         right_target_rate = self.target_rate 
         
-        # Helper function to set sound cycle
-        def set_channel(self, mode):
-            """Controlling which channel the sound is played from """
-            if mode == 'none':
-                self.left_on = False
-                self.right_on = False
-            if mode == 'left':
-                self.left_on = True
-                self.right_on = False
-            if mode == 'right':
-                self.left_on = False
-                self.right_on = True
-
         print(self.target_rate)
         print(left_on)
         print(right_on)
@@ -372,8 +359,6 @@ class SoundQueue:
         
         print(left_target_intervals)
         print(right_target_intervals)
-        
-
 
         
         ## Sort all the drawn intervals together
@@ -523,6 +508,18 @@ class SoundQueue:
                 break
         
         qsize = sound_queue.qsize()
+    
+    def set_channel(self, mode):
+        """Controlling which channel the sound is played from """
+        if mode == 'none':
+            self.left_on = False
+            self.right_on = False
+        if mode == 'left':
+            self.left_on = True
+            self.right_on = False
+        if mode == 'right':
+            self.left_on = False
+            self.right_on = True
 
 # Define a JackClient, which will play sounds in the background
 # Rename to SoundPlayer to avoid confusion with jack.Client
@@ -970,7 +967,7 @@ try:
                     
                     # Playing sound from the left speaker
                     sound_chooser.empty_queue()
-                    sound_chooser.set_sound_cycle.set_channel('left')
+                    sound_chooser.set_channel('left')
                     sound_chooser.set_sound_cycle()
                     sound_chooser.play()
                     
@@ -996,7 +993,7 @@ try:
                     
                     # Playing sound from the right speaker
                     sound_chooser.empty_queue()
-                    sound_chooser.set_sound_cycle.set_channel('right')
+                    sound_chooser.set_channel('right')
                     sound_chooser.set_sound_cycle()
                     sound_chooser.play()
 
@@ -1020,7 +1017,7 @@ try:
                 # should be opened if it knows it is the rewarded pin. 
                 
                 # Emptying the queue completely
-                sound_chooser.set_sound_cycle.set_channel('none')
+                sound_chooser.set_channel('none')
                 sound_chooser.empty_queue()
 
                 # Opening Solenoid Valve
