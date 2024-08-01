@@ -306,17 +306,8 @@ class Worker(QObject):
                     self.last_pi_received = identity
 
                     self.pokedportsignal.emit(poked_port, color)
-                    self.timestamps.append(elapsed_time)
-                    self.reward_ports.append(self.reward_port)
-                    self.amplitudes.append(self.current_amplitude)
-                    self.target_rates.append(self.current_target_rate)
-                    self.target_temporal_log_stds.append(self.current_target_temporal_log_std)
-                    self.center_freqs.append(self.current_center_freq)
-                    self.pokes.append(self.current_poke)
-                    self.completed_trials.append(self.current_completed_trials)
-                    self.correct_trials.append(self.current_correct_trials)
-                    
                     self.update_unique_ports()
+                    
 
                     if color == "green" or color == "blue":
                         self.current_poke += 1
@@ -339,7 +330,18 @@ class Worker(QObject):
 
                         for identity in self.identities:
                             self.socket.send_multipart([identity, bytes(f"Reward Port: {self.reward_port}", 'utf-8')])
-
+                            
+                    
+                    self.pokes.append(self.current_poke)
+                    self.timestamps.append(elapsed_time)
+                    self.reward_ports.append(self.reward_port)
+                    self.amplitudes.append(self.current_amplitude)
+                    self.target_rates.append(self.current_target_rate)
+                    self.target_temporal_log_stds.append(self.current_target_temporal_log_std)
+                    self.center_freqs.append(self.current_center_freq)
+                    self.completed_trials.append(self.current_completed_trials)
+                    self.correct_trials.append(self.current_correct_trials)
+        
         except ValueError:
             pass
             #print_out("Unknown message:", message_str)
@@ -358,10 +360,11 @@ class Worker(QObject):
         # Save results to a CSV file
         with open(f"{save_directory}/{filename}", 'w', newline='') as csvfile:
             writer = csv.writer(csvfile)
-            writer.writerow(["No. of Pokes","Poke Timestamp (seconds)", "Port Visited", "Current Reward Port", "No. of Trials", "No. of Correct Trials", "Amplitude", "Rate", "Irregularity", "Center Frequency"])
-            for poke, timestamp, poked_port, reward_port, completed_trial, correct_trial,  amplitude, target_rate, target_temporal_log_std, center_freq in zip(self.timestamps, self.poked_port_numbers, self.reward_ports, self.pokes, self.completed_trials, self.correct_trials, self.amplitudes, self.target_rates, self.target_temporal_log_stds, self.center_freqs):
-                writer.writerow([ poke, timestamp, poked_port, reward_port, completed_trial, correct_trial, amplitude, target_rate, target_temporal_log_std,center_freq])
-        
+            writer.writerow(["No. of Pokes", "Poke Timestamp (seconds)", "Port Visited", "Current Reward Port", "No. of Trials", "No. of Correct Trials", "Amplitude", "Rate", "Irregularity", "Center Frequency"])
+            for poke, timestamp, poked_port, reward_port, completed_trial, correct_trial, amplitude, target_rate, target_temporal_log_std, center_freq in zip(
+                self.pokes, self.timestamps, self.poked_port_numbers, self.reward_ports, self.completed_trials, self.correct_trials, self.amplitudes, self.target_rates, self.target_temporal_log_stds, self.center_freqs):
+                writer.writerow([poke, timestamp, poked_port, reward_port, completed_trial, correct_trial, amplitude, target_rate, target_temporal_log_std, center_freq])
+
         print_out(f"Results saved to logs")
     
     # Method to send start message to the pi
