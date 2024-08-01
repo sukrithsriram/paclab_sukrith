@@ -905,13 +905,7 @@ try:
             if msg == 'exit': 
                 # Condition to terminate the main loop
                 # TODO: why are these pi.write here? # To turn the LEDs on the Pi off when the GUI is closed
-                sound_chooser.running = False
-                sound_chooser.set_channel('none')
-                sound_chooser.empty_queue()
-                pi.write(17, 0)
-                pi.write(10, 0)
-                pi.write(27, 0)
-                pi.write(9, 0)
+                stop_session()
                 print("Received exit command. Terminating program.")
                 
                 # Wait for the client to finish processing any remaining chunks
