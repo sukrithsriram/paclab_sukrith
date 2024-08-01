@@ -1017,7 +1017,7 @@ try:
                     sound_chooser.empty_queue()
                     print(f"Current Reward Port: {value}") 
                 
-            elif current_poked_port == value:
+            elif current_port_poked == value:
                 # This seems to occur when the GUI detects that the poked
                 # port was rewarded. This will be too slow. The reward port
                 # should be opened if it knows it is the rewarded pin. 
