@@ -625,8 +625,6 @@ nb_lock = mp.Lock()
 # Define a client to play sounds
 sound_chooser = SoundQueue()
 sound_player = SoundPlayer(name='sound_player')
-player = threading.Thread(target=sound_player, daemon = True)
-player.start()
 
 # Raspberry Pi's identity (Change this to the identity of the Raspberry Pi you are using)
 # TODO: what is the difference between pi_identity and pi_name? # They are functionally the same, this line is from before I imported 
@@ -649,7 +647,6 @@ poke_socket.identity = bytes(f"{pi_identity}", "utf-8")
 #  - This socket only receives messages sent from the GUI regarding the parameters 
 json_context = zmq.Context()
 json_socket = json_context.socket(zmq.SUB)
-
 
 ## Connect to the server
 # Connecting to IP address (192.168.0.99 for laptop, 192.168.0.207 for seaturtle)
