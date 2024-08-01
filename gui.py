@@ -130,6 +130,7 @@ class Worker(QObject):
         self.current_poke = 0
         self.current_completed_trials = 0
         self.current_correct_trials = 0
+        self.current_fraction_correct = 0
         
         # Initialize reward_port and related variables that need to be continually updated
         self.last_pi_received = None
@@ -152,6 +153,7 @@ class Worker(QObject):
         self.pokes = []
         self.completed_trials = []
         self.correct_trials = []
+        self.fc = []
         self.reward_ports = []
         self.unique_ports_visited = []  # List to store unique ports visited in each trial
         self.unique_ports_colors = {}  # Dictionary to store color for each unique port
@@ -321,6 +323,7 @@ class Worker(QObject):
                         print_out(f"Reward Port: {self.reward_port}")
                         if color == "green":
                             self.current_correct_trials += 1 
+                            self.current_fraction_correct = self.current_correct_trials / self.current_completed_trials
 
                         # Reset color of all non-reward ports to gray and reward port to green
                         for index, Pi in enumerate(self.Pi_signals):
@@ -341,6 +344,7 @@ class Worker(QObject):
                     self.center_freqs.append(self.current_center_freq)
                     self.completed_trials.append(self.current_completed_trials)
                     self.correct_trials.append(self.current_correct_trials)
+                    self.fc.append(self.current_fraction_correct)
         
         except ValueError:
             pass
@@ -360,10 +364,10 @@ class Worker(QObject):
         # Save results to a CSV file
         with open(f"{save_directory}/{filename}", 'w', newline='') as csvfile:
             writer = csv.writer(csvfile)
-            writer.writerow(["No. of Pokes", "Poke Timestamp (seconds)", "Port Visited", "Current Reward Port", "No. of Trials", "No. of Correct Trials", "Amplitude", "Rate", "Irregularity", "Center Frequency"])
-            for poke, timestamp, poked_port, reward_port, completed_trial, correct_trial, amplitude, target_rate, target_temporal_log_std, center_freq in zip(
-                self.pokes, self.timestamps, self.poked_port_numbers, self.reward_ports, self.completed_trials, self.correct_trials, self.amplitudes, self.target_rates, self.target_temporal_log_stds, self.center_freqs):
-                writer.writerow([poke, timestamp, poked_port, reward_port, completed_trial, correct_trial, amplitude, target_rate, target_temporal_log_std, center_freq])
+            writer.writerow(["No. of Pokes", "Poke Timestamp (seconds)", "Port Visited", "Current Reward Port", "No. of Trials", "No. of Correct Trials", "Fraction Correct", "Amplitude", "Rate", "Irregularity", "Center Frequency"])
+            for poke, timestamp, poked_port, reward_port, completed_trial, correct_trial, fc, amplitude, target_rate, target_temporal_log_std, center_freq in zip(
+                self.pokes, self.timestamps, self.poked_port_numbers, self.reward_ports, self.completed_trials, self.correct_trials, self.fc, self.amplitudes, self.target_rates, self.target_temporal_log_stds, self.center_freqs):
+                writer.writerow([poke, timestamp, poked_port, reward_port, completed_trial, correct_trial, fc, amplitude, target_rate, target_temporal_log_std, center_freq])
 
         print_out(f"Results saved to logs")
     
