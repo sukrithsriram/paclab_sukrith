@@ -1044,8 +1044,6 @@ try:
                
                 else:
                     print("Unknown message received:", msg)
-
-                else:
                     # TODO: document why this happens
                     # Current Reward Port
                     sound_chooser.set_channel('none')
