@@ -268,8 +268,8 @@ class SoundQueue:
         # Debug message
         parameter_message = (
             f"Current Parameters - Amplitude: {self.amplitude}, "
-            f"Rate: {self.target_rate} s, "
-            f"Irregularity: {self.target_temporal_log_std} s, "
+            f"Rate: {self.target_rate} Hz, "
+            f"Irregularity: {self.target_temporal_log_std}, "
             f"Center Frequency: {self.center_freq} Hz, "
             f"Bandwidth: {self.bandwidth}"
             )
