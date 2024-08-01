@@ -319,6 +319,7 @@ class Worker(QObject):
                             self.socket.send_multipart([identity, bytes(f"Reward Port: {self.reward_port}", 'utf-8')])
 
         except ValueError:
+            pass
             #print_out("Unknown message:", message_str)
             
     
