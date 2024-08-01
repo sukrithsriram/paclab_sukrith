@@ -449,7 +449,7 @@ class SoundQueue:
         # this method eventually, so that it can respond to END
         # But also don't want to change stage too frequently or the debug
         # messages are overwhelming
-        while True:
+        for n in range(10):
             # Add stimulus sounds to queue as needed
             self.append_sound_to_queue_as_needed()
 
@@ -625,6 +625,8 @@ nb_lock = mp.Lock()
 # Define a client to play sounds
 sound_chooser = SoundQueue()
 sound_player = SoundPlayer(name='sound_player')
+player = threading.Thread(target=sound_player.process, daemon = True)
+player.start()
 
 # Raspberry Pi's identity (Change this to the identity of the Raspberry Pi you are using)
 # TODO: what is the difference between pi_identity and pi_name? # They are functionally the same, this line is from before I imported 
@@ -847,13 +849,6 @@ try:
     
     # Track prev_port
     prev_port = None
-    
-    # Making sure queue is topped up
-    #sound_chooser.append_sound_to_queue_as_needed()
-    sound_thread = threading.Thread(target=sound_chooser.play)
-    sound_thread.daemon = True  # This will ensure the thread exits when the main program exits
-    sound_thread.start()
-
     
     ## Loop forever
     while True:
