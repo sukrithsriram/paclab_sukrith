@@ -625,7 +625,7 @@ nb_lock = mp.Lock()
 # Define a client to play sounds
 sound_chooser = SoundQueue()
 sound_player = SoundPlayer(name='sound_player')
-player = threading.Thread(target=sound_player.process, daemon = True)
+player = threading.Thread(target=sound_player, daemon = True)
 player.start()
 
 # Raspberry Pi's identity (Change this to the identity of the Raspberry Pi you are using)
