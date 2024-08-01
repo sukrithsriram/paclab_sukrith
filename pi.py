@@ -883,9 +883,10 @@ try:
             
             
             # Update the jack client with the new acoustic parameters
-            sound_chooser.update_parameters(
+            new_params = sound_chooser.update_parameters(
                 rate_min, rate_max, irregularity_min, irregularity_max, 
                 amplitude_min, amplitude_max, center_freq_min, center_freq_max, bandwidth)
+            poke_socket.send_string(new_params)
             sound_chooser.initialize_sounds(sound_player.blocksize, sound_player.fs, 
                 sound_chooser.amplitude, sound_chooser.target_highpass, sound_chooser.target_lowpass)
             sound_chooser.set_sound_cycle()
