@@ -302,7 +302,7 @@ class Worker(QObject):
 
                     if color == "green" or color == "blue":
                         for identity in self.identities:
-                            self.socket.send_multipart([identity, bytes(f"Reward Poke Completed: {self.reward_port}", 'utf-8]')
+                            self.socket.send_multipart([identity, bytes(f"Reward Poke Completed: {self.reward_port}", 'utf-8]')])
                         self.last_rewarded_port = self.reward_port   
                         self.reward_port = self.choose()
                         self.trials = 0
