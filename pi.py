@@ -1046,10 +1046,10 @@ try:
                 # TODO: fix this; rate_min etc are not necessarily defined
                 # yet, or haven't changed recently
                 # Reset play mode to 'none'
-                sound_chooser.update_parameters(
+                new_ params = sound_chooser.update_parameters(
                     rate_min, rate_max, irregularity_min, irregularity_max, 
                     amplitude_min, amplitude_max, center_freq_min, center_freq_max, bandwidth)
-                poke_socket.send_string(sound_chooser.update_parameters.parameter_message)
+                poke_socket.send_string(new_params)
                 
                 
                 # Turn off the currently active LED
