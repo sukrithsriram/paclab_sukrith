@@ -904,6 +904,8 @@ try:
             if msg == 'exit': 
                 # Condition to terminate the main loop
                 # TODO: why are these pi.write here? # To turn the LEDs on the Pi off when the GUI is closed
+                sound_chooser.running = False
+                sound_chooser.set_channel('none')
                 sound_chooser.empty_queue()
                 pi.write(17, 0)
                 pi.write(10, 0)
@@ -984,7 +986,7 @@ try:
                     sound_chooser.play()
                     
                     # Debug message
-                    print("Turning Nosepoke 5 Green")
+                    print(f"Turning port {value} green")
 
                     # Keep track of which port is rewarded and which pin
                     # is rewarded
@@ -1013,7 +1015,7 @@ try:
                     sound_chooser.play()
 
                     # Debug message
-                    print("Turning Nosepoke 7 Green")
+                    print(f"Turning port {value} green")
                     
                     # Keep track of which port is rewarded and which pin
                     # is rewarded
@@ -1023,7 +1025,8 @@ try:
                 else:
                     # TODO: document why this happens
                     # Current Reward Port
-                    print(f"Current Reward Port: {value}") 
+                    prev_port = value
+                    print(f"Current Reward Port: {value}")
                 
             elif msg.startswith("Reward Poke Completed"):
                 # This seems to occur when the GUI detects that the poked
@@ -1036,7 +1039,7 @@ try:
                 sound_chooser.empty_queue()
 
                 # Opening Solenoid Valve
-                open_valve(current_port_poked)
+                open_valve(prev_port)
                 flash()
                 
                 # Updating Parameters
