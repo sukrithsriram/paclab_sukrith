@@ -118,10 +118,10 @@ class Worker(QObject):
 
         # Initializing values for sound parameters
         self.amplitudes = []
-        self.rate_durations = []
+        self.target_rates = []
         self.irregularity_durations = []
         self.current_amplitude = 0.0
-        self.current_rate_duration = 0.0
+        self.current_target_rate = 0.0
         self.current_irregularity_duration = 0.0
         
         # Initialize reward_port and related variables that need to be continually updated
@@ -189,7 +189,7 @@ class Worker(QObject):
         self.reward_ports.clear()
         self.poked_port_numbers.clear()
         self.amplitudes.clear()
-        self.rate_durations.clear()
+        self.target_rates.clear()
         self.irregularity_durations.clear()
         self.unique_ports_visited.clear()
         self.identities.clear()
@@ -266,7 +266,7 @@ class Worker(QObject):
                 
                 # Extract and convert the values
                 self.current_amplitude = float(params.get("Amplitude", 0))
-                self.current_rate_duration = float(params.get("Rate", "0").split()[0])
+                self.current_target_rate = float(params.get("Rate", "0").split()[0])
                 self.current_irregularity_duration = float(params.get("Irregularity", 0))
 
             else:
@@ -296,7 +296,7 @@ class Worker(QObject):
                     self.timestamps.append(elapsed_time)
                     self.reward_ports.append(self.reward_port)
                     self.amplitudes.append(self.current_amplitude)
-                    self.rate_durations.append(self.current_rate_duration)
+                    self.target_rates.append(self.current_target_rate)
                     self.irregularity_durations.append(self.current_irregularity_duration)
                     self.update_unique_ports()
 
@@ -318,7 +318,6 @@ class Worker(QObject):
                         for identity in self.identities:
                             self.socket.send_multipart([identity, bytes(f"Reward Port: {self.reward_port}", 'utf-8')])
 
-
         except ValueError:
             print_out("Unknown message:", message_str)
             
@@ -337,8 +336,8 @@ class Worker(QObject):
         with open(f"{save_directory}/{filename}", 'w', newline='') as csvfile:
             writer = csv.writer(csvfile)
             writer.writerow(["Poke Timestamp (seconds)", "Port Visited", "Current Reward Port", "Amplitude", "Rate", "Irregularity"])
-            for timestamp, poked_port, reward_port, amplitude, rate_duration, irregularity_duration in zip(self.timestamps, self.poked_port_numbers, self.reward_ports, self.amplitudes, self.rate_durations, self.irregularity_durations):
-                writer.writerow([timestamp, poked_port, reward_port, amplitude, rate_duration, irregularity_duration])
+            for timestamp, poked_port, reward_port, amplitude, target_rate, irregularity_duration in zip(self.timestamps, self.poked_port_numbers, self.reward_ports, self.amplitudes, self.target_rates, self.irregularity_durations):
+                writer.writerow([timestamp, poked_port, reward_port, amplitude, target_rate, irregularity_duration])
         
         print_out(f"Results saved to logs")
     

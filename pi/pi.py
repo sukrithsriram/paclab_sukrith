@@ -45,7 +45,7 @@ pi_name = str(pi_hostname)
 
 # Load the config parameters for this pi
 # TODO: document everything in params
-param_directory = f"configs/pis/{pi_name}.json"
+param_directory = f"pi/configs/pis/{pi_name}.json"
 with open(param_directory, "r") as p:
     params = json.load(p)    
 
@@ -1049,6 +1049,8 @@ try:
                 sound_chooser.update_parameters(
                     rate_min, rate_max, irregularity_min, irregularity_max, 
                     amplitude_min, amplitude_max, center_freq_min, center_freq_max, bandwidth)
+                poke_socket.send_string(sound_chooser.parameter_message)
+                
                 
                 # Turn off the currently active LED
                 if current_pin is not None:
