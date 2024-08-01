@@ -119,10 +119,10 @@ class Worker(QObject):
         # Initializing values for sound parameters
         self.amplitudes = []
         self.target_rates = []
-        self.irregularity_durations = []
+        self.target_temporal_log_stds = []
         self.current_amplitude = 0.0
         self.current_target_rate = 0.0
-        self.current_irregularity_duration = 0.0
+        self.current_target_temporal_log_std = 0.0
         
         # Initialize reward_port and related variables that need to be continually updated
         self.last_pi_received = None
@@ -190,7 +190,7 @@ class Worker(QObject):
         self.poked_port_numbers.clear()
         self.amplitudes.clear()
         self.target_rates.clear()
-        self.irregularity_durations.clear()
+        self.target_temporal_log_stds.clear()
         self.unique_ports_visited.clear()
         self.identities.clear()
         self.last_poke_timestamp = None
@@ -267,7 +267,7 @@ class Worker(QObject):
                 # Extract and convert the values
                 self.current_amplitude = float(params.get("Amplitude", 0))
                 self.current_target_rate = float(params.get("Rate", "0").split()[0])
-                self.current_irregularity_duration = float(params.get("Irregularity", 0))
+                self.current_target_temporal_log_std = float(params.get("Irregularity", 0))
 
             else:
                 poked_port = int(message_str)
@@ -297,7 +297,7 @@ class Worker(QObject):
                     self.reward_ports.append(self.reward_port)
                     self.amplitudes.append(self.current_amplitude)
                     self.target_rates.append(self.current_target_rate)
-                    self.irregularity_durations.append(self.current_irregularity_duration)
+                    self.target_temporal_log_stds.append(self.current_target_temporal_log_std)
                     self.update_unique_ports()
 
                     if color == "green" or color == "blue":
@@ -319,7 +319,7 @@ class Worker(QObject):
                             self.socket.send_multipart([identity, bytes(f"Reward Port: {self.reward_port}", 'utf-8')])
 
         except ValueError:
-            print_out("Unknown message:", message_str)
+            #print_out("Unknown message:", message_str)
             
     
    # Method to save results to a CSV file
@@ -336,8 +336,8 @@ class Worker(QObject):
         with open(f"{save_directory}/{filename}", 'w', newline='') as csvfile:
             writer = csv.writer(csvfile)
             writer.writerow(["Poke Timestamp (seconds)", "Port Visited", "Current Reward Port", "Amplitude", "Rate", "Irregularity"])
-            for timestamp, poked_port, reward_port, amplitude, target_rate, irregularity_duration in zip(self.timestamps, self.poked_port_numbers, self.reward_ports, self.amplitudes, self.target_rates, self.irregularity_durations):
-                writer.writerow([timestamp, poked_port, reward_port, amplitude, target_rate, irregularity_duration])
+            for timestamp, poked_port, reward_port, amplitude, target_rate, target_temporal_log_std in zip(self.timestamps, self.poked_port_numbers, self.reward_ports, self.amplitudes, self.target_rates, self.target_temporal_log_stds):
+                writer.writerow([timestamp, poked_port, reward_port, amplitude, target_rate, target_temporal_log_std])
         
         print_out(f"Results saved to logs")
     
