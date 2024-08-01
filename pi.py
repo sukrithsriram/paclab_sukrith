@@ -984,7 +984,7 @@ try:
                     sound_chooser.empty_queue()
                     sound_chooser.set_channel('left')
                     sound_chooser.set_sound_cycle()
-                    sound_chooser.play()
+                    #sound_chooser.play()
                     
                     # Debug message
                     print(f"Turning port {value} green")
@@ -1013,7 +1013,7 @@ try:
                     sound_chooser.empty_queue()
                     sound_chooser.set_channel('right')
                     sound_chooser.set_sound_cycle()
-                    sound_chooser.play()
+                    #sound_chooser.play()
 
                     # Debug message
                     print(f"Turning port {value} green")
