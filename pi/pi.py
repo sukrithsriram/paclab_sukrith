@@ -1033,16 +1033,13 @@ try:
                 # port was rewarded. This will be too slow. The reward port
                 # should be opened if it knows it is the rewarded pin. 
                 
-                # Flash to signify end of trial
-                flash()
-
-                
                 # Emptying the queue completely
                 sound_chooser.running = False
                 sound_chooser.set_channel('none')
                 sound_chooser.empty_queue()
 
                 # Opening Solenoid Valve
+                flash()
                 open_valve(prev_port)
                 
                 # Updating Parameters
