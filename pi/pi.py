@@ -360,8 +360,8 @@ class SoundQueue:
         else:
             right_target_intervals = np.array([])              
         
-        print(left_target_intervals)
-        print(right_target_intervals)
+        #print(left_target_intervals)
+        #print(right_target_intervals)
 
         
         ## Sort all the drawn intervals together
@@ -411,7 +411,7 @@ class SoundQueue:
         # If both_df has a nonzero but short length, results will be weird,
         # because it might just be one noise burst repeating every ten seconds
         # This only happens with low rates ~0.1Hz
-        print(both_df)
+        #print(both_df)
         if len(both_df) == 0:
             # If no sound, then just put gaps
             append_gap(100)
@@ -424,12 +424,12 @@ class SoundQueue:
                 if bdrow.side == 'left' and bdrow.sound == 'target':
                     for frame in self.left_target_stim.chunks:
                         self.sound_block.append(frame)
-                        print(frame.shape)
+                        #print(frame.shape)
                         assert frame.shape == (1024, 2)
                 elif bdrow.side == 'right' and bdrow.sound == 'target':
                     for frame in self.right_target_stim.chunks:
                         self.sound_block.append(frame)
-                        print(frame.shape)
+                        #print(frame.shape)
                         assert frame.shape == (1024, 2)                        
                 else:
                     raise ValueError(
