@@ -648,6 +648,7 @@ poke_socket.identity = bytes(f"{pi_identity}", "utf-8")
 json_context = zmq.Context()
 json_socket = json_context.socket(zmq.SUB)
 
+
 ## Connect to the server
 # Connecting to IP address (192.168.0.99 for laptop, 192.168.0.207 for seaturtle)
 router_ip = "tcp://" + f"{params['gui_ip']}" + f"{params['poke_port']}" 
@@ -983,7 +984,7 @@ try:
                     sound_chooser.empty_queue()
                     sound_chooser.set_channel('left')
                     sound_chooser.set_sound_cycle()
-                    #sound_chooser.play()
+                    sound_chooser.play()
                     
                     # Debug message
                     print(f"Turning port {value} green")
@@ -1012,7 +1013,7 @@ try:
                     sound_chooser.empty_queue()
                     sound_chooser.set_channel('right')
                     sound_chooser.set_sound_cycle()
-                    #sound_chooser.play()
+                    sound_chooser.play()
 
                     # Debug message
                     print(f"Turning port {value} green")
