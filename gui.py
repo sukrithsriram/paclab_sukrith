@@ -283,10 +283,9 @@ class Worker(QObject):
                 self.current_bandwidth = float(params.get("Bandwidth", "0"))
 
             else:
-                message_str.split(',')
-                poked_port = int(message_str, 0)
-                poke_time = (message_str, 1)
-                elasped_time = initial_time - poke_time
+                poked_port, poke_time_str = message_str.split(',')
+                poke_time = poke_time = datetime.strptime(poke_time_str, "%H:%M:%S")
+                elasped_time = self.initial_time - poke_time
                 # Check if the poked port is the same as the last rewarded port
                 if poked_port == self.last_rewarded_port:
                      # If it is, do nothing and return
