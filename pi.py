@@ -851,6 +851,9 @@ irregularity_max = 0.0
 amplitude_min = 0.0
 amplitude_max = 0.0
 
+# Storing the type of task (mainly for poketrain)
+task = None
+
 ## Main loop to keep the program running and exit when it receives an exit command
 try:
     ## TODO: document these variables and why they are tracked
@@ -886,6 +889,7 @@ try:
             print(config_data)
 
             # Update parameters from JSON data
+            task =  config_data['task']
             rate_min = config_data['rate_min']
             rate_max = config_data['rate_max']
             irregularity_min = config_data['irregularity_min']
@@ -909,6 +913,18 @@ try:
             # Debug print
             print("Parameters updated")
             
+        if task == 'Poketrain':
+            sound_chooser.empty_queue()
+            sound_chooser.set_channel('none')
+            if left_poke_detected == True :
+                open_valve(int(params['nosepokeL_id']))
+                print('Left port open')
+                left_poke_detected = False
+            if right_poke_detected == True:
+                open_valve(int(params['nosepokeR_id']))
+                print('Right port open')
+                right_poke_detected = False
+        
         ## Check for incoming messages on poke_socket
         # TODO: document the types of messages that can be sent on poke_socket 
         if poke_socket in socks and socks[poke_socket] == zmq.POLLIN:
