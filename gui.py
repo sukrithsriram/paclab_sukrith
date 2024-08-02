@@ -235,6 +235,7 @@ class Worker(QObject):
     @pyqtSlot()
     def update_Pi(self):
         current_time = datetime.now()
+        elapsed_time = None
 
         # Update the last poke timestamp whenever a poke event occurs
         self.last_poke_timestamp = current_time
@@ -282,10 +283,14 @@ class Worker(QObject):
                 self.current_center_freq = float(params.get("Center Frequency", "0").split()[0])
                 self.current_bandwidth = float(params.get("Bandwidth", "0"))
 
+            if "Poke Time:" in message_str:
+                poke_time_str = message_str
+                poke_time = datetime.strptime(poke_time_str, "%H:%M:%S")
+                elapsed_time = self.initial_time - poke_time
+                self.timestamps.append(elapsed_time
+                
             else:
-                poked_port, poke_time_str = message_str.split(',')
-                poke_time = poke_time = datetime.strptime(poke_time_str, "%H:%M:%S")
-                elasped_time = self.initial_time - poke_time
+                poked_port = int(message_str)
                 # Check if the poked port is the same as the last rewarded port
                 if poked_port == self.last_rewarded_port:
                      # If it is, do nothing and return
@@ -306,7 +311,6 @@ class Worker(QObject):
                     poked_port_signal.set_color(color)
                     
                     self.poked_port_numbers.append(poked_port)
-                    self.timestamps.append(elapsed_time)
                     print_out("Sequence:", self.poked_port_numbers)
                     self.last_pi_received = identity
 

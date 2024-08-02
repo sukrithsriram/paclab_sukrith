@@ -722,9 +722,6 @@ def poke_inR(pin, level, tick):
 def poke_detectedL(pin, level, tick): 
     global a_state, count, left_poke_detected, current_port_poked, poke_time
     
-    # Get current datetime
-    poke_time = datetime.now()
-    
     a_state = 1
     count += 1
     left_poke_detected = True
@@ -739,18 +736,19 @@ def poke_detectedL(pin, level, tick):
     elif params['nosepokeL_type'] == "903":
         pi.write(17, 1)
         
+    # Get current datetime
+    poke_time = datetime.now()
+        
     # Sending nosepoke_id wirelessly with datetime
     try:
         print(f"Sending nosepoke_id = {nosepoke_idL} at {poke_time}") 
-        poke_socket.send_string(f"{nosepoke_idL},{poke_time}")
+        poke_socket.send_string(f"{nosepoke_idL}")
+        poke_socket_send_string(f"Poke Time: {poke_time}")
     except Exception as e:
         print("Error sending nosepoke_id:", e)
 
 def poke_detectedR(pin, level, tick): 
     global a_state, count, right_poke_detected, current_port_poked, poke_time 
-    
-    # Get current datetime
-    poke_time = datetime.now()
     
     a_state = 1
     count += 1
@@ -766,10 +764,14 @@ def poke_detectedR(pin, level, tick):
     elif params['nosepokeR_type'] == "903":
         pi.write(10, 1)
     
+    # Get current datetime
+    poke_time = datetime.now()
+    
     # Sending nosepoke_id wirelessly with datetime
     try:
         print(f"Sending nosepoke_id = {nosepoke_idR} at {poke_time}") 
-        poke_socket.send_string(f"{nosepoke_idR},{poke_time}")
+        poke_socket.send_string(f"{nosepoke_idR}")
+        poke_socket_send_string(f"Poke Time: {poke_time}")
     except Exception as e:
         print("Error sending nosepoke_id:", e)
 
