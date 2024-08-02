@@ -780,7 +780,7 @@ class PresetTaskDialog(QDialog):
 
         self.task_label = QLabel("Select Task:")
         self.task_combo = QComboBox(self)
-        self.task_combo.addItems(["Fixed", "Sweep", "Distractor", "Poketrain", "Audio"])  
+        self.task_combo.addItems(["Fixed", "Sweep", "Poketrain", "Distracter", "Audio"])  
         self.ok_button = QPushButton("OK")
         self.ok_button.clicked.connect(self.accept)
 
