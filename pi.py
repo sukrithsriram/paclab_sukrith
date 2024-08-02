@@ -685,6 +685,7 @@ nospokeR_id = params['nosepokeR_id']
 left_poke_detected = False
 right_poke_detected = False
 current_port_poked = None
+poke_time = None
 
 # Callback function for nosepoke pin (When the nosepoke is completed)
 def poke_inL(pin, level, tick):
@@ -719,10 +720,15 @@ def poke_inR(pin, level, tick):
 
 # Callback functions for nosepoke pin (When the nosepoke is detected)
 def poke_detectedL(pin, level, tick): 
-    global a_state, count, left_poke_detected, current_port_poked
+    global a_state, count, left_poke_detected, current_port_poked, poke_time
+    
+    # Get current datetime
+    poke_time = datetime.now()
+    
     a_state = 1
     count += 1
     left_poke_detected = True
+
     print("Poke Completed (Left)")
     print("Poke Count:", count)
     nosepoke_idL = params['nosepokeL_id']  # Set the left nosepoke_id here according to the pi
@@ -733,9 +739,6 @@ def poke_detectedL(pin, level, tick):
     elif params['nosepokeL_type'] == "903":
         pi.write(17, 1)
         
-    # Get current datetime
-    poke_time = datetime.now()
-    
     # Sending nosepoke_id wirelessly with datetime
     try:
         print(f"Sending nosepoke_id = {nosepoke_idL} at {poke_time}") 
@@ -744,10 +747,15 @@ def poke_detectedL(pin, level, tick):
         print("Error sending nosepoke_id:", e)
 
 def poke_detectedR(pin, level, tick): 
-    global a_state, count, right_poke_detected, current_port_poked
+    global a_state, count, right_poke_detected, current_port_poked, poke_time 
+    
+    # Get current datetime
+    poke_time = datetime.now()
+    
     a_state = 1
     count += 1
     right_poke_detected = True
+    
     print("Poke Completed (Right)")
     print("Poke Count:", count)
     nosepoke_idR = params['nosepokeR_id']  # Set the right nosepoke_id here according to the pi
@@ -757,9 +765,6 @@ def poke_detectedR(pin, level, tick):
         pi.write(10, 0)
     elif params['nosepokeR_type'] == "903":
         pi.write(10, 1)
-
-    # Get current datetime
-    poke_time = datetime.now()
     
     # Sending nosepoke_id wirelessly with datetime
     try:
