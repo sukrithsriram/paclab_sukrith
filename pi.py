@@ -918,9 +918,11 @@ try:
             sound_chooser.set_channel('none')
             if left_poke_detected == True :
                 open_valve(int(params['nosepokeL_id']))
+                print('Left port open')
                 left_poke_detected = False
             if right_poke_detected == True:
                 open_valve(int(params['nosepokeR_id']))
+                print('Right port open')
                 right_poke_detected = False
         
         ## Check for incoming messages on poke_socket
