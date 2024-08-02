@@ -914,6 +914,7 @@ try:
             print("Parameters updated")
             
         if task == 'Poketrain':
+            sound_chooser.set_sound_cycle('none')
             if left_poke_detected == True or right_poke_detected = True:
                 open_valve()
         

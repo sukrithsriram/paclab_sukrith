@@ -43,9 +43,9 @@
         "pause_min": 0.0,
         "pause_max": 0.0,
         "reward_value": 1.0,
-        "center_freq_min": 0,
-        "center_freq_max": 0,
-        "bandwidth": 0
+        "center_freq_min": 10000,
+        "center_freq_max": 10000,
+        "bandwidth": 3000
     },
     "Audio": {
         "amplitude_min": 1.0,
