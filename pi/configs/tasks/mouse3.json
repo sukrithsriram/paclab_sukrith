@@ -1,14 +1,14 @@
 {
-    "name": "mouse1",
+    "name": "mouse3",
     "task": "Fixed",
-    "amplitude_min": 0.05,
-    "amplitude_max": 0.05,
+    "amplitude_min": -0.05,
+    "amplitude_max": -0.05,
     "rate_min": 4.0,
     "rate_max": 4.0,
     "irregularity_min": -1.5,
     "irregularity_max": -1.5,
-    "center_freq_min": 5000.0,
-    "center_freq_max": 5000.0,
+    "center_freq_min": 10000.0,
+    "center_freq_max": 10000.0,
     "bandwidth": 3000.0,
     "reward_value": 0.5
 }

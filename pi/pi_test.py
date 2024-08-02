@@ -45,7 +45,7 @@ pi_name = str(pi_hostname)
 
 # Load the config parameters for this pi
 # TODO: document everything in params
-param_directory = f"pi/configs/pis/{pi_name}.json"
+param_directory = f"configs/pis/{pi_name}.json"
 with open(param_directory, "r") as p:
     params = json.load(p)    
 
@@ -216,7 +216,11 @@ class Noise:
 class SoundQueue:
     """This is a class used to continuously generate frames of audio and add them to a queue. 
     It also handles updating the parameters of the sound to be played. """
-    def __init__(self):
+    def __init__(self, stage_block):
+    ## Stages
+        # Only one stage
+        self.stages = itertools.cycle([self.play])
+        self.stage_block = stage_block
         
         ## Initialize sounds
         # Each block/frame is about 5 ms
@@ -241,9 +245,6 @@ class SoundQueue:
         # State of channels
         self.left_on = False
         self.right_on = False
-        
-        # State variable to stop appending frames 
-        self.running = False
         
         # Fill the queue with empty frames
         # Sounds aren't initialized till the trial starts
@@ -320,9 +321,9 @@ class SoundQueue:
         left_target_rate = self.target_rate 
         right_target_rate = self.target_rate 
         
-        #print(self.target_rate)
-        #print(left_on)
-        #print(right_on)
+        print(self.target_rate)
+        print(left_on)
+        print(right_on)
         
         # Global params
         target_temporal_std = 10 ** self.target_temporal_log_std 
@@ -360,8 +361,8 @@ class SoundQueue:
         else:
             right_target_intervals = np.array([])              
         
-        #print(left_target_intervals)
-        #print(right_target_intervals)
+        print(left_target_intervals)
+        print(right_target_intervals)
 
         
         ## Sort all the drawn intervals together
@@ -411,7 +412,7 @@ class SoundQueue:
         # If both_df has a nonzero but short length, results will be weird,
         # because it might just be one noise burst repeating every ten seconds
         # This only happens with low rates ~0.1Hz
-        #print(both_df)
+        print(both_df)
         if len(both_df) == 0:
             # If no sound, then just put gaps
             append_gap(100)
@@ -424,12 +425,12 @@ class SoundQueue:
                 if bdrow.side == 'left' and bdrow.sound == 'target':
                     for frame in self.left_target_stim.chunks:
                         self.sound_block.append(frame)
-                        #print(frame.shape)
+                        print(frame.shape)
                         assert frame.shape == (1024, 2)
                 elif bdrow.side == 'right' and bdrow.sound == 'target':
                     for frame in self.right_target_stim.chunks:
                         self.sound_block.append(frame)
-                        #print(frame.shape)
+                        print(frame.shape)
                         assert frame.shape == (1024, 2)                        
                 else:
                     raise ValueError(
@@ -455,13 +456,23 @@ class SoundQueue:
 
             # Don't want to iterate too quickly, but rather add chunks
             # in a controlled fashion every so often
-            #time.sleep(0.1)
+            time.sleep(0.1)
+        
+        ## Extract any recently played sound info
+        sound_data_l = []
+        with nb_lock:
+            while True:
+                try:
+                    data = nonzero_blocks.get_nowait()
+                except queue.Empty:
+                    break
+                sound_data_l.append(data)
     
         ## Continue to the next stage (which is this one again)
         # If it is cleared, then nothing happens until the next message
         # from the Parent (not sure why)
         # If we never end this function, then it won't respond to END
-        #self.stage_block.set()
+        self.stage_block.set()
     
     def append_sound_to_queue_as_needed(self):
         """Dump frames from `self.sound_cycle` into queue
@@ -478,7 +489,7 @@ class SoundQueue:
         qsize = sound_queue.qsize()
 
         # Add frames until target size reached
-        while self.running ==True and qsize < self.target_qsize:
+        while qsize < self.target_qsize:
             with qlock:
                 # Add a frame from the sound cycle
                 frame = next(self.sound_cycle)
@@ -623,7 +634,8 @@ qlock = mp.Lock()
 nb_lock = mp.Lock()
 
 # Define a client to play sounds
-sound_chooser = SoundQueue()
+stage_block = threading.Event()
+sound_chooser = SoundQueue(stage_block)
 sound_player = SoundPlayer(name='sound_player')
 
 # Raspberry Pi's identity (Change this to the identity of the Raspberry Pi you are using)
@@ -683,7 +695,6 @@ nospokeR_id = params['nosepokeR_id']
 # Global variables for which nospoke was detected
 left_poke_detected = False
 right_poke_detected = False
-current_port_poked = None
 
 # Callback function for nosepoke pin (When the nosepoke is completed)
 def poke_inL(pin, level, tick):
@@ -718,14 +729,13 @@ def poke_inR(pin, level, tick):
 
 # Callback functions for nosepoke pin (When the nosepoke is detected)
 def poke_detectedL(pin, level, tick): 
-    global a_state, count, left_poke_detected, current_port_poked
+    global a_state, count, left_poke_detected
     a_state = 1
     count += 1
     left_poke_detected = True
     print("Poke Completed (Left)")
     print("Poke Count:", count)
     nosepoke_idL = params['nosepokeL_id']  # Set the left nosepoke_id here according to the pi
-    current_port_poked = nosepoke_idL
     pi.set_mode(17, pigpio.OUTPUT)
     if params['nosepokeL_type'] == "901":
         pi.write(17, 0)
@@ -740,14 +750,13 @@ def poke_detectedL(pin, level, tick):
         print("Error sending nosepoke_id:", e)
 
 def poke_detectedR(pin, level, tick): 
-    global a_state, count, right_poke_detected, current_port_poked
+    global a_state, count, right_poke_detected
     a_state = 1
     count += 1
     right_poke_detected = True
     print("Poke Completed (Right)")
     print("Poke Count:", count)
     nosepoke_idR = params['nosepokeR_id']  # Set the right nosepoke_id here according to the pi
-    current_port_poked = nosepoke_idR
     pi.set_mode(10, pigpio.OUTPUT)
     if params['nosepokeR_type'] == "901":
         pi.write(10, 0)
@@ -801,8 +810,6 @@ def stop_session():
     pi.write(27, 0)
     pi.write(9, 0)
     sound_chooser.set_channel('none')
-    sound_chooser.empty_queue()
-    sound_chooser.running = False
 
 ## Set up pigpio and callbacks
 # TODO: rename this variable to pig or something; "pi" is ambiguous
@@ -852,9 +859,7 @@ try:
     while True:
         ## Wait for events on registered sockets
         # TODO: how long does it wait? # Can be set, currently not sure
-        socks = dict(poller.poll(100))
-        
-        sound_chooser.append_sound_to_queue_as_needed()
+        socks = dict(poller.poll(1))
         
         ## Check for incoming messages on json_socket
         # If so, use it to update the acoustic parameters
@@ -881,13 +886,10 @@ try:
             center_freq_max = config_data['center_freq_max']
             bandwidth = config_data['bandwidth']
             
-            
             # Update the jack client with the new acoustic parameters
             sound_chooser.update_parameters(
                 rate_min, rate_max, irregularity_min, irregularity_max, 
                 amplitude_min, amplitude_max, center_freq_min, center_freq_max, bandwidth)
-            sound_chooser.initialize_sounds(sound_player.blocksize, sound_player.fs, 
-                sound_chooser.amplitude, sound_chooser.target_highpass, sound_chooser.target_lowpass)
             sound_chooser.set_sound_cycle()
             
             # Debug print
@@ -904,9 +906,6 @@ try:
             if msg == 'exit': 
                 # Condition to terminate the main loop
                 # TODO: why are these pi.write here? # To turn the LEDs on the Pi off when the GUI is closed
-                sound_chooser.running = False
-                sound_chooser.set_channel('none')
-                sound_chooser.empty_queue()
                 pi.write(17, 0)
                 pi.write(10, 0)
                 pi.write(27, 0)
@@ -965,9 +964,6 @@ try:
                 
                 # Manipulate pin values based on the integer value
                 if value == int(params['nosepokeL_id']):
-                    # Starting sound
-                    sound_chooser.running = True
-                    
                     # Reward pin for left
                     # TODO: these reward pins need to be stored as a parameter,
                     # not hardcoded here
@@ -984,19 +980,16 @@ try:
                     sound_chooser.set_channel('left')
                     sound_chooser.set_sound_cycle()
                     sound_chooser.play()
-                    
+
                     # Debug message
-                    print(f"Turning port {value} green")
+                    print("Turning Nosepoke 5 Green")
 
                     # Keep track of which port is rewarded and which pin
                     # is rewarded
                     prev_port = value
-                    current_pin = reward_pin # for LED only 
+                    current_pin = reward_pin
 
                 elif value == int(params['nosepokeR_id']):
-                    # Starting sound
-                    sound_chooser.running = True
-                    
                     # Reward pin for right
                     # TODO: these reward pins need to be stored as a parameter,
                     # not hardcoded here                    
@@ -1014,43 +1007,40 @@ try:
                     sound_chooser.set_sound_cycle()
                     sound_chooser.play()
 
+                    
                     # Debug message
-                    print(f"Turning port {value} green")
+                    print("Turning Nosepoke 7 Green")
                     
                     # Keep track of which port is rewarded and which pin
                     # is rewarded
                     prev_port = value
                     current_pin = reward_pin
-                
+
                 else:
                     # TODO: document why this happens
                     # Current Reward Port
-                    prev_port = value
-                    print(f"Current Reward Port: {value}")
+                    print(f"Current Reward Port: {value}") 
                 
-            elif msg.startswith("Reward Poke Completed"):
+            elif msg == "Reward Poke Completed":
                 # This seems to occur when the GUI detects that the poked
                 # port was rewarded. This will be too slow. The reward port
                 # should be opened if it knows it is the rewarded pin. 
                 
-                # Emptying the queue completely
-                sound_chooser.running = False
-                sound_chooser.set_channel('none')
-                sound_chooser.empty_queue()
-
                 # Opening Solenoid Valve
-                flash()
                 open_valve(prev_port)
+                flash()
                 
                 # Updating Parameters
                 # TODO: fix this; rate_min etc are not necessarily defined
                 # yet, or haven't changed recently
                 # Reset play mode to 'none'
+                sound_chooser.set_channel('none')
                 sound_chooser.update_parameters(
                     rate_min, rate_max, irregularity_min, irregularity_max, 
                     amplitude_min, amplitude_max, center_freq_min, center_freq_max, bandwidth)
-                poke_socket.send_string(sound_chooser.update_parameters.parameter_message)
-                
+                sound_chooser.empty_queue()
+
+                #sound_chooser.set_sound_cycle()
                 
                 # Turn off the currently active LED
                 if current_pin is not None:
@@ -1062,8 +1052,7 @@ try:
            
             else:
                 print("Unknown message received:", msg)
-
-
+    
 except KeyboardInterrupt:
     # Stops the pigpio connection
     pi.stop()
