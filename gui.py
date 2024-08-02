@@ -163,7 +163,7 @@ class Worker(QObject):
     @pyqtSlot()
     def start_sequence(self):
         # Reset data when starting a new sequence
-        self.initial_time = time.time()
+        self.initial_time = datetime.now()
         self.timestamps = []
         self.reward_ports = []
         
@@ -234,7 +234,7 @@ class Worker(QObject):
     # Method to handle the update of Pis
     @pyqtSlot()
     def update_Pi(self):
-        current_time = time.time()
+        current_time = datetime.now()
         elapsed_time = current_time - self.initial_time
 
         # Update the last poke timestamp whenever a poke event occurs
