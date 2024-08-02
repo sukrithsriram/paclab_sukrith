@@ -1,0 +1,14 @@
+{
+    "name": "pokemouse",
+    "task": "Poketrain",
+    "amplitude_min": 0.0001,
+    "amplitude_max": 0.0001,
+    "rate_min": 0.0001,
+    "rate_max": 0.0001,
+    "irregularity_min": 0.0001,
+    "irregularity_max": 0.0001,
+    "center_freq_min": 10000.0,
+    "center_freq_max": 10000.0,
+    "bandwidth": 3000.0,
+    "reward_value": 1.0
+}
