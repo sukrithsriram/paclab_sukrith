@@ -1052,6 +1052,9 @@ try:
                 flash()
                 open_valve(prev_port)
                 
+                # Adding an inter trial interval
+                time.sleep(1)
+                
                 # Updating Parameters
                 # TODO: fix this; rate_min etc are not necessarily defined
                 # yet, or haven't changed recently
