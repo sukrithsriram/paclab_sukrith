@@ -916,8 +916,10 @@ try:
         if task == 'Poketrain':
             sound_chooser.empty_queue()
             sound_chooser.set_channel('none')
-            if left_poke_detected == True or right_poke_detected == True:
-                open_valve()
+            if left_poke_detected == True :
+                open_valve(int(params['nosepokeL_id']))
+            if right_poke_detected == True:
+                open_valve(int(params['nosepokeR_id']))
         
         ## Check for incoming messages on poke_socket
         # TODO: document the types of messages that can be sent on poke_socket 
