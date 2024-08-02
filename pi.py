@@ -743,7 +743,7 @@ def poke_detectedL(pin, level, tick):
     try:
         print(f"Sending nosepoke_id = {nosepoke_idL} at {poke_time}") 
         poke_socket.send_string(f"{nosepoke_idL}")
-        poke_socket_send_string(f"Poke Time: {poke_time}")
+        poke_socket.send_string(f"Poke Time: {poke_time}")
     except Exception as e:
         print("Error sending nosepoke_id:", e)
 
@@ -771,7 +771,7 @@ def poke_detectedR(pin, level, tick):
     try:
         print(f"Sending nosepoke_id = {nosepoke_idR} at {poke_time}") 
         poke_socket.send_string(f"{nosepoke_idR}")
-        poke_socket_send_string(f"Poke Time: {poke_time}")
+        poke_socket.send_string(f"Poke Time: {poke_time}")
     except Exception as e:
         print("Error sending nosepoke_id:", e)
 

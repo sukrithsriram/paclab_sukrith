@@ -284,8 +284,9 @@ class Worker(QObject):
                 self.current_bandwidth = float(params.get("Bandwidth", "0"))
 
             if  message_str.startswith("Poke Time:"): 
-                poke_time_str = message_str
-                poke_time = datetime.strptime(poke_time_str, "%H:%M:%S")
+                poke_time_str = message_str.split()
+                poketime = poke_time_str[3]
+                poke_time = datetime.strptime(poketime, "%H:%M:%S")
                 elapsed_time = self.initial_time - poke_time
                 print(elapsed_time)
                 self.timestamps.append(elapsed_time)
