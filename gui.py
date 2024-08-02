@@ -235,7 +235,6 @@ class Worker(QObject):
     @pyqtSlot()
     def update_Pi(self):
         current_time = datetime.now()
-        elapsed_time = current_time - self.initial_time
 
         # Update the last poke timestamp whenever a poke event occurs
         self.last_poke_timestamp = current_time
@@ -284,7 +283,10 @@ class Worker(QObject):
                 self.current_bandwidth = float(params.get("Bandwidth", "0"))
 
             else:
-                poked_port = int(message_str)
+                message_str.split(',')
+                poked_port = int(message_str, 0)
+                poke_time = (message_str, 1)
+                elasped_time = initial_time - poke_time
                 # Check if the poked port is the same as the last rewarded port
                 if poked_port == self.last_rewarded_port:
                      # If it is, do nothing and return
@@ -303,7 +305,9 @@ class Worker(QObject):
                         self.current_poke += 1
 
                     poked_port_signal.set_color(color)
+                    
                     self.poked_port_numbers.append(poked_port)
+                    self.timestamps.append(elapsed_time)
                     print_out("Sequence:", self.poked_port_numbers)
                     self.last_pi_received = identity
 
@@ -335,9 +339,7 @@ class Worker(QObject):
                         for identity in self.identities:
                             self.socket.send_multipart([identity, bytes(f"Reward Port: {self.reward_port}", 'utf-8')])
                             
-                    
                     self.pokes.append(self.current_poke)
-                    self.timestamps.append(elapsed_time)
                     self.amplitudes.append(self.current_amplitude)
                     self.target_rates.append(self.current_target_rate)
                     self.target_temporal_log_stds.append(self.current_target_temporal_log_std)
@@ -1280,4 +1282,3 @@ if __name__ == '__main__':
     app = QApplication(sys.argv)
     main_window = MainWindow()
     sys.exit(app.exec())
-
