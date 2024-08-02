@@ -115,14 +115,22 @@ class Worker(QObject):
         self.context = zmq.Context()
         self.socket = self.context.socket(zmq.ROUTER)
         self.socket.bind("tcp://*" + params['worker_port'])  # Change Port number if you want to run multiple instances
-
+        
         # Initializing values for sound parameters
         self.amplitudes = []
-        self.chunk_durations = []
-        self.pause_durations = []
+        self.target_rates = []
+        self.target_temporal_log_stds = []
+        self.center_freqs = []
+
         self.current_amplitude = 0.0
-        self.current_chunk_duration = 0.0
-        self.current_pause_duration = 0.0
+        self.current_target_rate = 0.0
+        self.current_target_temporal_log_std = 0.0
+        self.current_center_freq = 0.0
+        self.current_bandwidth = 0.0
+        self.current_poke = 0
+        self.current_completed_trials = 0
+        self.current_correct_trials = 0
+        self.current_fraction_correct = 0
         
         # Initialize reward_port and related variables that need to be continually updated
         self.last_pi_received = None
@@ -132,6 +140,10 @@ class Worker(QObject):
         self.pi_widget = pi_widget
         self.total_ports = self.pi_widget.total_ports 
         self.Pi_signals = self.pi_widget.Pi_signals 
+        self.ports = None
+        self.label_to_index = None
+        self.index_to_label = None
+        self.index = None
         self.poked_port_numbers = self.pi_widget.poked_port_numbers 
         self.identities = set()
         self.last_poke_timestamp = None  # Attribute to store the timestamp of the last poke event
@@ -139,10 +151,13 @@ class Worker(QObject):
         self.last_rewarded_port = None
         self.previous_port = None
 
-
         # Initializing lists for timestamps and ports visited
         self.trials = 0
         self.timestamps = []
+        self.pokes = []
+        self.completed_trials = []
+        self.correct_trials = []
+        self.fc = []
         self.reward_ports = []
         self.unique_ports_visited = []  # List to store unique ports visited in each trial
         self.unique_ports_colors = {}  # Dictionary to store color for each unique port
@@ -152,7 +167,8 @@ class Worker(QObject):
     @pyqtSlot()
     def start_sequence(self):
         # Reset data when starting a new sequence
-        self.initial_time = time.time()
+        self.initial_time = datetime.now()
+        print(self.initial_time)
         self.timestamps = []
         self.reward_ports = []
         
@@ -165,11 +181,14 @@ class Worker(QObject):
         for identity in self.identities:
             self.socket.send_multipart([identity, bytes(reward_message, 'utf-8')])
         
-        port_data = params['ports'][int(self.reward_port)]
-        label_text = port_data['label']
-        
+        # Creating a dictionary that takes the label of each port and matches it to the index on the GUI 
+        self.ports = params['ports']
+        self.label_to_index = {port['label']: port['index'] for port in self.ports}
+        self.index_to_label = {port['index']: port['label'] for port in self.ports}
+        self.index = self.label_to_index.get(str(self.reward_port))
+
         # Set the color of the initial reward port to green
-        self.Pi_signals[self.reward_port - 1].set_color("green")
+        self.Pi_signals[self.index].set_color("green")
 
         # Start the timer loop
         self.timer = QTimer()
@@ -189,8 +208,9 @@ class Worker(QObject):
         self.reward_ports.clear()
         self.poked_port_numbers.clear()
         self.amplitudes.clear()
-        self.chunk_durations.clear()
-        self.pause_durations.clear()
+        self.target_rates.clear()
+        self.target_temporal_log_stds.clear()
+        self.center_freqs.clear()
         self.unique_ports_visited.clear()
         self.identities.clear()
         self.last_poke_timestamp = None
@@ -222,7 +242,7 @@ class Worker(QObject):
     # Method to handle the update of Pis
     @pyqtSlot()
     def update_Pi(self):
-        current_time = time.time()
+        current_time = datetime.now()
         elapsed_time = current_time - self.initial_time
 
         # Update the last poke timestamp whenever a poke event occurs
@@ -266,8 +286,10 @@ class Worker(QObject):
                 
                 # Extract and convert the values
                 self.current_amplitude = float(params.get("Amplitude", 0))
-                self.current_chunk_duration = float(params.get("Chunk Duration", "0").split()[0])
-                self.current_pause_duration = float(params.get("Pause Duration", 0))
+                self.current_target_rate = float(params.get("Rate", "0").split()[0])
+                self.current_target_temporal_log_std = float(params.get("Irregularity", "0").split()[0])
+                self.current_center_freq = float(params.get("Center Frequency", "0").split()[0])
+                self.current_bandwidth = float(params.get("Bandwidth", "0"))
 
             else:
                 poked_port = int(message_str)
@@ -277,7 +299,8 @@ class Worker(QObject):
                         return
 
                 if 1 <= poked_port <= self.total_ports:
-                    poked_port_signal = self.Pi_signals[poked_port - 1]
+                    poked_port_index = self.label_to_index.get(message_str)
+                    poked_port_signal = self.Pi_signals[poked_port_index]
 
                     if poked_port == self.reward_port:
                         color = "green" if self.trials == 0 else "blue"
@@ -286,6 +309,7 @@ class Worker(QObject):
                     else:
                         color = "red"
                         self.trials += 1
+                        self.current_poke += 1
 
                     poked_port_signal.set_color(color)
                     self.poked_port_numbers.append(poked_port)
@@ -293,21 +317,25 @@ class Worker(QObject):
                     self.last_pi_received = identity
 
                     self.pokedportsignal.emit(poked_port, color)
-                    self.timestamps.append(elapsed_time)
                     self.reward_ports.append(self.reward_port)
-                    self.amplitudes.append(self.current_amplitude)
-                    self.chunk_durations.append(self.current_chunk_duration)
-                    self.pause_durations.append(self.current_pause_duration)
                     self.update_unique_ports()
+                    
 
                     if color == "green" or color == "blue":
+                        self.current_poke += 1
+                        self.current_completed_trials += 1
                         for identity in self.identities:
-                            self.socket.send_multipart([identity, b"Reward Poke Completed"])
+                            self.socket.send_multipart([identity, bytes(f"Reward Poke Completed: {self.reward_port}", 'utf-8]')])
                         self.last_rewarded_port = self.reward_port   
                         self.reward_port = self.choose()
                         self.trials = 0
                         print_out(f"Reward Port: {self.reward_port}")
+                        if color == "green":
+                            self.current_correct_trials += 1 
+                            self.current_fraction_correct = self.current_correct_trials / self.current_completed_trials
 
+                        index = self.index_to_label.get(poked_port_index)
+                        
                         # Reset color of all non-reward ports to gray and reward port to green
                         for index, Pi in enumerate(self.Pi_signals):
                             if index + 1 == self.reward_port:
@@ -317,10 +345,21 @@ class Worker(QObject):
 
                         for identity in self.identities:
                             self.socket.send_multipart([identity, bytes(f"Reward Port: {self.reward_port}", 'utf-8')])
-
- 
+                            
+                    
+                    self.pokes.append(self.current_poke)
+                    self.timestamps.append(elapsed_time)
+                    self.amplitudes.append(self.current_amplitude)
+                    self.target_rates.append(self.current_target_rate)
+                    self.target_temporal_log_stds.append(self.current_target_temporal_log_std)
+                    self.center_freqs.append(self.current_center_freq)
+                    self.completed_trials.append(self.current_completed_trials)
+                    self.correct_trials.append(self.current_correct_trials)
+                    self.fc.append(self.current_fraction_correct)
+        
         except ValueError:
-            print_out("Unknown message:", message_str)
+            pass
+            #print_out("Unknown message:", message_str)
             
     
    # Method to save results to a CSV file
@@ -336,10 +375,11 @@ class Worker(QObject):
         # Save results to a CSV file
         with open(f"{save_directory}/{filename}", 'w', newline='') as csvfile:
             writer = csv.writer(csvfile)
-            writer.writerow(["Poke Timestamp (seconds)", "Port Visited", "Current Reward Port", "Amplitude", "Sound Duration", "Pause Duration"])
-            for timestamp, poked_port, reward_port, amplitude, chunk_duration, pause_duration in zip(self.timestamps, self.poked_port_numbers, self.reward_ports, self.amplitudes, self.chunk_durations, self.pause_durations):
-                writer.writerow([timestamp, poked_port, reward_port, amplitude, chunk_duration, pause_duration])
-        
+            writer.writerow(["No. of Pokes", "Poke Timestamp (seconds)", "Port Visited", "Current Reward Port", "No. of Trials", "No. of Correct Trials", "Fraction Correct", "Amplitude", "Rate", "Irregularity", "Center Frequency"])
+            for poke, timestamp, poked_port, reward_port, completed_trial, correct_trial, fc, amplitude, target_rate, target_temporal_log_std, center_freq in zip(
+                self.pokes, self.timestamps, self.poked_port_numbers, self.reward_ports, self.completed_trials, self.correct_trials, self.fc, self.amplitudes, self.target_rates, self.target_temporal_log_stds, self.center_freqs):
+                writer.writerow([poke, timestamp, poked_port, reward_port, completed_trial, correct_trial, fc, amplitude, target_rate, target_temporal_log_std, center_freq])
+
         print_out(f"Results saved to logs")
     
     # Method to send start message to the pi
@@ -704,9 +744,11 @@ class ConfigurationDetailsDialog(QDialog):
         self.name_label = QLabel(f"Name: {config['name']}")
         self.task_label = QLabel(f"Task: {config['task']}")
         self.amplitude_label = QLabel(f"Amplitude: {config['amplitude_min']} - {config['amplitude_max']}")
-        self.chunk_label = QLabel(f"Sound Duration: {config['chunk_min']} - {config['chunk_max']}")
-        self.pause_label = QLabel(f"Pause Duration: {config['pause_min']} - {config['pause_max']}")
+        self.rate_label = QLabel(f"Rate: {config['rate_min']} - {config['rate_max']}")
+        self.irregularity_label = QLabel(f"Irregularity: {config['irregularity_min']} - {config['irregularity_max']}")
         self.reward_label = QLabel(f"Reward Value: {config['reward_value']}")
+        self.freq_label = QLabel(f"Center Frequency: {config['center_freq_min']} - {config['center_freq_max']}")
+        self.band_label = QLabel(f"Bandwidth: {config['bandwidth']}")
 
         # Create button box with OK button
         self.button_box = QDialogButtonBox(QDialogButtonBox.Ok)
@@ -717,8 +759,10 @@ class ConfigurationDetailsDialog(QDialog):
         layout.addWidget(self.name_label)
         layout.addWidget(self.task_label)
         layout.addWidget(self.amplitude_label)
-        layout.addWidget(self.chunk_label)
-        layout.addWidget(self.pause_label)
+        layout.addWidget(self.freq_label)
+        layout.addWidget(self.band_label)
+        layout.addWidget(self.rate_label)
+        layout.addWidget(self.irregularity_label)
         layout.addWidget(self.reward_label)
         layout.addWidget(self.button_box)
         self.setLayout(layout)
@@ -759,10 +803,13 @@ class ConfigurationDialog(QDialog):
             "task": "",
             "amplitude_min": 0.0,
             "amplitude_max": 0.0,
-            "chunk_min": 0.0,
-            "chunk_max": 0.0,
-            "pause_min": 0.0,
-            "pause_max": 0.0,
+            "rate_min": 0.0,
+            "rate_max": 0.0,
+            "irregularity_min": 0.0,
+            "irregularity_max": 0.0,
+            "center_freq_min": 0.0,
+            "center_freq_max": 0.0,
+            "bandwidth": 0.0,
             "reward_value": 0.0
         }
         self.init_ui()
@@ -786,27 +833,42 @@ class ConfigurationDialog(QDialog):
         amplitude_layout.addWidget(self.amplitude_max_label)
         amplitude_layout.addWidget(self.amplitude_max_edit)
 
-        self.chunk_label = QLabel("Sound Duration:")
-        chunk_layout = QHBoxLayout()
-        self.chunk_min_label = QLabel("Min:")
-        self.chunk_min_edit = QLineEdit(str(self.config.get("chunk_min", "")))
-        self.chunk_max_label = QLabel("Max:")
-        self.chunk_max_edit = QLineEdit(str(self.config.get("chunk_max", "")))
-        chunk_layout.addWidget(self.chunk_min_label)
-        chunk_layout.addWidget(self.chunk_min_edit)
-        chunk_layout.addWidget(self.chunk_max_label)
-        chunk_layout.addWidget(self.chunk_max_edit)
+        self.rate_label = QLabel("Rate:")
+        rate_layout = QHBoxLayout()
+        self.rate_min_label = QLabel("Min:")
+        self.rate_min_edit = QLineEdit(str(self.config.get("rate_min", "")))
+        self.rate_max_label = QLabel("Max:")
+        self.rate_max_edit = QLineEdit(str(self.config.get("rate_max", "")))
+        rate_layout.addWidget(self.rate_min_label)
+        rate_layout.addWidget(self.rate_min_edit)
+        rate_layout.addWidget(self.rate_max_label)
+        rate_layout.addWidget(self.rate_max_edit)
 
-        self.pause_label = QLabel("Gap Duration:")
-        pause_layout = QHBoxLayout()
-        self.pause_min_label = QLabel("Min:")
-        self.pause_min_edit = QLineEdit(str(self.config.get("pause_min", "")))
-        self.pause_max_label = QLabel("Max:")
-        self.pause_max_edit = QLineEdit(str(self.config.get("pause_max", "")))
-        pause_layout.addWidget(self.pause_min_label)
-        pause_layout.addWidget(self.pause_min_edit)
-        pause_layout.addWidget(self.pause_max_label)
-        pause_layout.addWidget(self.pause_max_edit)
+        self.irregularity_label = QLabel("Irregularity:")
+        irregularity_layout = QHBoxLayout()
+        self.irregularity_min_label = QLabel("Min:")
+        self.irregularity_min_edit = QLineEdit(str(self.config.get("irregularity_min", "")))
+        self.irregularity_max_label = QLabel("Max:")
+        self.irregularity_max_edit = QLineEdit(str(self.config.get("irregularity_max", "")))
+        irregularity_layout.addWidget(self.irregularity_min_label)
+        irregularity_layout.addWidget(self.irregularity_min_edit)
+        irregularity_layout.addWidget(self.irregularity_max_label)
+        irregularity_layout.addWidget(self.irregularity_max_edit)
+        
+        
+        self.freq_label = QLabel("Center Frequency:")
+        freq_layout = QHBoxLayout()
+        self.freq_min_label = QLabel("Min:")
+        self.freq_min_edit = QLineEdit(str(self.config.get("center_freq_min", "")))
+        self.freq_max_label = QLabel("Max:")
+        self.freq_max_edit = QLineEdit(str(self.config.get("center_freq_max", "")))
+        freq_layout.addWidget(self.freq_min_label)
+        freq_layout.addWidget(self.freq_min_edit)
+        freq_layout.addWidget(self.freq_max_label)
+        freq_layout.addWidget(self.freq_max_edit)
+        
+        self.band_label = QLabel("Bandwidth:")
+        self.band_edit = QLineEdit(str(self.config.get("bandwidth", "")))
         
         self.reward_label = QLabel("Reward Value:")
         self.reward_edit = QLineEdit(str(self.config.get("reward_value", "")))
@@ -822,10 +884,14 @@ class ConfigurationDialog(QDialog):
         layout.addWidget(self.task_label)
         layout.addWidget(self.amplitude_label)
         layout.addLayout(amplitude_layout)
-        layout.addWidget(self.chunk_label)
-        layout.addLayout(chunk_layout)
-        layout.addWidget(self.pause_label)
-        layout.addLayout(pause_layout)
+        layout.addWidget(self.rate_label)
+        layout.addLayout(rate_layout)
+        layout.addWidget(self.irregularity_label)
+        layout.addLayout(irregularity_layout)
+        layout.addWidget(self.freq_label)
+        layout.addLayout(freq_layout)
+        layout.addWidget(self.band_label)
+        layout.addWidget(self.band_edit)
         layout.addWidget(self.reward_label)
         layout.addWidget(self.reward_edit)
         layout.addWidget(self.button_box)
@@ -843,17 +909,22 @@ class ConfigurationDialog(QDialog):
             self.amplitude_min_label.hide()
             self.amplitude_max_label.hide()
             self.amplitude_max_edit.hide()
-            self.chunk_min_label.hide()
-            self.chunk_max_label.hide()
-            self.chunk_max_edit.hide()
-            self.pause_min_label.hide()
-            self.pause_max_label.hide()
-            self.pause_max_edit.hide()
+            self.rate_min_label.hide()
+            self.rate_max_label.hide()
+            self.rate_max_edit.hide()
+            self.irregularity_min_label.hide()
+            self.irregularity_max_label.hide()
+            self.irregularity_max_edit.hide()
+            self.freq_min_label.hide()
+            self.freq_max_label.hide()
+            self.freq_max_edit.hide()
 
             # Connect min edit fields to update max fields
             self.amplitude_min_edit.textChanged.connect(self.update_amplitude_max)
-            self.chunk_min_edit.textChanged.connect(self.update_chunk_max)
-            self.pause_min_edit.textChanged.connect(self.update_pause_max)
+            self.rate_min_edit.textChanged.connect(self.update_rate_max)
+            self.irregularity_min_edit.textChanged.connect(self.update_irregularity_max)
+            self.freq_min_edit.textChanged.connect(self.update_freq_max)
+
 
         else:
             # For other tasks, show all min and max edit fields
@@ -863,14 +934,18 @@ class ConfigurationDialog(QDialog):
         value = self.amplitude_min_edit.text()
         self.amplitude_max_edit.setText(value)
 
-    def update_chunk_max(self):
-        value = self.chunk_min_edit.text()
-        self.chunk_max_edit.setText(value)
+    def update_rate_max(self):
+        value = self.rate_min_edit.text()
+        self.rate_max_edit.setText(value)
 
-    def update_pause_max(self):
-        value = self.pause_min_edit.text()
-        self.pause_max_edit.setText(value)
+    def update_irregularity_max(self):
+        value = self.irregularity_min_edit.text()
+        self.irregularity_max_edit.setText(value)
 
+    def update_freq_max(self):
+        value = self.freq_min_edit.text()
+        self.freq_max_edit.setText(value)
+    
     def get_configuration(self):
         updated_name = self.name_edit.text()
         task = self.config.get("task", "")
@@ -878,10 +953,13 @@ class ConfigurationDialog(QDialog):
         try:
             amplitude_min = float(self.amplitude_min_edit.text())
             amplitude_max = float(self.amplitude_max_edit.text())
-            chunk_min = float(self.chunk_min_edit.text())
-            chunk_max = float(self.chunk_max_edit.text())
-            pause_min = float(self.pause_min_edit.text())
-            pause_max = float(self.pause_max_edit.text())
+            rate_min = float(self.rate_min_edit.text())
+            rate_max = float(self.rate_max_edit.text())
+            irregularity_min = float(self.irregularity_min_edit.text())
+            irregularity_max = float(self.irregularity_max_edit.text())
+            center_freq_min = float(self.freq_min_edit.text())
+            center_freq_max = float(self.freq_max_edit.text())
+            bandwidth = float(self.band_edit.text())
             reward_value = float(self.reward_edit.text())
             
         except ValueError:
@@ -893,10 +971,13 @@ class ConfigurationDialog(QDialog):
             "task": task,
             "amplitude_min": amplitude_min,
             "amplitude_max": amplitude_max,
-            "chunk_min": chunk_min,
-            "chunk_max": chunk_max,
-            "pause_min": pause_min,
-            "pause_max": pause_max,
+            "rate_min": rate_min,
+            "rate_max": rate_max,
+            "irregularity_min": irregularity_min,
+            "irregularity_max": irregularity_max,
+            "center_freq_min": center_freq_min,
+            "center_freq_max": center_freq_max,
+            "bandwidth": bandwidth,
             "reward_value": reward_value
         }
 
@@ -986,10 +1067,13 @@ class ConfigurationList(QWidget):
                 default_params = {
                     "amplitude_min": 0.0,
                     "amplitude_max": 0.0,
-                    "chunk_min": 0.0,
-                    "chunk_max": 0.0,
-                    "pause_min": 0.0,
-                    "pause_max": 0.0,
+                    "rate_min": 0.0,
+                    "rate_max": 0.0,
+                    "irregularity_min": 0.0,
+                    "irregularity_max": 0.0,
+                    "center_freq_min": 0.0,
+                    "center_freq_max": 0.0,
+                    "bandwidth": 0.0,
                     "reward_value": 0.0
                 }
 
@@ -1207,6 +1291,3 @@ if __name__ == '__main__':
     app = QApplication(sys.argv)
     main_window = MainWindow()
     sys.exit(app.exec())
-
-
-
