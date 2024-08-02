@@ -283,11 +283,12 @@ class Worker(QObject):
                 self.current_center_freq = float(params.get("Center Frequency", "0").split()[0])
                 self.current_bandwidth = float(params.get("Bandwidth", "0"))
 
-            if "Poke Time:" in message_str:
+            if  message_str.startswith("Poke Time:"): 
                 poke_time_str = message_str
                 poke_time = datetime.strptime(poke_time_str, "%H:%M:%S")
                 elapsed_time = self.initial_time - poke_time
-                self.timestamps.append(elapsed_time
+                print(elapsed_time)
+                self.timestamps.append(elapsed_time)
                 
             else:
                 poked_port = int(message_str)
