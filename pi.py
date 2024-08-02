@@ -481,13 +481,13 @@ class SoundQueue:
         # Add frames until target size reached
         while self.running ==True and qsize < self.target_qsize:
             #with qlock:
-                # Add a frame from the sound cycle
-                frame = next(self.sound_cycle)
-                #frame = np.random.uniform(-.01, .01, (1024, 2)) 
-                sound_queue.put_nowait(frame)
-                
-                # Keep track of how many frames played
-                self.n_frames = self.n_frames + 1
+            # Add a frame from the sound cycle
+            frame = next(self.sound_cycle)
+            #frame = np.random.uniform(-.01, .01, (1024, 2)) 
+            sound_queue.put_nowait(frame)
+            
+            # Keep track of how many frames played
+            self.n_frames = self.n_frames + 1
             
             # Update qsize
             qsize = sound_queue.qsize()
@@ -501,10 +501,10 @@ class SoundQueue:
             # (though if this does happen, there will be an artefact because
             # we just skipped over a bunch of frames)
             #with qlock:
-                try:
-                    data = sound_queue.get_nowait()
-                except queue.Empty:
-                    break
+            try:
+                data = sound_queue.get_nowait()
+            except queue.Empty:
+                break
             
             # Stop if we're at or below the target size
             qsize = sound_queue.qsize()
