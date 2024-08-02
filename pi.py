@@ -480,7 +480,7 @@ class SoundQueue:
 
         # Add frames until target size reached
         while self.running ==True and qsize < self.target_qsize:
-            with qlock:
+            #with qlock:
                 # Add a frame from the sound cycle
                 frame = next(self.sound_cycle)
                 #frame = np.random.uniform(-.01, .01, (1024, 2)) 
@@ -500,7 +500,7 @@ class SoundQueue:
             # in case the `process` function needs it to play sounds
             # (though if this does happen, there will be an artefact because
             # we just skipped over a bunch of frames)
-            with qlock:
+            #with qlock:
                 try:
                     data = sound_queue.get_nowait()
                 except queue.Empty:
