@@ -648,6 +648,7 @@ poke_socket.identity = bytes(f"{pi_identity}", "utf-8")
 json_context = zmq.Context()
 json_socket = json_context.socket(zmq.SUB)
 
+
 ## Connect to the server
 # Connecting to IP address (192.168.0.99 for laptop, 192.168.0.207 for seaturtle)
 router_ip = "tcp://" + f"{params['gui_ip']}" + f"{params['poke_port']}" 
@@ -802,7 +803,7 @@ def stop_session():
     sound_chooser.set_channel('none')
     sound_chooser.empty_queue()
     sound_chooser.running = False
-    
+
 ## Set up pigpio and callbacks
 # TODO: rename this variable to pig or something; "pi" is ambiguous
 pi = pigpio.pi()
@@ -880,6 +881,7 @@ try:
             center_freq_max = config_data['center_freq_max']
             bandwidth = config_data['bandwidth']
             
+            
             # Update the jack client with the new acoustic parameters
             new_params = sound_chooser.update_parameters(
                 rate_min, rate_max, irregularity_min, irregularity_max, 
@@ -937,7 +939,8 @@ try:
                     poke_socket.send_string("start")
                 except Exception as e:
                     print("Error stopping session", e)
-                
+            
+            elif msg.startswith("Reward Port:"):    
                 ## This specifies which port to reward
                 # Debug print
                 print(msg)
