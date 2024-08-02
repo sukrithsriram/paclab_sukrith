@@ -36,12 +36,12 @@
         "bandwidth": 3000
     },
     "Poketrain": {
-        "amplitude_min": 0.0,
-        "amplitude_max": 0.0,
-        "chunk_min": 0.0,
-        "chunk_max": 0.0,
-        "pause_min": 0.0,
-        "pause_max": 0.0,
+        "amplitude_min": 0.001,
+        "amplitude_max": 0.001,
+        "chunk_min": 0.001,
+        "chunk_max": 0.001,
+        "pause_min": 0.001,
+        "pause_max": 0.001,
         "reward_value": 1.0,
         "center_freq_min": 10000,
         "center_freq_max": 10000,
