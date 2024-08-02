@@ -15,7 +15,7 @@ import queue
 import multiprocessing as mp
 import pandas as pd
 import scipy.signal
-import datetime
+from datetime import datetime
 
 
 ## Killing previous pigpiod and jackd background processes
