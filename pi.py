@@ -838,17 +838,17 @@ pwm_frequency = 1
 pwm_duty_cycle = 50
 
 # Duration of sounds
-rate_min = 0.0
-rate_max = 0.0
+rate_min = 4.0
+rate_max = 4.0
 
 # Duration of pauses
-irregularity_min = 0.0
-irregularity_max = 0.0
+irregularity_min = -2.0
+irregularity_max = -2.0
 
 # Range of amplitudes
 # TODO: these need to be received from task, not specified here # These were all initial values set incase a task was not selected
-amplitude_min = 0.0
-amplitude_max = 0.0
+amplitude_min = 0.075
+amplitude_max = 0.075
 
 # Default center freq and bandwidth values
 center_freq_min = 10000
