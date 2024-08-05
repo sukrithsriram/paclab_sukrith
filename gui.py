@@ -1239,12 +1239,14 @@ class MainWindow(QtWidgets.QMainWindow):
         self.plot_window = PlotWindow(self.Pi_widget)
         
         # Creating actions
+        speaker_test = QAction('Test Speakers', self)
         load_action = QAction('Load Config Directory', self)
         load_action.triggered.connect(self.config_list.load_configurations)
 
         # Creating menu bar
         menubar = self.menuBar()
         file_menu = menubar.addMenu('File')
+        file_menu.addAction(speaker_test)
         file_menu.addAction(load_action)
 
         # Creating container widgets for each component

@@ -782,7 +782,6 @@ def open_valve(port):
     port : TODO document what this is
     TODO: reward duration needs to be a parameter of the task or mouse # It is in the test branch
     """
-    reward_value = config_data['reward_value']
     if port == int(params['nosepokeL_id']):
         pi.set_mode(6, pigpio.OUTPUT)
         pi.write(6, 1)
@@ -851,6 +850,9 @@ irregularity_max = 0.0
 amplitude_min = 0.0
 amplitude_max = 0.0
 
+# Default Reward Value
+reward_value = 1
+
 # Storing the type of task (mainly for poketrain)
 task = None
 
@@ -899,6 +901,7 @@ try:
             center_freq_min = config_data['center_freq_min']
             center_freq_max = config_data['center_freq_max']
             bandwidth = config_data['bandwidth']
+            reward value = config_data['reward_value']
             
             
             # Update the jack client with the new acoustic parameters
