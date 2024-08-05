@@ -2,6 +2,6 @@
  conda install pyqt pyzmq pyqtgraph pyqt-toast-notification
 
 # Requirements for Pi Only
-PiGPIO: pip install pigpio\
+PiGPIO: pip install pigpio pandas\
 Jack Installation: https://jackclient-python.readthedocs.io/en/0.5.4/installation.html#requirements
 
