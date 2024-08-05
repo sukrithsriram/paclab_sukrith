@@ -1048,7 +1048,7 @@ class ConfigurationList(QWidget):
         self.update_config_list(filtered_configs)
 
     def speaker_test(self):
-        
+        speaker = None
     
     def on_start_button_clicked(self):
         if self.current_config is None:

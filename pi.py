@@ -850,6 +850,10 @@ irregularity_max = 0.0
 amplitude_min = 0.0
 amplitude_max = 0.0
 
+# Default center freq value
+center_freq_min = 10000
+center_freq_max = 10000
+
 # Default Reward Value
 reward_value = 1
 
