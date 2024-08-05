@@ -1047,6 +1047,9 @@ class ConfigurationList(QWidget):
 
         self.update_config_list(filtered_configs)
 
+    def speaker_test(self):
+        
+    
     def on_start_button_clicked(self):
         if self.current_config is None:
             QMessageBox.warning(self, "Warning", "Please select a mouse before starting the experiment.")

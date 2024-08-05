@@ -901,7 +901,7 @@ try:
             center_freq_min = config_data['center_freq_min']
             center_freq_max = config_data['center_freq_max']
             bandwidth = config_data['bandwidth']
-            reward value = config_data['reward_value']
+            reward_value = config_data['reward_value']
             
             
             # Update the jack client with the new acoustic parameters
