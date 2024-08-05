@@ -2,9 +2,9 @@
     "worker_port" : ":5555",
     "config_port" : ":5556",
     "active_nosepokes" : ["1","3","5", "7"],
-    "save_directory" : "/home/mouse/dev/paclab_sukrith/logs",
-    "pi_defaults" : "/home/mouse/dev/paclab_sukrith/pi/configs/defaults.json",
-    "task_configs" : "/home/mouse/dev/paclab_sukrith/pi/configs/tasks",
+    "save_directory" : "C:/Users/mouse/Desktop/Bonsai/code/paclab_sukrith/logs",
+    "pi_defaults" : "C:/Users/mouse/Desktop/Bonsai/code/paclab_sukrith/gui/configs/defaults.json",
+    "task_configs" : "C:/Users/mouse/Desktop/Bonsai/code/paclab_sukrith/gui/configs/tasks",
     "ports": [
         {"index": 0, "label": "1"},
         {"index": 1, "label": "2"},
