@@ -18,6 +18,7 @@ import csv
 import json
 import argparse
 from datetime import datetime
+import itertools
 from PyQt5 import QtWidgets
 from PyQt5.QtWidgets import QMenu, QAction, QComboBox, QGroupBox, QMessageBox, QLabel, QGraphicsEllipseItem, QListWidget, QListWidgetItem, QGraphicsTextItem, QGraphicsScene, QGraphicsView, QWidget, QVBoxLayout, QPushButton, QApplication, QHBoxLayout, QLineEdit, QListWidget, QFileDialog, QDialog, QLabel, QDialogButtonBox, QTreeWidget, QTreeWidgetItem
 from PyQt5.QtCore import QPointF, QTimer, QTime, pyqtSignal, QObject, QThread, pyqtSlot,  QMetaObject, Qt
@@ -983,6 +984,29 @@ class ConfigurationDialog(QDialog):
 
         return updated_config
 
+
+class SpeakerTest(QWidget):
+    def __init__(self, parent=None):
+        super().__init__(parent)
+        self.setWindowTitle("Testing Speakers in Order...")
+        self.speaker_list = [1,2,3,4,5,6,7,8]
+        self.speaker_cycle = itertools.cycle(self.speaker_list)
+        self.layout = QVBoxLayout(self)
+        self.speaker_label = QLabel("Current Speaker:")
+        self.current_speaker = self.speaker_list[0]
+        self.cs_label = QLabel(f"{self.current_speaker}") 
+        self.next_button = QPushButton("Next Speaker")
+        self.next_button.clicked.connect(next_speaker())
+        
+        layout.addWidget(self.speaker_label)
+        layout.addWidget(self.cs_label)
+        layout.addWidget(self.next_button)
+        self.setLayout(layout)
+        
+        def next_speaker():
+            label = next(self.speaker_cyle)
+            self.cs_label = QLabel(f"{label}")
+
 # List of tasks that have been saved in the directory which also tells pis what parameters to use for each task
 class ConfigurationList(QWidget):
     send_config_signal = pyqtSignal(dict)
@@ -1240,10 +1264,12 @@ class MainWindow(QtWidgets.QMainWindow):
 
         # Initializing PlotWindow after PiWidget
         self.plot_window = PlotWindow(self.Pi_widget)
+        self.speaker_window = SpeakerTest(self)
         
         # Creating actions
         speaker_test = QAction('Test Speakers', self)
         load_action = QAction('Load Config Directory', self)
+        speaker_test.triggered.connect(self.speaker_window)
         load_action.triggered.connect(self.config_list.load_configurations)
 
         # Creating menu bar
