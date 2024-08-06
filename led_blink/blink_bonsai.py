@@ -18,9 +18,9 @@ identities.add(identity)
 # Logic to send message to pis if the state is set to true in bonsai
 if blink_state == True:
     for identity in identities:
-        blink_socket.send_multipart([identity, bytes(f"Blink Command Received", 'utf-8]')])
+        blink_socket.send_multipart([identity, bytes(f"blink", 'utf-8]')])
 elif blink_state == False:
     for identity in identities:
-        blink_socket.send_multipart([identity, bytes(f"Stop", 'utf-8]')])
+        blink_socket.send_multipart([identity, bytes(f"stop", 'utf-8]')])
 
 
