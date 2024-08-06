@@ -347,7 +347,7 @@ class Worker(QObject):
                         for identity in self.identities:
                             self.socket.send_multipart([identity, bytes(f"Reward Port: {self.reward_port}", 'utf-8')])
                             
-                    
+                    # Appending the updated values to be saved in the CSV
                     self.pokes.append(self.current_poke)
                     self.timestamps.append(elapsed_time)
                     self.amplitudes.append(self.current_amplitude)
