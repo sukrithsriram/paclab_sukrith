@@ -5,7 +5,8 @@
 # Put the ones that run the GUI in another script and import them here
 
 
-# Importing necessary libraries
+## IMPORTING LIBRARIES
+
 import sys
 import zmq
 import numpy as np
@@ -23,6 +24,8 @@ from PyQt5.QtWidgets import QMenu, QAction, QComboBox, QGroupBox, QMessageBox, Q
 from PyQt5.QtCore import QPointF, QTimer, QTime, pyqtSignal, QObject, QThread, pyqtSlot,  QMetaObject, Qt
 from PyQt5.QtGui import QFont, QColor
 from pyqttoast import Toast, ToastPreset
+
+## SELECTING BOX 
 
 # Set up argument parsing to select box
 parser = argparse.ArgumentParser(description="Load parameters for a specific box.")
@@ -45,6 +48,8 @@ active_nosepokes = [int(i) for i in params['active_nosepokes']]
 current_task = None
 current_time = None
 
+## SAVING TERMINAL INFO
+ 
 # Function to print to terminal and store log files as txt
 def print_out(*args, **kwargs):
     global current_task, current_time
@@ -60,6 +65,8 @@ def print_out(*args, **kwargs):
     # Write the statement to the file
     with open(output_filename, 'a') as outputFile:
             outputFile.write(statement + "\n")
+
+## VISUAL REPRESENTATION OF PORTS
 
 # Creating a class for the individual Raspberry Pi signals
 class PiSignal(QGraphicsEllipseItem):
@@ -101,6 +108,8 @@ class PiSignal(QGraphicsEllipseItem):
             self.setBrush(QColor("gray"))
         else:
             print_out("Invalid color:", color)
+
+## HANDLING LOGIC FOR OTHER WIDGETS
 
 # Worker class to lower the load on the GUI
 class Worker(QObject):
@@ -394,6 +403,8 @@ class Worker(QObject):
         for index, Pi in enumerate(self.Pi_signals):
             Pi.set_color("gray")
 
+## TRIAL RELATED INFORMATION / SESSION CONTROL    
+
 # PiWidget Class that represents all PiSignals
 class PiWidget(QWidget):
     startButtonClicked = pyqtSignal()
@@ -607,6 +618,9 @@ class PiWidget(QWidget):
         toast.applyPreset(ToastPreset.SUCCESS)  # Apply style preset
         toast.show()
 
+
+## PLOTTING 
+
 # Widget that contains a plot that is continuously depending on the ports that are poked
 class PlotWindow(QWidget):
     def __init__(self, pi_widget, *args, **kwargs):
@@ -733,6 +747,7 @@ class PlotWindow(QWidget):
         # Update plot with timestamps and signals
         self.line.setData(x=self.timestamps, y=self.signal)
 
+## LIST RELATED CLASSES
 
 # Displays a Dialog box with all the details of the task when you right-click an item on the list
 class ConfigurationDetailsDialog(QDialog):
@@ -1223,6 +1238,8 @@ class ConfigurationList(QWidget):
         selected_config = item.data(0, Qt.UserRole)
         dialog = ConfigurationDetailsDialog(selected_config, self)
         dialog.exec_()
+
+## MAIN GUI WINDOW
 
 # Main window of the GUI that launches when the program is run and arranges all the widgets 
 class MainWindow(QtWidgets.QMainWindow):
