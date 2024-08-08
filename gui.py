@@ -196,8 +196,8 @@ The Worker class also handles tracking information regarding each poke / trial a
         self.reward_port = None # Keeping track of the current reward port
         self.last_rewarded_port = None # Keeping track of last rewarded port
 
-        # Initializing variables to 
-        self.trials = 0
+        # Initializing variables and lists to store trial information 
+        self.trials = 0 # Number of pokes per trial (needs to be renamed) 
         self.timestamps = []
         self.pokes = []
         self.completed_trials = []
@@ -398,27 +398,36 @@ The Worker class also handles tracking information regarding each poke / trial a
                     # Sending information regarding poke and outcome of poke to Pi Widget
                     self.pokedportsignal.emit(poked_port, color)
                     
-                    
+                    # Appending the current reward port to save to csv 
                     self.reward_ports.append(self.reward_port)
                     
+                    # Used to update RCP calculation
                     self.update_unique_ports()
                     
+                    # Updating poke / trial related information depending on the outcome of the poke
                     if color == "green" or color == "blue":
-                        self.current_poke += 1
-                        self.current_completed_trials += 1
+                        self.current_poke += 1 # Updating number of pokes in the session 
+                        self.current_completed_trials += 1 # Updating the number of trials in the session 
+                        
+                        # Sending an acknowledgement to the Pis when the reward port is poked
                         for identity in self.identities:
                             self.socket.send_multipart([identity, bytes(f"Reward Poke Completed: {self.reward_port}", 'utf-8]')])
-                        self.last_rewarded_port = self.reward_port   
-                        self.reward_port = self.choose()
-                        self.trials = 0
+                        
+                        # Storing the completed reward port to make sure the next choice is not at the same port
+                        self.last_rewarded_port = self.reward_port 
+                        self.reward_port = self.choose() 
+                        self.trials = 0 # Resetting the number of pokes that have happened in the trial
                         print_out(f"Reward Port: {self.reward_port}")
+                        
+                        # Logic for if a correct trial is completed
                         if color == "green":
-                            self.current_correct_trials += 1 
+                            self.current_correct_trials += 1 # Updating count for correct trials
                             self.current_fraction_correct = self.current_correct_trials / self.current_completed_trials
 
+                        # Finding the index in the visual representation depending on the 
                         index = self.index_to_label.get(poked_port_index)
                         
-                        # Reset color of all non-reward ports to gray and reward port to green
+                        # When a new trial is started reset color of all non-reward ports to gray and set new reward port to green
                         for index, Pi in enumerate(self.Pi_signals):
                             if index + 1 == self.reward_port:
                                 Pi.set_color("green")
