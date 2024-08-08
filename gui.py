@@ -26,12 +26,14 @@ from PyQt5.QtGui import QFont, QColor
 from pyqttoast import Toast, ToastPreset
 
 ## SELECTING BOX 
-
+"""
+Multiple GUI windows can be opened at once by using by inputting the name of the box in the command line (eg: python3 gui.py box1)
+box1 - Testing on seaturtle computer 
+box2-5 - Behavior Boxes 
+"""
 # Set up argument parsing to select box
 parser = argparse.ArgumentParser(description="Load parameters for a specific box.")
 parser.add_argument('json_filename', type=str, help="The name of the JSON file (without 'configs/' and '.json')")
-
-# Parse arguments
 args = parser.parse_args()
 
 # Constructing the full path to the config file
@@ -41,22 +43,27 @@ param_directory = f"gui/configs/{args.json_filename}.json"
 with open(param_directory, "r") as p:
     params = json.load(p)
 
-# Fetching all the ports to use for the trials    
+# Fetching all the ports to use for the trials (This was implemented becuase I had to test on less than 8 nosepokes)    
 active_nosepokes = [int(i) for i in params['active_nosepokes']]
 
-# Variable to keep track of the current task
+# Variable to store the name of the current task and the timestamp at which the session was started (mainly used for saving)
 current_task = None
 current_time = None
 
 ## SAVING TERMINAL INFO
- 
+"""
+This function was implemented to save logs for test sessions or sessions that weren't saved due to crashes. 
+It logs all the terminal information being printed on the GUI side of the code and saves it to a txt file. 
+This implementation hasn't been done for the terminal information on the pi side. (currently does not use the logging library - maybe can be included later)
+"""
 # Function to print to terminal and store log files as txt
 def print_out(*args, **kwargs):
     global current_task, current_time
     
+    # Naming the txt file according to the current task and time and saving it to a log folder 
     output_filename = params['save_directory'] + f"/terminal_logs/{current_task}_{current_time}.txt"
     
-    # Join the arguments into a single string
+    # Joining the arguments into a single string
     statement = " ".join(map(str, args))
     
     # Print the statement to the console
@@ -68,36 +75,44 @@ def print_out(*args, **kwargs):
 
 ## VISUAL REPRESENTATION OF PORTS
 
-# Creating a class for the individual Raspberry Pi signals
+"""
+Creating a class for the individual ports on the Raspberry Pi 
+"""
 class PiSignal(QGraphicsEllipseItem):
     def __init__(self, index, total_ports):
-        super(PiSignal, self).__init__(0, 0, 38, 38)
-        self.index = index
-        self.total_ports = total_ports # Creating a variable for the total number of Pis
+        super(PiSignal, self).__init__(0, 0, 38, 38) # Setting the diameters of the ellipse while initializing the class
+        self.index = index # The location at which the different ports will be arranged (range from 0-7)
+        self.total_ports = total_ports # Creating a variable for the total number of ports
         
-        # Ensure index is within range of ports
-        if 0 <= self.index < len(params['ports']):
+        # Defining list and order of the ports
+        if 0 <= self.index < len(params['ports']): # Ensure index is within specified number of ports listed in params 
             port_data = params['ports'][self.index]
-            label_text = port_data['label']
+            label_text = port_data['label'] # Assigning a label to each port index in params 
         
-        self.label = QGraphicsTextItem(f"Port-{port_data['label']}", self) # Label for each Pi
+        self.label = QGraphicsTextItem(f"Port-{port_data['label']}", self) # Setting the label for each port on the GUI
         font = QFont()
         font.setPointSize(8)  # Set the font size here (10 in this example)
         self.label.setFont(font)
-        self.label.setPos(19 - self.label.boundingRect().width() / 2, 19 - self.label.boundingRect().height() / 2) # Positioning the labels
-        self.setPos(self.calculate_position()) # Positioning the individual Pi elements
-        self.setBrush(QColor("gray")) # Setting the initial color of the Pi signals to red
+        self.label.setPos(19 - self.label.boundingRect().width() / 2, 19 - self.label.boundingRect().height() / 2) # Positioning the labels within the ellipse
+        self.setPos(self.calculate_position()) # Positioning the individual ports
+        self.setBrush(QColor("gray")) # Setting the initial color of the ports to gray
 
-    # Function to calculate the position of the ports
     def calculate_position(self):  
-        angle = 2 * math.pi * self.index / self.total_ports # Arranging the Pi signals in a circle
+    """
+    Function to calculate the position of the ports and arrange them in a circle
+    """
+        angle = 2 * math.pi * self.index / self.total_ports 
         radius = 62
         x = radius * math.cos(angle)
         y = radius * math.sin(angle)
-        return QPointF(200 + x, 200 + y)
+        return QPointF(200 + x, 200 + y) # Arranging the Pi signals in a circle based on x and y coordinates calculated using the radius
 
-    # Function to set the color for each individual port
     def set_color(self, color):
+    """
+    Function used to change the color from the individual ports during a a trial according to the pokes. 
+    The logic for when to change to color of the individual ports is mostly present in the worker class.
+    QColors currently used for ports: gray (default), green(reward port), red(incorrect port), blue(used previously but not currently)
+    """
         if color == "green":
             self.setBrush(QColor("green"))
         elif color == "blue":
@@ -109,28 +124,40 @@ class PiSignal(QGraphicsEllipseItem):
         else:
             print_out("Invalid color:", color)
 
-## HANDLING LOGIC FOR OTHER WIDGETS
+## HANDLING LOGIC FOR OTHER GUI CLASSES (TO LOWER LOAD)
 
-# Worker class to lower the load on the GUI
 class Worker(QObject):
-    # Signal emitted when a poke event occurs
+"""
+The Worker class primarily communicates with the PiSignal and PiWidget classes. 
+It handles the logic of starting sessions, stopping sessions, choosing reward ports
+sending messages to the pis (about reward ports), sending acknowledgements for completed trials (needs to be changed).
+The Worker class also handles tracking information regarding each poke / trial and saving them to a csv file.
+"""
+    # Signal emitted when a poke occurs (This is used to communicate with other classes that strictly handle defining GUI elements)
     pokedportsignal = pyqtSignal(int, str)
 
     def __init__(self, pi_widget):
         super().__init__()
         self.initial_time = None
         
-        # Setting up ZMQ context to send and receive information about poked ports
+        """
+        Setting up a ZMQ socket to send and receive information about poked ports 
+        (the DEALER socket on the Pi initiates the connection and then the ROUTER manages the message queue from different dealers and sends acknowledgements)
+        """
         self.context = zmq.Context()
         self.socket = self.context.socket(zmq.ROUTER)
-        self.socket.bind("tcp://*" + params['worker_port'])  # Change Port number if you want to run multiple instances
+        self.socket.bind("tcp://*" + params['worker_port'])  # Making it bind to the port used for sending poke related information 
         
-        # Initializing values for sound parameters
+        """
+        Making lists to store the trial parameters for each poke.
+        We append the parameters at each poke to these lists so that we can write them to a CSV
+        """
         self.amplitudes = []
         self.target_rates = []
         self.target_temporal_log_stds = []
         self.center_freqs = []
 
+        # Tracking the parameters that need to be saved at every poke
         self.current_amplitude = 0.0
         self.current_target_rate = 0.0
         self.current_target_temporal_log_std = 0.0
@@ -141,26 +168,35 @@ class Worker(QObject):
         self.current_correct_trials = 0
         self.current_fraction_correct = 0
         
-        # Initialize reward_port and related variables that need to be continually updated
-        self.last_pi_received = None
-        self.prev_choice = None
-        self.timer = None
-        self.current_task = None
+        # Initialize variables to track information used to control the logic of the task 
+        self.last_pi_received = None # Stores the identity of the pi that sent the most recent message
+        self.prev_choice = None # Used while randomly selecting ports to make sure that the same port is not rewarded twice
+        self.timer = None # Used to create a QTimer when the sequence is started 
+        self.current_task = None # Used to keep track of the current task (used in naming the CSV file)
+        self.ports = None
+
+        
+        # Connecting the Worker Class to PiWidget elements 
         self.pi_widget = pi_widget
         self.total_ports = self.pi_widget.total_ports 
-        self.Pi_signals = self.pi_widget.Pi_signals 
-        self.ports = None
-        self.label_to_index = None
-        self.index_to_label = None
-        self.index = None
+        self.Pi_signals = self.pi_widget.Pi_signals
         self.poked_port_numbers = self.pi_widget.poked_port_numbers 
-        self.identities = set()
-        self.last_poke_timestamp = None  # Attribute to store the timestamp of the last poke event
-        self.reward_port = None
-        self.last_rewarded_port = None
-        self.previous_port = None
 
-        # Initializing lists for timestamps and ports visited
+        """
+        Variables used to store the functions to map the labels of ports present in the params file of a particular to indicies and vice versa
+        It is essentially to make sure that the labels of the ports are at the right positions on the GUI widget
+        """
+        self.label_to_index = None # Used to relate a label of a port to the index of that particular port in the GUI
+        self.index_to_label = None # Used this to properly update the port according to its label
+        self.index = None
+        
+        # Variables to keep track of reward related messages 
+        self.identities = set() # Set of identities of all pis connected to that instance of ther GUI 
+        self.last_poke_timestamp = None  # Variable to store the timestamp of the last poke 
+        self.reward_port = None # Keeping track of the current reward port
+        self.last_rewarded_port = None # Keeping track of last rewarded port
+
+        # Initializing variables to 
         self.trials = 0
         self.timestamps = []
         self.pokes = []
@@ -168,34 +204,43 @@ class Worker(QObject):
         self.correct_trials = []
         self.fc = []
         self.reward_ports = []
+        
+        """
+        These variables were used in my calculation for RCP, I don't think I've implemented it correctly so these might need to be removed or changed
+        """
         self.unique_ports_visited = []  # List to store unique ports visited in each trial
-        self.unique_ports_colors = {}  # Dictionary to store color for each unique port
+        self.unique_ports_colors = {}  # Dictionary to store the outcome for each unique port
         self.average_unique_ports = 0  # Variable to store the average number of unique ports visited
     
-    # Method to start the sequence
+    # Method that contains logic to be executed when a new session is started
     @pyqtSlot()
     def start_sequence(self):
-        # Reset data when starting a new sequence
-        self.initial_time = datetime.now()
+        """
+        First we store the initial timestamp where the session was started in a variable.
+        This used with the poketimes sent by the pi to calculate the time at which the pokes occured
+        """
+        self.initial_time = datetime.now() 
         print(self.initial_time)
+        
+        # Resetting sequences when a new session is started 
         self.timestamps = []
         self.reward_ports = []
         
-        # Randomly choose the initial reward port
+        # Randomly choosing the initial reward port
         self.reward_port = self.choose()
         reward_message = f"Reward Port: {self.reward_port}"
         print_out(reward_message)
         
-        # Send the message to all connected Pis
+        # Sending the current reward port to all connected pis
         for identity in self.identities:
             self.socket.send_multipart([identity, bytes(reward_message, 'utf-8')])
         
-        # Creating a dictionary that takes the label of each port and matches it to the index on the GUI 
+        # Creating a dictionary that takes the label of each port and matches it to the index on the GUI (used for reordering)
         self.ports = params['ports']
-        self.label_to_index = {port['label']: port['index'] for port in self.ports}
+        self.label_to_index = {port['label']: port['index'] for port in self.ports} # Refer to when variables were initialized above
         self.index_to_label = {port['index']: port['label'] for port in self.ports}
-        self.index = self.label_to_index.get(str(self.reward_port))
-
+        self.index = self.label_to_index.get(str(self.reward_port)) # Setting an index of remapped ports (so that colors can be changed accordign to label)
+        
         # Set the color of the initial reward port to green
         self.Pi_signals[self.index].set_color("green")
 
@@ -204,14 +249,14 @@ class Worker(QObject):
         self.timer.timeout.connect(self.update_Pi)
         self.timer.start(10)
 
-    # Method to stop the sequence
+    # Method that contains logic to be executed when a session is completed
     @pyqtSlot()
     def stop_sequence(self):
         if self.timer is not None:
-            self.timer.stop()
-            self.timer.timeout.disconnect(self.update_Pi)
+            self.timer.stop() # Stops the timer for the session 
+            self.timer.timeout.disconnect(self.update_Pi) # Blocking out communication with the Pis till a new session is started 
         
-        # Clear the recorded data and reset necessary attributes
+        # Clearing recorded data for the completed session and resetting necessary variables
         self.initial_time = None
         self.timestamps.clear()
         self.reward_ports.clear()
@@ -224,17 +269,16 @@ class Worker(QObject):
         self.identities.clear()
         self.last_poke_timestamp = None
         self.reward_port = None
-        self.previous_port = None
         self.trials = 0
         self.average_unique_ports = 0
     
-    # Method to update unique ports visited
+    # Method to update unique ports visited (used to calculate RCP on GUI)
     def update_unique_ports(self):
         # Calculate unique ports visited in the current trial
         unique_ports = set(self.poked_port_numbers)
         self.unique_ports_visited.append(len(unique_ports))
-
-    # Method to calculate the average number of unique ports visited
+ 
+    # Method to calculate the average number of unique ports visited (used to calculate RCP on GUI)
     def calculate_average_unique_ports(self):
         # Calculate the average number of unique ports visited per trial
         if self.unique_ports_visited:
@@ -242,28 +286,40 @@ class Worker(QObject):
             
     # Method to randomly choose next port to reward
     def choose(self):
-        ports = active_nosepokes
-        poss_choices = [choice for choice in ports if choice != self.prev_choice]
-        new_choice =  random.choice(poss_choices)
-        self.prev_choice = new_choice
+        ports = active_nosepokes # Getting the list of choices to choose from  
+        poss_choices = [choice for choice in ports if choice != self.prev_choice] # Setting up a new set of possible choices after omitting the previously rewarded port
+        new_choice =  random.choice(poss_choices) # Randomly choosing within the new set of possible choices
+        self.prev_choice = new_choice # Updating the previous choice that was made so the next choice can omit it 
         return new_choice
     
-    # Method to handle the update of Pis
+    """
+    ** This is the main method of this class that controls most of the logic for the GUI **
+    Method to handle the updating Pis (sending and receiving poke related information and executing logic)
+    """
     @pyqtSlot()
     def update_Pi(self):
-        current_time = datetime.now()
-        elapsed_time = current_time - self.initial_time
-
-        # Update the last poke timestamp whenever a poke event occurs
-        self.last_poke_timestamp = current_time
-
+        
+        # Updating time related information 
+        current_time = datetime.now() # Used to name the file 
+        elapsed_time = current_time - self.initial_time # Used to display elapsed time in the Pi Widget class
+        self.last_poke_timestamp = current_time # Update the last poke timestamp whenever a poke  occurs
+        
+        """
+        This is the logic on what to do when the GUI receives messages that aren't pokes
+        'rpi': Initial connection to all the pis trying to connect to the GUI (Debug message to see if all Pis are connected)
+        'stop': Pauses all updates from the Pi when the session is stopped
+        'start': Setting a new reward port whenever a new session is started after the previous one is stopped (might be redundant but works for now)
+        'Current Parameters': Sends all the sound parameters for every trial; the values are extracted from a string and then appended to lists to be saved in a csv 
+        """
         try:
-            # Receive message from the socket
+            # Waiting to receive messages from the pis
             identity, message = self.socket.recv_multipart()
             self.identities.add(identity)
+            
+            # Converting all messages from bytes to strings
             message_str = message.decode('utf-8')
             
-            # Message to signal if pis are connected
+            # Message from pi side that initiates the connection 
             if "rpi" in message_str:
                 print_out("Connected to Raspberry Pi:", message_str)
             
@@ -279,57 +335,74 @@ class Worker(QObject):
             if message_str.strip().lower() == "start":
                 self.socket.send_multipart([identity, bytes(f"Reward Port: {self.reward_port}", 'utf-8')])
     
-            # Statement to keep track of the current parameters 
+            # Keeping track of current parameters for every trial 
             if "Current Parameters" in message_str:
                 sound_parameters = message_str
-                print_out("Updated:", message_str)
+                print_out("Updated:", message_str) 
                 
-                # Remove the "Current Parameters - " part and strip any leading/trailing whitespace
+                # Remove the "Current Parameters - " part and strip any whitespace
                 param_string = sound_parameters.split("-", 1)[1].strip()
                 
-                # Extract parameters
+                # Extracting parameters from message strings
                 params = {}
                 for param in param_string.split(','):
                     key, value = param.split(':')
                     params[key.strip()] = value.strip()
                 
-                # Extract and convert the values
+                # Extract and convert the strings to numeric values
                 self.current_amplitude = float(params.get("Amplitude", 0))
                 self.current_target_rate = float(params.get("Rate", "0").split()[0])
                 self.current_target_temporal_log_std = float(params.get("Irregularity", "0").split()[0])
                 self.current_center_freq = float(params.get("Center Frequency", "0").split()[0])
                 self.current_bandwidth = float(params.get("Bandwidth", "0"))
-
+                
+        """
+        Logic for what to do when a poke is received
+        """
             else:
-                poked_port = int(message_str)
+                poked_port = int(message_str) # Converting message string to int 
+                
                 # Check if the poked port is the same as the last rewarded port
                 if poked_port == self.last_rewarded_port:
                      # If it is, do nothing and return
                         return
 
+                # For any label in the list of port labels, correlate it to the index of the port in the visual arrangement in the widget  
                 if 1 <= poked_port <= self.total_ports:
                     poked_port_index = self.label_to_index.get(message_str)
-                    poked_port_signal = self.Pi_signals[poked_port_index]
+                    poked_port_icon = self.Pi_signals[poked_port_index]
 
+                    """
+                    Choosing colors to represent the outcome of each poke in the context of the trial
+                    green: correct trial
+                    blue: completed trial
+                    red: pokes at all ports that aren't the reward port
+                    """                    
                     if poked_port == self.reward_port:
                         color = "green" if self.trials == 0 else "blue"
                         if self.trials > 0:
                             self.trials = 0
                     else:
-                        color = "red"
+                        color = "red" 
                         self.trials += 1
                         self.current_poke += 1
 
-                    poked_port_signal.set_color(color)
+                    # Setting the color of the port on the Pi Widget
+                    poked_port_icon.set_color(color)
+                    
+                    # Appending the poked port to a sequence that contains all pokes during a session
                     self.poked_port_numbers.append(poked_port)
-                    print_out("Sequence:", self.poked_port_numbers)
+                    print_out("Sequence:", self.poked_port_numbers) # Can be commented out to declutter terminal
                     self.last_pi_received = identity
 
+                    # Sending information regarding poke and outcome of poke to Pi Widget
                     self.pokedportsignal.emit(poked_port, color)
+                    
+                    
                     self.reward_ports.append(self.reward_port)
+                    
                     self.update_unique_ports()
                     
-
                     if color == "green" or color == "blue":
                         self.current_poke += 1
                         self.current_completed_trials += 1
@@ -356,6 +429,7 @@ class Worker(QObject):
                             self.socket.send_multipart([identity, bytes(f"Reward Port: {self.reward_port}", 'utf-8')])
                             
                     
+                    # Appending all the information at the time of a particular poke to their respective lists
                     self.pokes.append(self.current_poke)
                     self.timestamps.append(elapsed_time)
                     self.amplitudes.append(self.current_amplitude)
