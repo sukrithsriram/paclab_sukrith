@@ -214,9 +214,9 @@ class Noise:
             self.table = self.table * np.sqrt(10)
             
             # Apply the attenuation to each column
-            for n_column in range(self.table.shape[1]):
-                self.table[:, n_column] = apply_attenuation(
-                    self.table[:, n_column], self.attenuation, self.fs)
+            # for n_column in range(self.table.shape[1]):
+            #     self.table[:, n_column] = apply_attenuation(
+            #         self.table[:, n_column], self.attenuation, self.fs)
         
         # Break the sound table into individual chunks of length blocksize
         self.chunk()
@@ -936,11 +936,11 @@ try:
         
         ## Check for incoming messages on json_socket
         # If so, use it to update the acoustic parameters
-        if json_socket in socks and socks[json_socket] == zmq.POLLIN:
         """
         Socket is primarily used to import task parameters sent by the GUI
         Sound Parameters being updated: rate, irregularity, amplitude, center frequency        
         """
+        if json_socket in socks and socks[json_socket] == zmq.POLLIN:
             # Setting up json socket to wait to receive messages from the GUI
             json_data = json_socket.recv_json()
             
