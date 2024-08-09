@@ -85,6 +85,9 @@ with open(param_directory, "r") as p:
     params = json.load(p)    
 
 # Loading pin values 
+"""
+Note: If the code does not work when 'pins' is called then refer to the code from 'main' branch where all values are hardcoded (I had a problem with this. Not sure if fully fixed)
+"""
 pin_directory = f"pi/configs/pins.json"
 with open(pin_directory, "r") as n:
     pins = json.load(n)
