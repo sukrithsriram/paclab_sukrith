@@ -98,9 +98,9 @@ class PiSignal(QGraphicsEllipseItem):
         self.setBrush(QColor("gray")) # Setting the initial color of the ports to gray
 
     def calculate_position(self):  
-    """
-    Function to calculate the position of the ports and arrange them in a circle
-    """
+        """
+        Function to calculate the position of the ports and arrange them in a circle
+        """
         angle = 2 * math.pi * self.index / self.total_ports 
         radius = 62
         x = radius * math.cos(angle)
@@ -108,11 +108,11 @@ class PiSignal(QGraphicsEllipseItem):
         return QPointF(200 + x, 200 + y) # Arranging the Pi signals in a circle based on x and y coordinates calculated using the radius
 
     def set_color(self, color):
-    """
-    Function used to change the color from the individual ports during a a trial according to the pokes. 
-    The logic for when to change to color of the individual ports is mostly present in the worker class.
-    QColors currently used for ports: gray (default), green(reward port), red(incorrect port), blue(used previously but not currently)
-    """
+        """
+        Function used to change the color from the individual ports during a a trial according to the pokes. 
+        The logic for when to change to color of the individual ports is mostly present in the worker class.
+        QColors currently used for ports: gray (default), green(reward port), red(incorrect port), blue(used previously but not currently)
+        """
         if color == "green":
             self.setBrush(QColor("green"))
         elif color == "blue":
@@ -127,12 +127,12 @@ class PiSignal(QGraphicsEllipseItem):
 ## HANDLING LOGIC FOR OTHER GUI CLASSES (TO LOWER LOAD)
 
 class Worker(QObject):
-"""
-The Worker class primarily communicates with the PiSignal and PiWidget classes. 
-It handles the logic of starting sessions, stopping sessions, choosing reward ports
-sending messages to the pis (about reward ports), sending acknowledgements for completed trials (needs to be changed).
-The Worker class also handles tracking information regarding each poke / trial and saving them to a csv file.
-"""
+    """
+    The Worker class primarily communicates with the PiSignal and PiWidget classes. 
+    It handles the logic of starting sessions, stopping sessions, choosing reward ports
+    sending messages to the pis (about reward ports), sending acknowledgements for completed trials (needs to be changed).
+    The Worker class also handles tracking information regarding each poke / trial and saving them to a csv file.
+    """
     # Signal emitted when a poke occurs (This is used to communicate with other classes that strictly handle defining GUI elements)
     pokedportsignal = pyqtSignal(int, str)
 
@@ -356,10 +356,10 @@ The Worker class also handles tracking information regarding each poke / trial a
                 self.current_center_freq = float(params.get("Center Frequency", "0").split()[0])
                 self.current_bandwidth = float(params.get("Bandwidth", "0"))
                 
-        """
-        Logic for what to do when a poke is received
-        """
             else:
+                """
+                Logic for what to do when a poke is received
+                """
                 poked_port = int(message_str) # Converting message string to int 
                 
                 # Check if the poked port is the same as the last rewarded port
@@ -429,11 +429,12 @@ The Worker class also handles tracking information regarding each poke / trial a
                         
                         # When a new trial is started reset color of all non-reward ports to gray and set new reward port to green
                         for index, Pi in enumerate(self.Pi_signals):
-                            if index + 1 == self.reward_port:
+                            if index + 1 == self.reward_port: # This might be a hack that doesnt work for some boxes (needs to be changed)
                                 Pi.set_color("green")
                             else:
                                 Pi.set_color("gray")
 
+                        # Sending the reward port to all connected Pis after a trial is completed
                         for identity in self.identities:
                             self.socket.send_multipart([identity, bytes(f"Reward Port: {self.reward_port}", 'utf-8')])
                             
@@ -464,10 +465,14 @@ The Worker class also handles tracking information regarding each poke / trial a
         # Generating filename based on current_task and current date/time
         filename = f"{current_task}_{current_time}_saved.csv"
         
-        # Save results to a CSV file
+        # Saving the results to a CSV file
         with open(f"{save_directory}/{filename}", 'w', newline='') as csvfile:
             writer = csv.writer(csvfile)
+            
+            # Writing the header row for the CSV file with parameters to be saved as the columns
             writer.writerow(["No. of Pokes", "Poke Timestamp (seconds)", "Port Visited", "Current Reward Port", "No. of Trials", "No. of Correct Trials", "Fraction Correct", "Amplitude", "Rate", "Irregularity", "Center Frequency"])
+           
+           # Assigning the values at each individual poke to the columns in the CSV file
             for poke, timestamp, poked_port, reward_port, completed_trial, correct_trial, fc, amplitude, target_rate, target_temporal_log_std, center_freq in zip(
                 self.pokes, self.timestamps, self.poked_port_numbers, self.reward_ports, self.completed_trials, self.correct_trials, self.fc, self.amplitudes, self.target_rates, self.target_temporal_log_stds, self.center_freqs):
                 writer.writerow([poke, timestamp, poked_port, reward_port, completed_trial, correct_trial, fc, amplitude, target_rate, target_temporal_log_std, center_freq])
@@ -486,12 +491,20 @@ The Worker class also handles tracking information regarding each poke / trial a
         for index, Pi in enumerate(self.Pi_signals):
             Pi.set_color("gray")
 
-## TRIAL RELATED INFORMATION / SESSION CONTROL    
+## TRIAL INFORMATION DISPLAY / SESSION CONTROL    
 
-# PiWidget Class that represents all PiSignals
+# PiWidget Class that represents all ports
 class PiWidget(QWidget):
-    startButtonClicked = pyqtSignal()
-    updateSignal = pyqtSignal(int, str) # Signal to emit the number and color of the active Pi
+    """
+    This class is the main GUI class that displays the ports on the Raspberry Pi and the information related to the trials.
+    The primary use of the widget is to keep track of the pokes in the trial (done through the port icons and details box).
+    This information is then used to calclate performance metrics like fraction correct and RCP. 
+    It also has additional logic to stop and start sessions. 
+    """
+
+    # Signals that communicate with the Worker class
+    startButtonClicked = pyqtSignal() # Signal that is emitted whenever the start button is pressed
+    updateSignal = pyqtSignal(int, str) # Signal to emit the id and outcome of the current poke
 
     def __init__(self, main_window, *args, **kwargs):
         super(PiWidget, self).__init__(*args, **kwargs)
